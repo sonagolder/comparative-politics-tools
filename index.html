@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PLSC 3 interactive tools</title>
+<title>Comparative politics interactive tools</title>
 <style>
   :root{
     --ink:#111111;
@@ -62,6 +62,18 @@
   .tool-name{display:block; font-size:16px; font-weight:700; color:var(--accent); margin-bottom:4px;}
   .tool-desc{display:block; font-size:14px; line-height:1.6; color:var(--secondary);}
 
+  .note{
+    margin-top:40px; padding:16px 24px; border:1px solid var(--border); border-radius:8px;
+    background:var(--panel-bg); font-size:14px; line-height:1.6; color:var(--ink);
+  }
+  .note h2{margin-top:0;}
+  .note ul{margin:8px 0 0; padding-left:24px;}
+  .note li + li{margin-top:4px;}
+  .note a{color:var(--accent);}
+  .foot{margin-top:24px; font-size:12px; line-height:1.6; color:var(--secondary);}
+  .foot a{color:var(--accent);}
+  cite{font-style:italic;}
+
   .sr-only{
     position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
     clip:rect(0,0,0,0); white-space:nowrap; border:0;
@@ -76,8 +88,8 @@
 <div class="wrap">
   <div class="top-row">
     <div>
-      <h1>Introduction to Comparative Politics: interactive tools</h1>
-      <p class="lede">Guided walkthroughs and practice modules for PLSC 3, organized by textbook chapter. Each tool opens with a guided walkthrough; switch to practice mode when you are ready to work through cases on your own.</p>
+      <h1>Interactive tools for <cite>Principles of Comparative Politics</cite></h1>
+      <p class="lede">Guided walkthroughs and practice exercises to accompany the fourth edition of <cite>Principles of Comparative Politics</cite> by Clark, Golder, and Golder (2024), organized by chapter. Each tool opens with a guided walkthrough; switch to practice mode when you are ready to work through cases on your own.</p>
     </div>
     <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
       <span id="themeIcon" aria-hidden="true">&#9789;</span>
@@ -88,10 +100,10 @@
 
   <h2>Chapter 2</h2>
   <ul class="tools">
-    <li><a class="tool" href="https://claude.ai/public/artifacts/a2343bba-1d29-4feb-bc69-7b974874de93">
+    <li><a class="tool" href="valid-and-invalid-arguments.html">
       <span class="tool-name">Valid and invalid arguments</span>
       <span class="tool-desc">Tell valid arguments from invalid ones using the chapter&rsquo;s set diagram, and see what testing a theory can and cannot show.</span></a></li>
-    <li><a class="tool" href="https://claude.ai/public/artifacts/6706c9e8-580f-49c2-bf22-00e934ae0a48">
+    <li><a class="tool" href="necessary-and-sufficient-conditions.html">
       <span class="tool-name">Necessary and sufficient conditions</span>
       <span class="tool-desc">Find the one observation that would refute a claim of necessity or sufficiency, and tell a claim from its converse.</span></a></li>
   </ul>
@@ -101,37 +113,37 @@
     <li><a class="tool" href="solving-game-trees.html">
       <span class="tool-name">Solving extensive form games</span>
       <span class="tool-desc">Solve game trees by backward induction and write out the subgame perfect equilibrium, including games with more than one.</span></a></li>
-    <li><a class="tool" href="https://claude.ai/public/artifacts/d541b8d9-8a18-4452-bbf1-54f2898fad7e">
+    <li><a class="tool" href="inferring-power.html">
       <span class="tool-name">Inferring power from behavior</span>
       <span class="tool-desc">Start from what happened in the exit, voice, and loyalty game and work out what can be concluded about who held power.</span></a></li>
   </ul>
 
   <h2>Chapter 4</h2>
   <ul class="tools">
-    <li><a class="tool" href="https://claude.ai/public/artifacts/f886513f-b63a-4eb2-829d-4ee0785956a6">
+    <li><a class="tool" href="finding-best-responses.html">
       <span class="tool-name">Finding best responses</span>
       <span class="tool-desc">Find best responses, dominant strategies, and Nash equilibria in strategic form games.</span></a></li>
-    <li><a class="tool" href="https://claude.ai/public/artifacts/e136f96c-7486-4fa8-b4fe-7dd5f2ca8569">
+    <li><a class="tool" href="leaving-the-state-of-nature.html">
       <span class="tool-name">Leaving the state of nature</span>
       <span class="tool-desc">Adjust the parameters of the state of nature and civil society games and compare what each game predicts.</span></a></li>
-    <li><a class="tool" href="https://claude.ai/public/artifacts/967b0d93-e83b-472c-af61-bebd22127690">
+    <li><a class="tool" href="changes-to-the-balance-of-power.html">
       <span class="tool-name">Changes to the balance of power</span>
       <span class="tool-desc">Place countries by state power and society power, and see how the same change moves countries that start in different places.</span></a></li>
   </ul>
 
   <h2>Chapter 5</h2>
   <ul class="tools">
-    <li><a class="tool" href="https://claude.ai/public/artifacts/6e94de70-45cb-4ba7-a51e-859a3d02491d">
+    <li><a class="tool" href="coding-a-regime.html">
       <span class="tool-name">Coding the same country three ways</span>
       <span class="tool-desc">Code a country-year under Democracy-Dictatorship, Freedom House, and V-Dem, and account for where the three disagree.</span></a></li>
-    <li><a class="tool" href="https://claude.ai/public/artifacts/8947f71d-f677-4c83-9fdd-7a2ed2027cc5">
+    <li><a class="tool" href="measures-and-falsifiability.html">
       <span class="tool-name">Measures and falsifiability</span>
       <span class="tool-desc">Check whether a hypothesis can still be falsified once a concept is replaced by the rule used to measure it.</span></a></li>
   </ul>
 
   <h2>Chapter 6</h2>
   <ul class="tools">
-    <li><a class="tool" href="https://claude.ai/public/artifacts/cf0e907c-2bad-4b66-9df0-ee965d9781ff">
+    <li><a class="tool" href="economic-development-and-democracy.html">
       <span class="tool-name">Economic development and democracy</span>
       <span class="tool-desc">Read the ruler&rsquo;s dependence and an economic actor&rsquo;s exit option off a described economy, and predict what the exit, voice, and loyalty game says happens.</span></a></li>
   </ul>
@@ -149,6 +161,17 @@
       <span class="tool-name">Solving incomplete information games</span>
       <span class="tool-desc">Solve games in which one player does not know which world Nature chose, and find the critical probability that decides what that player does.</span></a></li>
   </ul>
+  <section class="note" aria-labelledby="instructors">
+    <h2 id="instructors">For instructors</h2>
+    <ul>
+      <li>Chapter, figure, box, and problem numbers in the tools refer to the fourth edition (2024).</li>
+      <li>Each tool is a single web page. It runs in any current browser on a computer or phone, with no login or installation, and it stores nothing about the people who use it.</li>
+      <li>Link to this page or to any individual tool from your syllabus or course site. Each tool&rsquo;s address stays the same when it is updated.</li>
+      <li>The tools are designed for practice and self-study. Because the answers are built into each page, they are not suited to graded work.</li>
+    </ul>
+  </section>
+
+  <p class="foot">These tools are free to use and share for noncommercial teaching under a <a href="https://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0</a> license. The textbook itself is not covered by that license.</p>
 </div>
 
 <script>
