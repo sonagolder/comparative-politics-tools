@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Changes to the balance of power</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the two sides whose balance the tool is about */
+    --pState:#009E73;    /* bluish green   — the power of the state */
+    --pSociety:#CC79A7;  /* reddish purple — the power of society */
+
+    /* semantic: correct / incorrect — messaging surfaces only */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+    --favorable:#0072B2;
+
+    /* gold: scoped "found it" state — here, an established position on the map */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --structure-ink:#141414;
+    --on-accent:#FFFFFF;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --pState:#3FCFA0;
+    --pSociety:#E29FC4;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+    --favorable:#7FC7EE;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --structure-ink:#E8E8E8;
+    --on-accent:#0A1E28;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px; margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 16px;}
+  .lede:last-of-type{margin-bottom:24px;}
+  .lede b{color:var(--ink);}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 4px;}
+  .group-sub{font-size:12.5px; color:var(--secondary); margin:0 0 8px; line-height:1.5; max-width:680px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+  .chip.wide{border-radius:8px; display:block; width:100%; line-height:1.5; padding:8px 16px; font-weight:500;}
+  .chip.wide.active{font-weight:600;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 16px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .content-col{flex:1 1 520px; min-width:320px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  /* ---- cards ---- */
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .card-head{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--secondary); margin-bottom:16px;
+  }
+  .field + .field{margin-top:16px;}
+  .field-label{
+    font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--secondary); margin-bottom:2px;
+  }
+  .field-label.state{color:var(--pState);}
+  .field-label.society{color:var(--pSociety);}
+  .field-text{font-size:14.5px; line-height:1.6; color:var(--ink);}
+  .pace-tag{
+    display:inline-block; font-family:var(--font-data); font-size:11.5px; font-weight:700;
+    letter-spacing:.03em; color:var(--secondary);
+    border:1px solid var(--border); border-radius:16px; padding:4px 8px;
+  }
+
+  /* ---- corridor map ---- */
+  .map-card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px 16px; margin-bottom:16px;
+  }
+  .fig-title{font-size:13.5px; font-weight:700; color:var(--ink); letter-spacing:.01em;}
+  .map-svg{width:100%; height:auto; display:block; margin-top:8px;}
+  .map-caption{font-size:12.5px; color:var(--secondary); line-height:1.6; margin:8px 0 0;}
+  .map-caption b{color:var(--ink);}
+
+  .reg-corridor{fill:color-mix(in srgb, var(--favorable) 14%, var(--panel-bg));}
+  .reg-edge{stroke:var(--deemph); stroke-width:2; fill:none;}
+  .equal-line{stroke:var(--deemph); stroke-width:2; stroke-dasharray:5 4;}
+  .axis-line{stroke:var(--border); stroke-width:1.5;}
+  .axis-title{font-family:var(--font-body); font-size:11.5px; font-weight:700; fill:var(--secondary);}
+  .axis-title.state{fill:var(--pState);}
+  .axis-title.society{fill:var(--pSociety);}
+  .reg-label{font-family:var(--font-body); font-size:12px; font-weight:700; fill:var(--secondary);}
+  .country-dot{fill:var(--structure-ink);}
+  .country-name{font-family:var(--font-body); font-size:10.5px; fill:var(--secondary);}
+  .ray{stroke:var(--accent); stroke-width:2; stroke-dasharray:4 4;}
+  .arrow-casing{stroke:var(--structure-ink); stroke-width:5; fill:none;}
+  .move-arrow{stroke:var(--gold-ui); stroke-width:2.5; fill:none;}
+  .end-ring{fill:none; stroke:var(--structure-ink); stroke-width:1.5;}
+
+  /* ---- findings ---- */
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:13.5px; color:var(--ink);
+  }
+  .findings div{margin:8px 0; line-height:1.5;}
+  .findings .k{font-weight:700; color:var(--gold-text); margin-right:4px;}
+
+  /* ---- panel ---- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:340px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--accent); font-weight:700; margin-bottom:8px;
+  }
+  .panel .step-text{font-size:14.5px; line-height:1.65; color:var(--ink);}
+  .panel .step-text p{margin:0 0 8px;}
+  .panel .step-text p:last-child{margin-bottom:0;}
+  .panel .step-text em{font-style:italic;}
+
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{
+    font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--secondary);
+  }
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:4px 16px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  .back-to-step{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:var(--on-accent);
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  .back-to-step[hidden]{display:none;}
+
+  #corridorMap, #caseCard, #findings{scroll-margin-top:16px;}
+
+  .opts{margin-top:16px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:4px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:8px; height:8px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:4px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .caveat{
+    margin-top:16px; padding:8px 16px; border-left:3px solid var(--border);
+    font-size:13px; color:var(--secondary); line-height:1.65;
+  }
+  .caveat b{color:var(--ink);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (max-width:820px){
+    .map-card{padding:16px;}
+    .card{padding:16px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Changes to the balance of power</h1>
+      <p class="lede">The chapter ends with three possibilities for state behavior &mdash; absent, unconstrained, and constrained &mdash; determined by the relative balance of power between the state and society. Acemoglu and Robinson set them out as regions of one space, with a narrow corridor running between them.</p>
+      <p class="lede"><b>These aren&rsquo;t distinct types of states.</b> As the chapter puts it, they&rsquo;re simply descriptions of different forms of state behavior. What varies isn&rsquo;t the state&rsquo;s nature but the balance it finds itself in.</p>
+      <p class="lede">Each case gives you a country and a change &mdash; some arriving in a year, some over centuries. The same change doesn&rsquo;t have the same consequence everywhere: it&rsquo;s not possible to make unconditional predictions about the effects of structural changes on state behavior.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div id="pickerZone"></div>
+
+  <div class="layout">
+    <div class="content-col">
+      <div class="map-card" id="corridorMap"></div>
+      <div class="card" id="caseCard"></div>
+      <div class="findings" id="findings"></div>
+    </div>
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel"></div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="opts" id="opts"></div>
+        <div class="result-note" id="resultNote"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sr-only" id="liveRegion" aria-live="polite"></div>
+<script>
+/* ============================================================
+   Geometry of the space
+
+   Both axes run 0-100 and neither has units: the numbers exist
+   only so that "further ahead" is computable. What decides a
+   country's region is the relation between the two, never the
+   level of either.
+
+   The corridor is a wedge with its apex at (20, 20). Below the
+   apex it has no width at all, which is the figure's point that
+   some capacity on both sides is a precondition for the state
+   being constrained rather than a consequence of it.
+   ============================================================ */
+/* The corridor is the chapter's own figure, not an approximation of it. The
+   coordinates, the node positions and the out/in angles below are those in
+   the TikZ source that drew Figure 4.10; the figure works on a 0-6 square,
+   and FIG converts to the 0-100 scale used everywhere else here.
+
+   TikZ's `to[out=a, in=b]` is a cubic Bezier whose control points sit at
+   0.3915 times the distance between the endpoints, along each stated angle.
+   Reproducing that formula rather than eyeballing the curve is what lets the
+   shading, the edge strokes and the region test all come from one source. */
+const FIG = 100 / 6;
+
+const NODE = {
+  apex:   [1, 1],      // where the corridor opens; below it there is no band at all
+  lowMid: [3.8, 2.5],  // the lower edge's waypoint
+  lowEnd: [6, 5],
+  upMid:  [2.8, 3.2],  // the upper edge's waypoint
+  upEnd:  [5, 6],
+  corner: [6, 6]
+};
+
+function tikzSeg(P0, out, P3, inn){
+  const d = 0.3915 * Math.hypot(P3[0] - P0[0], P3[1] - P0[1]);
+  const rad = a => a * Math.PI / 180;
+  return { P0, P3,
+           C1: [P0[0] + d * Math.cos(rad(out)), P0[1] + d * Math.sin(rad(out))],
+           C2: [P3[0] + d * Math.cos(rad(inn)), P3[1] + d * Math.sin(rad(inn))] };
+}
+
+const LOWER_SEGS = [tikzSeg(NODE.apex, 25, NODE.lowMid, -120),
+                    tikzSeg(NODE.lowMid, 60, NODE.lowEnd, -110)];
+const UPPER_SEGS = [tikzSeg(NODE.apex, 45, NODE.upMid, -150),
+                    tikzSeg(NODE.upMid, 30, NODE.upEnd, -150)];
+
+function bezierAt(sg, u){
+  const v = 1 - u, w = [v*v*v, 3*v*v*u, 3*v*u*u, u*u*u];
+  return [w[0]*sg.P0[0] + w[1]*sg.C1[0] + w[2]*sg.C2[0] + w[3]*sg.P3[0],
+          w[0]*sg.P0[1] + w[1]*sg.C1[1] + w[2]*sg.C2[1] + w[3]*sg.P3[1]];
+}
+
+/* Sampled once at load. Both edges are monotone in x, so a table plus linear
+   interpolation inverts them exactly enough to classify a position. */
+function edgeTable(segs){
+  const pts = [];
+  segs.forEach(sg => { for (let i = 0; i <= 200; i++) pts.push(bezierAt(sg, i / 200)); });
+  return pts;
+}
+const LOWER_PTS = edgeTable(LOWER_SEGS), UPPER_PTS = edgeTable(UPPER_SEGS);
+
+function alongEdge(pts, x){
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++){
+    if (pts[i][0] >= x){
+      const [xa, ya] = pts[i-1], [xb, yb] = pts[i];
+      return xb === xa ? yb : ya + (yb - ya) * (x - xa) / (xb - xa);
+    }
+  }
+  return pts[pts.length - 1][1];
+}
+
+const APEX = NODE.apex[0] * FIG;
+const lowerEdge = s => alongEdge(LOWER_PTS, s / FIG) * FIG;
+/* Past upEnd the upper edge is the top of the plot, as it is in the figure. */
+const upperEdge = s => (s / FIG >= NODE.upEnd[0]) ? 100 : alongEdge(UPPER_PTS, s / FIG) * FIG;
+
+function region(s, st){
+  if (s < APEX) return st > s ? 'unc' : 'abs';
+  if (st > upperEdge(s)) return 'unc';
+  if (st < lowerEdge(s)) return 'abs';
+  return 'con';
+}
+
+/* A change counts as moving a power only if it moves it appreciably;
+   below that the honest answer is that neither side really moved. */
+function direction(a, b){
+  const dS = b.s - a.s, dT = b.st - a.st;
+  if (Math.abs(dS) < 5 && Math.abs(dT) < 5) return 'neither';
+  if (dT - dS > 5) return 'state';
+  if (dS - dT > 5) return 'society';
+  return 'together';
+}
+
+const REGION_OPTS = {
+  unc: 'Unconstrained &mdash; the state is far enough ahead of society that nothing checks it',
+  abs: 'Absent &mdash; society is far enough ahead of the state that the state cannot enforce much',
+  con: 'Constrained &mdash; the two are close enough that the state has to bargain'
+};
+/* Presentation order, fixed for every case: unconstrained, constrained, absent. */
+const REGION_ORDER = ['unc', 'con', 'abs'];
+const REGION_NAME = { unc:'unconstrained', abs:'absent', con:'constrained' };
+
+const DIR_OPTS = {
+  state:    'The state gains on society',
+  society:  'Society gains on the state',
+  together: 'Both grow, and roughly in step',
+  neither:  'Neither moves much'
+};
+const DIR_ORDER = ['state', 'society', 'together', 'neither'];
+
+/* ============================================================
+   What the new balance means for the people who live there
+   ============================================================ */
+const CONSEQ = {
+  C1: 'Freedom expands: there is now a state able to keep the peace, and a society strong enough to make it answer for how it does so.',
+  C2: 'The state stops having to bargain, and can act without being held to account for it.',
+  C3: 'Peace gets harder to keep: no one is left who can enforce a settlement across the whole territory.',
+  C4: 'Violence may fall, but domination does not &mdash; what rules people is simply not the state.',
+  C5: 'Little changes: there is still no authority able to enforce much of anything beyond the capital.',
+  C6: 'People may be materially better off than before and still not be free: nothing now protects them from one another.',
+  C7: 'The state was already unchecked; the new capacity goes into controlling society more thoroughly.',
+  C8: 'Society is better organized than it was, and still far too weak to make the state answer to it.',
+  C9: 'The state ends up markedly more capable and no less accountable, because society already had the means to hold it to account.'
+};
+
+/* ============================================================
+   The chapter's own placements, for the walkthrough only.
+   Tentative in the chapter and tentative here: they establish
+   what the space means, and no practice case rests on them.
+   ============================================================ */
+const COUNTRIES = [
+  { name:'Sweden',   s:5    * FIG, st:5    * FIG, dx:0, dy:-10, anchor:'middle' },
+  { name:'China',    s:0.5  * FIG, st:3.8  * FIG, dx:0, dy:-10, anchor:'middle' },
+  { name:'Colombia', s:0.6  * FIG, st:1    * FIG, dx:0, dy:-10, anchor:'middle' },
+  { name:'India',    s:1.75 * FIG, st:1.15 * FIG, dx:0, dy:16,  anchor:'middle' },
+  { name:'Somalia',  s:2    * FIG, st:0.3  * FIG, dx:8, dy:4,   anchor:'start' }
+];
+
+const DEMO = { start:{s:50, st:45}, end:{s:50, st:72} };
+
+/* ============================================================
+   Cases
+   ============================================================ */
+const GROUPS = [
+  { id:'state', label:'The state&rsquo;s power grows',
+    sub:'One change, five countries: a large new revenue stream the state does not have to bargain for. It arrives within a few years and it is the same size in every case. What differs is only where each country starts.' },
+  { id:'society', label:'Society&rsquo;s power grows',
+    sub:'One change again, four countries: literacy spreads, towns fill, and independent newspapers, unions and associations multiply &mdash; and with them the capacity to organize refusal, to strike, to boycott, to decline to pay. This one takes three or four decades. Again it is the same size in every case.' },
+  { id:'both', label:'Both sides move',
+    sub:'Now the state and society change together. What settles the outcome is not whether each of them grew, but which of them grew faster.' },
+  { id:'seem', label:'Changes that are not what they look like',
+    sub:'Four changes that appear to move one of the two powers and do not &mdash; or that move it in a direction the label does not suggest.' }
+];
+
+const CASES = [
+  /* ---- the state's power grows ---- */
+  {
+    label:'Country A', group:'state',
+    standing:'The state taxes and polices every district. There is no independent press, no opposition able to organize, and no association large enough to force the state to listen.',
+    change:'An offshore gas field comes online. Within three years it pays for the security services several times over, and none of that money comes from the people.',
+    pace:'within a few years',
+    start:{s:20, st:60}, end:{s:20, st:88},
+    correct:'C7', pool:['C7','C5','C1','C2'],
+    note:'Nothing changed category, and that is the finding. The chapter&rsquo;s first scenario: an already unconstrained state gains even greater capacity, and all that changes is how thoroughly it can do what it was already free to do.'
+  },
+  {
+    label:'Country B', group:'state',
+    standing:'The constitution is fifteen years old. The courts have ruled against the state once or twice, and the legislature approves the budget, though it has never yet refused one. A young press and a few business associations can object publicly, but can do little more than that.',
+    change:'An offshore gas field comes online. Within three years it pays for the security services several times over, and none of that money comes from the people.',
+    pace:'within a few years',
+    start:{s:35, st:33}, end:{s:35, st:61},
+    correct:'C2', pool:['C2','C9','C1','C7'],
+    note:'The resource curse as it is usually told &mdash; and the conditions it needs. The revenue no longer passes through the institutions meant to check the state, and those institutions were too new, and too lightly supported, to insist. Compare Country C, which took the identical windfall.',
+    nudge4:'The state has more money. Ask whether it still has to go to anyone to get it, and whether the bodies that used to say no can make that stick.'
+  },
+  {
+    label:'Country C', group:'state',
+    standing:'A century of contested elections, courts the state routinely loses in, unions and employers who bargain with the government over economic policy, and a legislature that has rejected budgets and brought down governments.',
+    change:'An offshore gas field comes online. Within three years it pays for the security services several times over, and none of that money comes from the people.',
+    pace:'within a few years',
+    start:{s:78, st:63}, end:{s:78, st:91},
+    correct:'C9', pool:['C9','C2','C1','C7'],
+    note:'Compare Country B, which took the identical windfall and left the corridor with it. Here the money arrives inside institutions society already controls: the legislature still appropriates it and the courts still bind. A windfall does its damage where the check on the state was weak to begin with.',
+    nudge4:'The state has more money here too. Ask what has to happen to that money before the state can spend any of it.'
+  },
+  {
+    label:'Country D', group:'state',
+    standing:'Village councils, trade associations and religious authorities settle most disputes and command real loyalty. A government exists, but outside the capital it enforces little and its taxes are largely unpaid.',
+    change:'An offshore gas field comes online. Within three years it pays for the security services several times over, and none of that money comes from the people.',
+    pace:'within a few years',
+    start:{s:62, st:25}, end:{s:62, st:53},
+    correct:'C1', pool:['C1','C5','C2','C4'],
+    note:'The same change that made Country B worse off makes this one better off. What an increase in state power does depends entirely on the balance it lands in.'
+  },
+  {
+    label:'Country E', group:'state',
+    standing:'Armed groups control most of the roads. There has been no functioning tax office for a generation, and no court anyone outside the capital would take a case to.',
+    change:'An offshore gas field comes online. Within three years it pays for the security services several times over, and none of that money comes from the people.',
+    pace:'within a few years',
+    start:{s:72, st:8}, end:{s:72, st:36},
+    correct:'C5', pool:['C5','C1','C2','C8'],
+    note:'The gap was too wide for a change this size to close. Compare Country D, which took the identical windfall from a start a little further along and crossed into the corridor with it.'
+  },
+
+  /* ---- society's power grows ---- */
+  {
+    label:'Country F', group:'society',
+    standing:'The security services answer to the ruler alone. Gatherings need a permit, the press prints what it is given, and nobody has held office who was not appointed.',
+    change:'Over four decades, schooling becomes near-universal, most people move to towns, and reading circles, burial societies and trade associations multiply. People are far better at coordinating with one another than they were.',
+    pace:'over about four decades',
+    start:{s:10, st:70}, end:{s:35, st:70},
+    correct:'C8', pool:['C8','C1','C2','C5'],
+    note:'A real gain in society&rsquo;s power that changes nothing. Unconstrained states have strong incentives to minimize the power of societal actors and reduce society&rsquo;s ability to mobilize and collectively organize &mdash; and the capacity to act on them.'
+  },
+  {
+    label:'Country G', group:'society',
+    standing:'The state is well organized and collects what it asks for. A few business families and a professional association can occasionally slow it down, but nothing obliges it to listen.',
+    change:'Over four decades, schooling becomes near-universal, most people move to towns, and reading circles, burial societies and trade associations multiply. People are far better at coordinating with one another than they were.',
+    pace:'over about four decades',
+    start:{s:30, st:45}, end:{s:55, st:45},
+    correct:'C1', pool:['C1','C8','C2','C4'],
+    note:'The state did not weaken. It was caught up with, and that was enough: what the corridor requires is a match, not a weak state.'
+  },
+  {
+    label:'Country H', group:'society',
+    standing:'The state keeps order and is regularly overruled by others: it has lost cases in court, dropped bills under pressure, and replaced ministers after protests.',
+    change:'Over four decades, schooling becomes near-universal, most people move to towns, and independent associations multiply &mdash; along with the capacity to organize refusal. Strikes shut ports for months. Two provinces stop remitting tax and nothing happens to them. Juries acquit whoever the state charges.',
+    pace:'over about four decades',
+    start:{s:60, st:45}, end:{s:85, st:45},
+    correct:'C3', pool:['C3','C1','C4','C8'],
+    note:'The hardest case here, because everything that happened sounds like a gain. The chapter&rsquo;s claim is symmetric &mdash; an unmatched increase in the power of societal actors can see the state lose its capacity to coerce the citizenry and maintain peace.',
+    nudge4:'Everything in the change is something society won. Ask what is left that can settle a dispute between two parts of society when they want different things.'
+  },
+  {
+    label:'Country I', group:'society',
+    standing:'Clan elders hold what authority there is. The government controls a few blocks of the capital and is ignored elsewhere; its soldiers have not been paid in months.',
+    change:'Over four decades, schooling becomes near-universal, most people move to towns, and independent associations multiply &mdash; and with them the capacity to organize refusal.',
+    pace:'over about four decades',
+    start:{s:55, st:10}, end:{s:80, st:10},
+    correct:'C5', pool:['C5','C1','C3','C8'],
+    note:'Country H and Country I end in the same region by opposite routes: one fell out of the corridor, the other was already well below it. The region names say where a country stands, not how it got there.'
+  },
+
+  /* ---- both sides move ---- */
+  {
+    label:'Country J', group:'both',
+    standing:'The state runs a small but honest revenue service and a court people actually use. Guilds, congregations and town meetings are strong enough that it consults them before it acts.',
+    change:'Over several generations the state builds schools, a professional bureaucracy and a public health service; over the same period society acquires the vote, a press the state does not own and a union movement. Each side accepts the other&rsquo;s growth because it is getting something for it.',
+    pace:'over several generations',
+    start:{s:33, st:30}, end:{s:79, st:79},
+    correct:'C1', pool:['C1','C2','C7','C5'],
+    note:'Note how far the state traveled. It ends more capable than the unconstrained states elsewhere here and never leaves the corridor, because society grew with it. This is the positive feedback loop, and why a constrained state is not a small one.'
+  },
+  {
+    label:'Country K', group:'both',
+    standing:'The state is obeyed and also checked: it has to go to an assembly for money, and it has lost that argument before.',
+    change:'A long war. The state raises a standing army, doubles what it takes in tax and takes emergency powers. In exchange it widens who may vote and concedes a committee to oversee spending. The war ends. The army stays; the committee meets twice a year.',
+    pace:'a decade, and what it left behind',
+    start:{s:45, st:40}, end:{s:55, st:75},
+    correct:'C2', pool:['C2','C1','C7','C4'],
+    note:'Both sides genuinely gained &mdash; society ended the decade with a wider franchise than it began with. It still lost, because the state gained faster. Growing is not the same as keeping up.',
+    nudge2:'Both powers rose. Ask which rose further, and check what the change says was still in place once the war ended.'
+  },
+  {
+    label:'Country L', group:'both',
+    standing:'The state is capable and is held to account for what it does: a broadcaster it does not own, unions that can call a strike, and courts that have ruled against it.',
+    change:'Over a decade the state builds a monitoring system of unusual reach: an identity register tied to every transaction, tens of thousands of employees reviewing and removing what is posted online, and a scoring scheme that can bar someone from travel, credit or public employment. Much of it is designed to make it difficult for society to mobilize and collectively organize, and it works. Union membership halves. The independent broadcaster is sold to allies of the government. Meanwhile the state knows things about its citizens it could not have known before.',
+    pace:'about a decade',
+    start:{s:70, st:65}, end:{s:52, st:80},
+    correct:'C2', pool:['C2','C4','C7','C1'],
+    note:'The only case here where the two powers move in opposite directions, which is why the balance ends up so far from where it started. Information about society is key to enhancing state capacity &mdash; and this is a change that subtracts it from society at the same time as it adds it to the state.',
+    nudge2:'Take the two powers one at a time. What the state gains here it takes from the other, rather than adding alongside it.'
+  },
+  {
+    label:'Country M', group:'both',
+    standing:'Dozens of lords hold their own fortified estates, each taking what he can from the people on his land and fighting his neighbors when it pays.',
+    change:'Over three centuries, weapons and fortifications grow more expensive, so it pays to hold more land for each unit of defense; population growth makes labor cheap and land scarce. The lords who can conquer their neighbors do. The survivors consolidate into a single hierarchy with one tax system and one army.',
+    pace:'over three centuries',
+    start:{s:40, st:8}, end:{s:45, st:80},
+    correct:'C2', pool:['C2','C1','C5','C7'],
+    note:'The chapter&rsquo;s account of early modern Europe, and it crosses the whole space. Note the pace: no event did this and no ruler intended it. A common story is that the modern state arose as an unintentional by-product of the attempts of leaders to survive.'
+  },
+
+  /* ---- changes that are not what they look like ---- */
+  {
+    label:'Country N', group:'seem',
+    standing:'A colonial administration has just left. There are armed groups in three provinces, no revenue service outside the capital, and a customary hierarchy that settles most disputes.',
+    change:'Independence brings a constitution, a supreme court, a finance ministry and a national police force &mdash; all designed elsewhere, staffed thinly, and paid for by grants. The provinces carry on as before.',
+    pace:'within two years',
+    start:{s:62, st:9}, end:{s:62, st:13},
+    correct:'C5', pool:['C5','C1','C2','C8'],
+    note:'Everything on the organization chart changed and almost nothing on the ground did. State-like institutions that lacked real capacity &mdash; the chapter&rsquo;s verdict on Colombia, that the state exists more on paper than in practice.',
+    nudge1:'Institutions on paper are not what this axis measures. Ask what the state could actually make happen in the three provinces.'
+  },
+  {
+    label:'Country O', group:'seem',
+    standing:'The state keeps order and has to bargain to act: religious bodies, landholders and a merchants&rsquo; guild each have to agree before anything moves.',
+    change:'Over two generations, caste and lineage authority hardens. Who may marry, own, trade or bring a case comes to be settled within the hierarchy and enforced by it. Society gains enormously in its power to bind people. The state finds it can no longer reach past the hierarchy to the people inside it.',
+    pace:'over two generations',
+    start:{s:58, st:42}, end:{s:85, st:42},
+    correct:'C4', pool:['C4','C1','C3','C6'],
+    note:'Society got much stronger and the people in it got much less free, because what grew was its power to bind its own members. This is the cage of norms, and why the chapter places India in the absent region.',
+    nudge4:'Society clearly gained power here. Ask who that power is exercised over, and whether anything the state used to do about it still happens.'
+  },
+  {
+    label:'Country P', group:'seem',
+    standing:'Three armed organizations run the ports, the highways and the eastern districts. Each taxes what it controls, and the government controls nothing beyond the city limits.',
+    change:'The three agree on boundaries and stop fighting each other. Killings fall by eighty percent inside a year. Each carries on collecting, now without the cost of a war, and each starts taking an interest in whether the businesses it taxes prosper.',
+    pace:'within a year',
+    start:{s:50, st:14}, end:{s:52, st:18},
+    correct:'C4', pool:['C4','C6','C1','C5'],
+    note:'Competing security providers have an incentive to find negotiated solutions, and may forbear from confiscatory extraction once their take is secure &mdash; stationary bandits rather than roving ones. A large improvement in people&rsquo;s lives that moves neither power.',
+    nudge2:'Something big changed for the people who live there. Ask whether either of these two powers is any greater than it was a year ago.'
+  },
+  {
+    label:'Country Q', group:'seem',
+    standing:'The ruler&rsquo;s security services reach everywhere. They also imprison at will, and take what they want from anyone who accumulates anything.',
+    change:'The ruler is overthrown. Within months there is no army, no revenue service, no courts and no ministries, and the clans that removed him have fallen out. Several observers argue that people are materially better off than they were under his tax collectors.',
+    pace:'within a year',
+    start:{s:25, st:62}, end:{s:25, st:10},
+    correct:'C6', pool:['C6','C1','C4','C5'],
+    note:'The balance can shift because one side falls, not only because the other rises: society never moved here. That people ended up better off is Leeson&rsquo;s contested claim about Somalia, and either way, better off and free are different questions.',
+    nudge2:'Society is exactly as strong as it was last year. Ask what happened to the other power, and remember the question is about the balance between them.'
+  }
+];
+
+/* ============================================================
+   Walkthrough
+   ============================================================ */
+const GUIDED = [
+  {
+    label:'Three possibilities',
+    show:{},
+    text:`<p>The chapter closes with three possibilities for state behavior, determined by the relative balance of power between the state and society.</p>
+          <p>Not by how much power either one has. By how much each has relative to the other.</p>`
+  },
+  {
+    label:'The narrow corridor',
+    show:{equal:true, regions:true, corridor:true},
+    text:`<p>Above the band the state is stronger than society and undeterred from predation &mdash; <b>unconstrained</b>. Below it societal actors are stronger, and state institutions have little importance for people&rsquo;s everyday lives &mdash; <b>absent</b>.</p>
+          <p>Between them the state must bargain and compromise with societal actors, and is accountable and responsive to them. Acemoglu and Robinson call this shaded band the <b>narrow corridor</b>.</p>`
+  },
+  {
+    label:'Not from anywhere',
+    show:{equal:true, regions:true, corridor:true},
+    text:`<p>The corridor doesn&rsquo;t reach the bottom left corner. Some basic capabilities and institutional pre-requisites on the part of both the state and society are required for human flourishing to even be a possibility.</p>
+          <p>Being equally powerless isn&rsquo;t being balanced.</p>`
+  },
+  {
+    label:'Five countries',
+    show:{equal:true, regions:true, corridor:true, countries:true},
+    text:`<p>The chapter&rsquo;s own placements. Note that the Swedish state is much stronger in many ways than the unconstrained Chinese state.</p>
+          <p>A constrained state isn&rsquo;t a weak one. Sweden oversees one of the world&rsquo;s largest welfare states; what constrains it is that Swedish society can remove the holders of state power if it wishes.</p>`
+  },
+  {
+    label:'Two ways to be absent',
+    show:{equal:true, regions:true, corridor:true, countries:true},
+    text:`<p>Somalia and India are both absent, for quite different reasons. The power of the Somali state is very, very low. India&rsquo;s institutions have existed much longer and enjoy greater capacity.</p>
+          <p>India is here because the Indian state is subservient to, and thus constrained by, its caste system. Absent doesn&rsquo;t mean free either: the cage of norms limits individual freedom and social mobility.</p>`
+  },
+  {
+    label:'Constrained isn&rsquo;t democratic',
+    show:{equal:true, regions:true, corridor:true, countries:true},
+    text:`<p>The elites who control violence have their power checked by someone &mdash; but that check can be other elites rather than the masses, as in the development of limited government in 17th century England.</p>
+          <p>Only when the state is constrained by the masses, typically through contested elections and inclusive representative assemblies, do we have modern democracy.</p>`
+  },
+  {
+    label:'Which situations last',
+    show:{equal:true, regions:true, corridor:true, countries:true},
+    text:`<p>Situations in which the state is unconstrained or absent are quite stable. The corridor is the unstable one: remaining in it requires constant surveillance to make sure that power is evenly balanced.</p>
+          <p>History isn&rsquo;t pushing anyone towards it.</p>`
+  },
+  {
+    label:'A change, worked through',
+    show:{equal:true, regions:true, corridor:true, demo:1},
+    text:`<p>A country whose state collects tax across its territory and must get an assembly&rsquo;s agreement to spend &mdash; which it doesn&rsquo;t always get.</p>
+          <p>Roughly matched, so it starts in the corridor.</p>`
+  },
+  {
+    label:'Which way?',
+    show:{equal:true, regions:true, corridor:true, demo:2},
+    text:`<p>The change: the state signs a deal paying its entire budget from an offshore gas field. Society is untouched, so the balance moves upward.</p>
+          <p>The ray gives direction and nothing else. How far it travels is a separate question.</p>`
+  },
+  {
+    label:'Where does it land?',
+    show:{equal:true, regions:true, corridor:true, demo:3},
+    text:`<p>Outside. The state no longer needs anything from its citizens, so the assembly&rsquo;s agreement stops being worth having.</p>
+          <p>The same change, from a start below the corridor, would have carried a country <em>into</em> it.</p>`
+  },
+  {
+    label:'Over to you',
+    show:{equal:true, regions:true, corridor:true, demo:3},
+    text:`<p>Seventeen countries in four groups. For each: where it starts, which way the balance moves, where that leaves it, and what it means for the people who live there.</p>
+          <p>The first two groups apply one identical change to several different starting points, so the change itself tells you nothing.</p>`
+  }
+];
+
+/* ============================================================
+   Map
+   ============================================================ */
+const X0 = 56, X1 = 416, Y0 = 24, Y1 = 272;
+const px = s  => X0 + (s / 100) * (X1 - X0);
+const py = st => Y1 - (st / 100) * (Y1 - Y0);
+
+/* The band and its two edge strokes are emitted as the same Bezier segments
+   the region test is built from, so the shading cannot drift from the answer. */
+const fx = p => px(p[0] * FIG).toFixed(1);
+const fy = p => py(p[1] * FIG).toFixed(1);
+const segForward  = sg => `C ${fx(sg.C1)} ${fy(sg.C1)} ${fx(sg.C2)} ${fy(sg.C2)} ${fx(sg.P3)} ${fy(sg.P3)}`;
+const segBackward = sg => `C ${fx(sg.C2)} ${fy(sg.C2)} ${fx(sg.C1)} ${fy(sg.C1)} ${fx(sg.P0)} ${fy(sg.P0)}`;
+
+const lowerPath = () => `M ${fx(NODE.apex)} ${fy(NODE.apex)} ` +
+  LOWER_SEGS.map(segForward).join(' ') + ` L ${fx(NODE.corner)} ${fy(NODE.corner)}`;
+const upperPath = () => `M ${fx(NODE.apex)} ${fy(NODE.apex)} ` +
+  UPPER_SEGS.map(segForward).join(' ') + ` L ${fx(NODE.corner)} ${fy(NODE.corner)}`;
+
+/* Out along the lower edge to the corner, back along the upper edge to the apex. */
+const corridorPath = () => lowerPath() +
+  ` L ${fx(NODE.upEnd)} ${fy(NODE.upEnd)} ` +
+  UPPER_SEGS.slice().reverse().map(segBackward).join(' ') + ' Z';
+
+function marker(s, st, cls){
+  return `<circle cx="${px(s)}" cy="${py(st)}" r="6" fill="var(--gold-ui)"
+                  stroke="var(--structure-ink)" stroke-width="1.5" class="${cls || ''}"></circle>`;
+}
+
+function renderMap(show){
+  const host = document.getElementById('corridorMap');
+  const parts = [];
+
+  if (show.corridor){
+    parts.push(`<path class="reg-corridor" d="${corridorPath()}"></path>`);
+    parts.push(`<path class="reg-edge" d="${upperPath()}"></path>`);
+    parts.push(`<path class="reg-edge" d="${lowerPath()}"></path>`);
+    parts.push(`<text class="reg-label" x="${px(4.5*FIG)}" y="${py(4.3*FIG)}" text-anchor="middle">Constrained</text>`);
+  }
+
+  if (show.equal){
+    /* Stops at the apex, as in the figure: past that point the corridor exists
+       and the line of equal power runs inside it. */
+    parts.push(`<line class="equal-line" x1="${px(0)}" y1="${py(0)}" x2="${px(APEX)}" y2="${py(APEX)}"></line>`);
+  }
+
+  if (show.regions){
+    parts.push(`<text class="reg-label" x="${px(1.25*FIG)}" y="${py(5.5*FIG)}" text-anchor="middle">Unconstrained</text>`);
+    parts.push(`<text class="reg-label" x="${px(4.5*FIG)}" y="${py(0.75*FIG)}" text-anchor="middle">Absent</text>`);
+  }
+
+  if (show.countries){
+    COUNTRIES.forEach(c => {
+      parts.push(`<circle class="country-dot" cx="${px(c.s)}" cy="${py(c.st)}" r="3"></circle>`);
+      parts.push(`<text class="country-name" x="${px(c.s) + c.dx}" y="${py(c.st) + c.dy}" text-anchor="${c.anchor}">${c.name}</text>`);
+    });
+  }
+
+  const mv = show.move;
+  if (mv && mv.level >= 1) parts.push(marker(mv.start.s, mv.start.st));
+  if (mv && mv.level === 2){
+    /* A short ray: direction only. Length carries no information, because
+       whether a change is big enough to cross a boundary is the next task. */
+    const dx = px(mv.end.s) - px(mv.start.s), dy = py(mv.end.st) - py(mv.start.st);
+    const len = Math.hypot(dx, dy) || 1, k = Math.min(52, len) / len;
+    parts.push(`<line class="ray" x1="${px(mv.start.s)}" y1="${py(mv.start.st)}"
+                      x2="${px(mv.start.s) + dx * k}" y2="${py(mv.start.st) + dy * k}"></line>`);
+  }
+  if (mv && mv.level >= 3){
+    parts.push(`<line class="arrow-casing" x1="${px(mv.start.s)}" y1="${py(mv.start.st)}"
+                      x2="${px(mv.end.s)}" y2="${py(mv.end.st)}"></line>`);
+    parts.push(`<line class="move-arrow" x1="${px(mv.start.s)}" y1="${py(mv.start.st)}"
+                      x2="${px(mv.end.s)}" y2="${py(mv.end.st)}" marker-end="url(#arrowHead)"></line>`);
+    parts.push(marker(mv.end.s, mv.end.st));
+    parts.push(`<circle class="end-ring" cx="${px(mv.end.s)}" cy="${py(mv.end.st)}" r="10.5"></circle>`);
+  }
+
+  const ticks = [0, 25, 50, 75, 100].map(v =>
+    `<line class="axis-line" x1="${px(v)}" y1="${Y1}" x2="${px(v)}" y2="${Y1 + 4}"></line>`).join('');
+
+  const cap = mapCaption(show);
+  host.innerHTML =
+    `<div class="fig-title">Three Possibilities for State Behavior</div>
+     <svg class="map-svg" viewBox="0 0 440 320" role="img" aria-hidden="true" focusable="false">
+       <defs>
+         <marker id="arrowHead" viewBox="0 0 10 10" refX="8" refY="5"
+                 markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+           <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--gold-ui)"
+                 stroke="var(--structure-ink)" stroke-width="1.2" stroke-linejoin="round"></path>
+         </marker>
+       </defs>
+       ${parts.join('')}
+       <line class="axis-line" x1="${X0}" y1="${Y1}" x2="${X1}" y2="${Y1}"></line>
+       <line class="axis-line" x1="${X0}" y1="${Y0}" x2="${X0}" y2="${Y1}"></line>
+       ${ticks}
+       <text class="axis-title society" x="${(X0 + X1) / 2}" y="300" text-anchor="middle">power of society &#8594;</text>
+       <text class="axis-title state" x="18" y="${(Y0 + Y1) / 2}" text-anchor="middle"
+             transform="rotate(-90 18 ${(Y0 + Y1) / 2})">power of the state &#8594;</text>
+     </svg>
+     ${cap ? `<p class="map-caption">${cap}</p>` : ''}`;
+}
+
+function mapCaption(show){
+  const m = show.move;
+  if (m && m.level >= 3){
+    return `Started ${REGION_NAME[region(m.start.s, m.start.st)]}, ends ${REGION_NAME[region(m.end.s, m.end.st)]}.`;
+  }
+  if (m && m.level === 2) return 'Direction only. How far it travels is the next question.';
+  if (m && m.level === 1) return 'Where this country stands before the change.';
+  if (show.countries) return 'Placements follow Acemoglu and Robinson, as reported in the chapter, where they are offered as tentative.';
+  return '';
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+let mode = 'guided';
+let stepIdx = 0;
+let caseIdx = 0;
+let taskIdx = 0;
+let pick = null;
+let awaitingNext = false;
+let tasks = [];
+let findings = [];
+let revealLevel = 0;
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Tasks
+   ============================================================ */
+/* Options are presented in a fixed order, not shuffled. Shuffling guards
+   against a correct answer sitting in the same position every time, but the
+   correct answer already moves from case to case, so the guard buys nothing
+   and costs a student the ability to find an option where they last saw it.
+   A case's consequence options are drawn from a shared pool and sorted back
+   into the pool's own order, so that order is stable across the bank too. */
+const CONSEQ_ORDER = Object.keys(CONSEQ);
+
+function inOrder(options, correctKey){
+  const keys = options.slice().sort((a, b) => CONSEQ_ORDER.indexOf(a) - CONSEQ_ORDER.indexOf(b));
+  return { keys, correct: keys.indexOf(correctKey) };
+}
+
+/* Regions and directions are already declared in the order they should appear. */
+function asDeclared(options, correctKey){
+  return { keys: options.slice(), correct: options.indexOf(correctKey) };
+}
+
+function buildTasks(c){
+  const startR = region(c.start.s, c.start.st);
+  const endR   = region(c.end.s, c.end.st);
+  const dir    = direction(c.start, c.end);
+
+  const t1 = asDeclared(REGION_ORDER, startR);
+  const t2 = asDeclared(DIR_ORDER, dir);
+  const t3 = asDeclared(REGION_ORDER, endR);
+  const t4 = inOrder(c.pool, c.correct);
+
+  return [
+    { kind:'start', q:'Before the change, how would you describe this country&rsquo;s situation?',
+      keys:t1.keys, text:REGION_OPTS, correct:t1.correct,
+      nudge: c.nudge1 || 'Ask which of the two powers is further ahead of the other, rather than how capable either one is on its own.' },
+    { kind:'dir', q:'Which way does the change move the balance?',
+      keys:t2.keys, text:DIR_OPTS, correct:t2.correct,
+      nudge: c.nudge2 || 'Take each power in turn and ask whether the change raises it, lowers it, or leaves it alone. The balance can shift because one side rises or because the other falls.' },
+    { kind:'end', q:'Where does the change leave it?',
+      keys:t3.keys, text:REGION_OPTS, correct:t3.correct,
+      nudge: c.nudge3 || 'Apply the change to the balance this country started from. A change large enough to carry one country across a boundary need not be large enough to carry another.' },
+    { kind:'cons', q:'What does that mean for the people who live there?',
+      keys:t4.keys, text:CONSEQ, correct:t4.correct,
+      nudge: c.nudge4 || 'Ask two things about the balance the country has ended up in: what it lets the state do, and what it lets people do about that.' }
+  ];
+}
+
+const CONFIRM = {
+  start: c => `Right &mdash; ${REGION_NAME[region(c.start.s, c.start.st)]}, before anything changes.`,
+  dir:   c => {
+    const d = direction(c.start, c.end);
+    return d === 'neither' ? 'Right &mdash; neither power really moves, whatever else changes here.'
+         : d === 'together' ? 'Right &mdash; both grow, and closely enough in step that the balance holds.'
+         : d === 'state' ? 'Right &mdash; the state ends up further ahead of society than it was.'
+         : 'Right &mdash; society ends up further ahead of the state than it was.';
+  },
+  end:   c => {
+    const a = region(c.start.s, c.start.st), b = region(c.end.s, c.end.st);
+    return a === b ? `Right &mdash; still ${REGION_NAME[b]}. The change was real; it was not enough to move this country across a boundary.`
+                   : `Right &mdash; ${REGION_NAME[a]} before, ${REGION_NAME[b]} after.`;
+  },
+  cons:  () => 'Right.'
+};
+
+function findingLine(c, kind){
+  if (kind === 'start') return ['Starts', REGION_NAME[region(c.start.s, c.start.st)]];
+  if (kind === 'dir')   return ['Moves', DIR_OPTS[direction(c.start, c.end)].toLowerCase()];
+  if (kind === 'end')   return ['Ends', REGION_NAME[region(c.end.s, c.end.st)]];
+  return ['Means', CONSEQ[c.correct]];
+}
+
+/* ============================================================
+   Rendering: case card and findings
+   ============================================================ */
+function renderCaseCard(){
+  const host = $('caseCard');
+  if (mode === 'guided'){ host.style.display = 'none'; return; }
+  host.style.display = '';
+  const c = CASES[caseIdx];
+  host.innerHTML =
+    `<div class="card-head">${c.label}</div>
+     <div class="field">
+       <div class="field-label">Where things stand</div>
+       <div class="field-text">${c.standing}</div>
+     </div>
+     <div class="field">
+       <div class="field-label">The change</div>
+       <div class="field-text">${c.change}</div>
+     </div>
+     <div class="field">
+       <div class="field-label">How long it takes</div>
+       <div class="field-text"><span class="pace-tag">${c.pace}</span></div>
+     </div>`;
+}
+
+function renderFindings(){
+  const host = $('findings');
+  if (mode === 'guided' || findings.length === 0){ host.style.display = 'none'; return; }
+  host.style.display = '';
+  host.innerHTML = findings
+    .map(f => `<div><span class="k">${f[0]}</span>${f[1]}</div>`)
+    .join('');
+}
+
+function currentMove(){
+  if (mode === 'guided'){
+    const lv = GUIDED[stepIdx].show.demo;
+    return lv ? { start:DEMO.start, end:DEMO.end, level:lv } : null;
+  }
+  const c = CASES[caseIdx];
+  return { start:c.start, end:c.end, level:revealLevel };
+}
+
+function refreshMap(){
+  const show = mode === 'guided'
+    ? Object.assign({}, GUIDED[stepIdx].show)
+    : { equal:true, regions:true, corridor:true };
+  show.move = currentMove();
+  renderMap(show);
+}
+
+function announce(msg){
+  $('liveRegion').textContent = msg;
+}
+
+/* ============================================================
+   Bringing a changed card into view
+
+   The content column runs to three cards and can be longer than the
+   screen on a laptop as well as a phone, so this uses the visibility
+   gate rather than testing whether the layout has stacked. Guards, in
+   order: nothing moves when the card is already wholly on screen, and
+   nothing moves when the card is taller than the viewport with its top
+   in view. Focus is left where it is; the step text carries the same
+   content in prose through its live region.
+   ============================================================ */
+const CARD_NAMES = {
+  corridorMap: 'the corridor map',
+  caseCard:    'the case card',
+  findings:    'the findings box'
+};
+
+function bringIntoView(id, forced){
+  const el = $(id);
+  if (!el || el.style.display === 'none') return;
+  requestAnimationFrame(() => {
+    const box = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const seen = Math.min(box.bottom, vh) - Math.max(box.top, 0);
+    if (!forced && box.top >= 0 && (box.bottom <= vh || seen >= vh * 0.6)) return;
+    el.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+  });
+}
+
+/* Which cards a walkthrough step concerns, and which it actually changes.
+   Both are read off the step's own show flags rather than authored twice.
+   Consecutive steps that add to the map are one reveal: the scroll fires
+   on the first, so nobody is dragged back to the same figure five steps
+   running. */
+function stepCards(i){
+  const s = GUIDED[i].show, p = i > 0 ? GUIDED[i - 1].show : {};
+  const changed = ['equal','regions','corridor','countries']
+                    .some(k => s[k] && !p[k]) || (s.demo || 0) !== (p.demo || 0);
+  return { look:['corridorMap'], fresh: changed ? ['corridorMap'] : [] };
+}
+
+function renderLook(targets){
+  if (!targets || !targets.length) return;
+  const host = $('stepText');
+  const row = document.createElement('div');
+  row.className = 'look';
+  const lead = document.createElement('span');
+  lead.className = 'look-lead';
+  lead.textContent = 'Look at';
+  row.appendChild(lead);
+  targets.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'look-btn';
+    b.type = 'button';
+    b.textContent = CARD_NAMES[id];
+    b.setAttribute('aria-label', 'Go to ' + CARD_NAMES[id]);
+    b.addEventListener('click', () => bringIntoView(id, true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+
+/* Following a pointer can leave the step text and the Next control off
+   screen. Shown only while the panel's controls are actually out of sight. */
+const backBtn = document.createElement('button');
+backBtn.className = 'back-to-step';
+backBtn.type = 'button';
+backBtn.hidden = true;
+backBtn.addEventListener('click', () => {
+  document.querySelector('.panel-col').scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'end'
+  });
+});
+document.body.appendChild(backBtn);
+
+function syncBack(){
+  const pc = $('panelControls');
+  if (!pc || pc.children.length === 0){ backBtn.hidden = true; return; }
+  const box = pc.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top >= 0 && box.bottom <= vh;
+  backBtn.hidden = inSight;
+  if (!inSight) backBtn.textContent = mode === 'guided'
+    ? 'Back to step ' + (stepIdx + 1)
+    : 'Back to the task';
+}
+let backTicking = false;
+function queueSyncBack(){
+  if (backTicking) return;
+  backTicking = true;
+  requestAnimationFrame(() => { backTicking = false; syncBack(); });
+}
+window.addEventListener('scroll', queueSyncBack, { passive:true });
+window.addEventListener('resize', queueSyncBack);
+
+/* ============================================================
+   Walkthrough mode
+   ============================================================ */
+function renderGuided(){
+  const s = GUIDED[stepIdx];
+
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  GUIDED.forEach((_, i) => {
+    const d = document.createElement('span');
+    d.className = i < stepIdx ? 'done' : (i === stepIdx ? 'current' : '');
+    dots.appendChild(d);
+  });
+
+  $('stepLabel').textContent = 'Step ' + (stepIdx + 1) + ' of ' + GUIDED.length + ' \u2014 ' + s.label;
+  $('stepText').innerHTML = s.text;
+  $('opts').innerHTML = '';
+  clearNote();
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if (stepIdx > 0) ctl.appendChild(btn('Back', '', () => { stepIdx--; renderGuided(); }));
+  if (stepIdx < GUIDED.length - 1){
+    ctl.appendChild(btn('Next', 'primary', () => { stepIdx++; renderGuided(); }));
+  } else {
+    ctl.appendChild(btn('Go to practice mode', 'primary', () => setMode('practice')));
+  }
+
+  refreshMap();
+  renderCaseCard();
+  renderFindings();
+
+  const cards = stepCards(stepIdx);
+  renderLook(cards.look);
+  cards.fresh.forEach(id => bringIntoView(id, false));
+  queueSyncBack();
+}
+
+/* ============================================================
+   Practice mode
+   ============================================================ */
+function selectCase(i){
+  caseIdx = i;
+  taskIdx = 0;
+  pick = null;
+  awaitingNext = false;
+  revealLevel = 0;
+  findings = [];
+  tasks = buildTasks(CASES[i]);
+  clearNote();
+  renderPicker();
+  renderCaseCard();
+  renderPractice();
+  bringIntoView('caseCard', false);
+}
+
+function renderPractice(){
+  const c = CASES[caseIdx];
+  const t = tasks[taskIdx];
+
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  tasks.forEach((_, i) => {
+    const d = document.createElement('span');
+    d.className = i < taskIdx ? 'done' : (i === taskIdx ? 'current' : '');
+    dots.appendChild(d);
+  });
+
+  if (!t){
+    $('stepLabel').textContent = c.label + ' \u2014 complete';
+    $('stepText').innerHTML = '<p>' + c.note + '</p>';
+    $('opts').innerHTML = '';
+    clearNote();
+    const ctl = $('panelControls');
+    ctl.innerHTML = '';
+    if (CASES[caseIdx + 1]) ctl.appendChild(btn('Next country', 'primary', () => selectCase(caseIdx + 1)));
+    ctl.appendChild(btn('Start this one again', '', () => selectCase(caseIdx)));
+    refreshMap();
+    renderFindings();
+    queueSyncBack();
+    return;
+  }
+
+  $('stepLabel').textContent = 'Task ' + (taskIdx + 1) + ' of ' + tasks.length + ' \u2014 ' + c.label;
+  $('stepText').innerHTML = '<p>' + t.q + '</p>';
+
+  const opts = $('opts');
+  opts.innerHTML = '';
+  t.keys.forEach((k, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip wide' + (pick === i ? ' active' : '');
+    b.innerHTML = t.text[k];
+    b.setAttribute('aria-pressed', pick === i ? 'true' : 'false');
+    if (awaitingNext) b.disabled = true;
+    b.addEventListener('click', () => { pick = i; renderPractice(); });
+    opts.appendChild(b);
+  });
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if (awaitingNext){
+    ctl.appendChild(btn(taskIdx === tasks.length - 1 ? 'Finish' : 'Next task', 'primary', () => {
+      taskIdx++;
+      pick = null;
+      awaitingNext = false;
+      clearNote();
+      renderPractice();
+    }));
+  } else {
+    const check = btn('Check answer', 'primary', checkAnswer);
+    check.disabled = pick === null;
+    ctl.appendChild(check);
+  }
+
+  refreshMap();
+  renderFindings();
+  queueSyncBack();
+}
+
+function checkAnswer(){
+  const c = CASES[caseIdx];
+  const t = tasks[taskIdx];
+
+  if (pick !== t.correct){
+    note('no', t.nudge);
+    pick = null;
+    renderPractice();
+    return;
+  }
+
+  note('ok', CONFIRM[t.kind](c));
+  findings.push(findingLine(c, t.kind));
+  awaitingNext = true;
+
+  /* The map fills in behind the answer rather than ahead of it: the start
+     marker only appears once the student has placed the country, and the
+     arrow only once they have said where it lands. */
+  const before = revealLevel;
+  if (t.kind === 'start') revealLevel = 1;
+  if (t.kind === 'dir')   revealLevel = 2;
+  if (t.kind === 'end')   revealLevel = 3;
+
+  renderPractice();
+
+  if (revealLevel !== before){
+    announce(mapCaption({ move: currentMove() }));
+    bringIntoView('corridorMap', false);
+  }
+}
+
+/* ============================================================
+   Picker, chrome
+   ============================================================ */
+function renderPicker(){
+  const host = $('pickerZone');
+  if (mode === 'guided'){ host.innerHTML = ''; return; }
+  host.innerHTML = GROUPS.map(g => {
+    const chips = CASES
+      .map((c, i) => ({ c, i }))
+      .filter(x => x.c.group === g.id)
+      .map(x => `<button class="chip${x.i === caseIdx ? ' active' : ''}" type="button" data-case="${x.i}">${x.c.label}</button>`)
+      .join('');
+    return `<p class="group-label">${g.label}</p>
+            <p class="group-sub">${g.sub}</p>
+            <div class="picker">${chips}</div>`;
+  }).join('');
+  host.querySelectorAll('[data-case]').forEach(b => {
+    b.addEventListener('click', () => selectCase(+b.dataset.case));
+  });
+}
+
+function btn(label, cls, fn){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn' + (cls ? ' ' + cls : '');
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function clearNote(){
+  const n = $('resultNote');
+  n.className = 'result-note';
+  n.innerHTML = '';
+}
+
+function note(kind, msg){
+  const n = $('resultNote');
+  n.className = 'result-note show ' + kind;
+  n.innerHTML = msg;
+}
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.mode === m;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  clearNote();
+  renderPicker();
+  if (m === 'guided'){
+    renderCaseCard();
+    renderFindings();
+    renderGuided();
+  } else {
+    selectCase(caseIdx);
+  }
+  window.scrollTo({ top:0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => setMode(t.dataset.mode));
+});
+
+/* ---- theme ---- */
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const tg = $('themeToggle');
+  tg.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  $('themeIcon').innerHTML = dark ? '&#9788;' : '&#9789;';
+  $('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+$('themeToggle').addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+});
+
+/* ---- start ---- */
+renderGuided();
+
+</script>
+</body>
+</html>

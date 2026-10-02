@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inferring power from behavior</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the two parameters of the model */
+    --pE:#009E73;   /* bluish green   — the citizen's exit option */
+    --pL:#CC79A7;   /* reddish purple — the government's dependence */
+
+    /* semantic: correct / incorrect — messaging surfaces only */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state — here, the surviving set */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --pE:#3FCFA0;
+    --pL:#E29FC4;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 4px;}
+  .group-sub{font-size:12.5px; color:var(--secondary); margin:0 0 8px; line-height:1.5; max-width:660px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+  .chip.wide{border-radius:8px; display:block; width:100%; line-height:1.5; padding:10px 16px; font-weight:500;}
+  .chip.wide.active{font-weight:600;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .case-col{flex:1 1 540px; min-width:320px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  /* ---- case card ---- */
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .card-head{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin-bottom:12px;}
+  .field + .field{margin-top:12px;}
+  .field-label{font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--pE); margin-bottom:2px; text-transform:uppercase;}
+  .field-label.gap{color:var(--deemph);}
+  .field-text{font-size:14.5px; line-height:1.6; color:var(--ink);}
+  .card-compare{
+    margin-top:16px; padding-top:12px; border-top:1px dashed var(--border);
+    font-size:12.5px; color:var(--secondary); line-height:1.6;
+  }
+
+  /* ---- prediction table ---- */
+  .grid-outer{background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:16px 24px 24px;}
+  .grid-cap{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 4px;}
+  .grid-note{font-size:12px; color:var(--secondary); margin:0 0 16px; line-height:1.6;}
+  table.pred{border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed;}
+  table.pred th{
+    font-size:11.5px; font-weight:700; color:var(--secondary); text-align:left;
+    padding:4px 8px 8px; vertical-align:bottom; line-height:1.4;
+  }
+  table.pred th.colhead{color:var(--pL);}
+  table.pred th.rowhead{color:var(--pE); width:23%; vertical-align:middle; padding-right:12px;}
+  table.pred th .par{font-family:var(--font-data); font-weight:700; display:block; font-size:11px; color:var(--secondary);}
+  table.pred td{padding:0 0 8px 8px; vertical-align:top;}
+  .cellbtn{
+    display:block; width:100%; text-align:left; cursor:pointer;
+    font-family:var(--font-body); color:var(--ink);
+    background:var(--panel-bg); border:2px solid var(--border); border-radius:6px;
+    padding:12px; min-height:104px;
+  }
+  .cellbtn:hover{border-color:var(--accent);}
+  .cellbtn[disabled]{cursor:default;}
+  .cellbtn[disabled]:hover{border-color:var(--border);}
+  .cell-spe{font-family:var(--font-data); font-size:13.5px; font-weight:700; line-height:1.5;}
+  .cell-pred{font-size:13.5px; font-weight:700; line-height:1.5;}
+  .cellbtn.out .cell-pred{color:var(--deemph);}
+  .cellbtn .cell-pred.hidden{visibility:hidden;}
+  .cell-out{font-size:11.5px; color:var(--secondary); margin-top:4px; line-height:1.45;}
+  .cell-obs{font-size:12.5px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); line-height:1.45;}
+  .cell-obs b{font-weight:700;}
+  .cell-tag{
+    display:none; margin-top:8px; font-size:10px; font-weight:700; letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+  /* pending: actively selected, not yet checked — accent, not gold */
+  .cellbtn.pending{border-color:var(--accent); border-style:dashed;}
+  .cellbtn.pending .cell-tag{display:block; color:var(--accent);}
+  /* confirmed consistent — gold */
+  .cellbtn.keep{border-color:var(--gold-ui);}
+  .cellbtn.keep .cell-tag{display:block; color:var(--gold-text);}
+  /* ruled out — hatch + mark + label, text stays legible */
+  .cellbtn.out{
+    background-image:repeating-linear-gradient(45deg,
+      transparent 0 6px, color-mix(in srgb, var(--deemph) 22%, transparent) 6px 7px);
+  }
+  .cellbtn.out .cell-spe, .cellbtn.out .cell-obs{color:var(--deemph);}
+  .cellbtn.out .cell-tag{display:block; color:var(--deemph);}
+  .cellbtn.dim .cell-spe, .cellbtn.dim .cell-out, .cellbtn.dim .cell-obs{color:var(--deemph);}
+  .cellbtn .cell-obs.hidden{display:none;}
+  .cellbtn .cell-spe.hidden, .cellbtn .cell-out.hidden{visibility:hidden;}
+
+
+  /* ---- extension card ---- */
+  .ext-card{
+    margin-top:16px; padding:16px 24px; border-radius:8px;
+    border:1px solid var(--gold-ui); background:var(--panel-bg);
+  }
+  .ext-card h3{font-size:13px; margin:0 0 8px; color:var(--gold-text); letter-spacing:.03em;}
+  .ext-card p{font-size:13.5px; line-height:1.65; margin:0 0 8px; color:var(--ink);}
+  .ext-card p:last-child{margin-bottom:0;}
+  .ext-card .src{font-size:12px; color:var(--secondary);}
+
+  /* ---- findings ---- */
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:13.5px; color:var(--ink);
+  }
+  .findings div{margin:6px 0; line-height:1.5;}
+  .findings .k{font-weight:700; color:var(--gold-text); margin-right:6px;}
+
+  /* ---- panel ---- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:340px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.65; color:var(--ink);}
+  .panel .step-text p{margin:0 0 10px;}
+  .panel .step-text p:last-child{margin-bottom:0;}
+  .panel .step-text .pay{font-family:var(--font-data); font-weight:700;}
+  .opts{margin-top:16px; display:flex; flex-direction:column; gap:6px; flex:1;}
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .caveat{
+    margin-top:16px; padding:12px 16px; border-left:3px solid var(--border);
+    font-size:13px; color:var(--secondary); line-height:1.65;
+  }
+  .caveat b{color:var(--ink);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (max-width:820px){
+    table.pred th.rowhead{width:26%; font-size:11px;}
+    .cellbtn{min-height:0;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Inferring power from behavior</h1>
+      <p class="lede">In the exit, voice, and loyalty game, if you know a citizen&rsquo;s exit payoff and a government&rsquo;s dependence, solving the model tells you what each will do. Here you start with the outcome. You are handed a record of what happened and asked what may legitimately be concluded from it about who held power. This is more challenging, because different balances of power can produce exactly the same visible behavior.</p>
+      <p class="lede"><em>Citizen</em> and <em>government</em> are the model&rsquo;s names for the two roles &mdash; the actor something is taken from, and the actor that takes it. The cases put all kinds of actors in those positions.</p>
+      <p class="lede">One assumption runs underneath all of it: the citizen would rather get the benefit back, even after paying the cost of speaking up, than leave. Without it she would simply leave every time, whatever the government might do, and there would be nothing to work out.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div id="pickerZone">
+    <p class="group-label">A benefit has been taken. What follows?</p>
+    <p class="group-sub">The game as the chapter presents it. In every case the government has already made a negative change to the citizen's environment, and the question is what her response reveals.</p>
+    <div class="picker" id="pickerBase"></div>
+
+    <p class="group-label">Is a benefit taken at all?</p>
+    <p class="group-sub">The extended game, which adds a first move: the government decides whether to take the benefit in the first place. It does not add a fifth prediction &mdash; it replaces one, so read these cases against the extension rather than the game above.</p>
+    <div class="picker" id="pickerExt"></div>
+
+    <p class="group-label">When the players don't know</p>
+    <p class="group-sub">So far the game has assumed each side already knows everything about the other: the government knows whether the citizen can really leave, and she knows whether it depends on her. Each of these records leaves something that assumption cannot account for. Allowing the two sides to be uncertain about each other is what explains them.</p>
+    <div class="picker" id="pickerInfo"></div>
+  </div>
+
+  <div class="layout">
+    <div class="case-col">
+      <div class="card" id="caseCard" style="display:none;"></div>
+
+      <div class="grid-outer">
+        <p class="grid-cap" id="gridCap">The model's four predictions</p>
+        <p class="grid-note" id="gridNote"></p>
+        <table class="pred" id="predTable" role="grid" aria-label="Predictions of the exit, voice, and loyalty game"></table>
+        <p class="sr-only" id="gridSummary" aria-live="polite"></p>
+      </div>
+
+      <div class="ext-card" id="extCard" style="display:none;"></div>
+      <div class="findings" id="findings" style="display:none;" aria-live="polite"></div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="opts" id="opts"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const MINUS = "\u2212";
+const RSQ = "\u2019";
+
+/* ============================================================
+   The prediction table. Rows and columns follow Table 3.3:
+   columns are the government, rows are the citizen.
+   ============================================================ */
+const CELLS = {
+  ea: { id:'ea', r:0, c:0,
+        spe:'(Exit, Exit; Ignore)',
+        out:'Outcome 1 \u2014 the citizen exits, the government keeps the benefit.',
+        obs:'Exit, immediately. The citizen goes, and nothing is reversed.',
+        extOut:'The government takes the benefit. The citizen exits.',
+        extObs:'A benefit taken, and the citizen leaves.' },
+  ed: { id:'ed', r:0, c:1,
+        spe:'(Voice, Exit; Respond)',
+        out:'Outcome 3 \u2014 the government returns the benefit.',
+        obs:'Voice, and then a reversal.',
+        extOut:'The government does not take the benefit at all.',
+        extObs:'Nothing taken, and no voice used.' },
+  na: { id:'na', r:1, c:0,
+        spe:'(Loyalty, Loyalty; Ignore)',
+        out:'Outcome 2 \u2014 the citizen suffers the loss in silence.',
+        obs:'Loyalty. Nothing visible happens at all.',
+        extOut:'The government takes the benefit. The citizen remains loyal.',
+        extObs:'A benefit taken, and nothing visible happens.' },
+  nd: { id:'nd', r:1, c:1,
+        spe:'(Loyalty, Loyalty; Ignore)',
+        out:'Outcome 2 \u2014 the citizen suffers the loss in silence.',
+        obs:'Loyalty. Nothing visible happens at all.',
+        extOut:'The government takes the benefit. The citizen remains loyal.',
+        extObs:'A benefit taken, and nothing visible happens.' }
+};
+const CELL_ORDER = ['ea','ed','na','nd'];
+const ROW_HEADS = [
+  { t:'Has a credible exit threat', p:'E &gt; 0' },
+  { t:'Has no credible exit threat', p:'E &lt; 0' }
+];
+const COL_HEADS = [
+  { t:'Is autonomous', p:'L &lt; 1' },
+  { t:'Is dependent', p:'L &gt; 1' }
+];
+const CELL_NAME = {
+  ea:'credible exit threat, autonomous government',
+  ed:'credible exit threat, dependent government',
+  na:'no credible exit threat, autonomous government',
+  nd:'no credible exit threat, dependent government'
+};
+
+/* ============================================================
+   Shared option sets
+   ============================================================ */
+const RECORD_BASE = [
+  'Exit \u2014 the citizen accepted the change and altered her behavior',
+  'Voice, and it was ignored',
+  'Voice, and then a reversal',
+  'Loyalty \u2014 the citizen accepted the change and did not alter her behavior',
+  'Can' + RSQ + 't tell from the record'
+];
+const RECORD_EXT = [
+  'Nothing was taken, and no voice was used',
+  'A benefit was taken from an actor with alternatives elsewhere',
+  'A benefit was taken from an actor with nowhere else to go',
+  'Can' + RSQ + 't tell from the record'
+];
+const EXITQ = [
+  'Has a credible exit threat (E &gt; 0)',
+  'Has no credible exit threat (E &lt; 0)',
+  'Can' + RSQ + 't tell from this record'
+];
+const DEPQ = [
+  'Dependent (L &gt; 1)',
+  'Autonomous (L &lt; 1)',
+  'Can' + RSQ + 't tell from this record'
+];
+const CLAIMQ = ['Supported', 'Not supported'];
+const BASE_SAYS = [
+  'Yes \u2014 in the cell where the citizen has a credible exit threat and the government is dependent',
+  'Yes \u2014 in the cell where the citizen has a credible exit threat and the government is autonomous',
+  'Yes \u2014 in a cell where the citizen has no credible exit threat',
+  'No \u2014 none of the four cells leads to this episode'
+];
+const WHO = [
+  'The government was unsure whether the citizen could really leave',
+  'The citizen was unsure whether the government depended on her',
+  'Either could be true, and the record does not choose between them'
+];
+
+/* ============================================================
+   Cases
+   ============================================================ */
+const CASES = [
+
+/* ---------- section 1: the base game ---------- */
+{ id:'a1', group:'base', n:1,
+  fields:[
+    ['The change','A port authority raises berth fees on freight haulers.'],
+    ['The response','Within a quarter the largest haulers have rerouted through a neighboring jurisdiction' + RSQ + 's terminal.'],
+    ['Where it ended','The authority leaves the fee schedule in place.']
+  ],
+  record:0, cells:['ea'], exit:0, dep:1,
+  claim:'The authority was prepared to lose that traffic rather than reverse the fee.',
+  claimOk:true,
+  claimNote:'The haulers left and the fee stayed, which is what an autonomous government looks like: it valued the revenue above their custom.' },
+
+{ id:'a2', group:'base', n:2,
+  fields:[
+    ['The change','A state agency withdraws a heating-fuel subsidy from a rural county.'],
+    ['The response','There are no demonstrations and no petitions.'],
+    ['Where it ended','Collection at the unsubsidized price proceeds normally.']
+  ],
+  record:3, cells:['na','nd'], exit:1, dep:2,
+  claim:'The quiet response shows the state does not depend on the county.',
+  claimOk:false,
+  why:{ options:[
+      'Loyalty is what the model predicts from an actor with no exit option, whether or not the state depends on the county.',
+      'The region turns out to have a credible exit option after all.',
+      'Silence establishes that the region was satisfied with the withdrawal.'
+    ], correct:0 } },
+
+{ id:'a3', group:'base', n:3,
+  fields:[
+    ['The change','A state agency withdraws a heating-fuel subsidy from a rural county.'],
+    ['The response','There are no demonstrations and no petitions.'],
+    ['Also in the record','The state' + RSQ + 's own budget documents show how heavily it leans on that county' + RSQ + 's farm output for tax revenue.'],
+    ['Where it ended','Collection at the unsubsidized price proceeds normally.']
+  ],
+  compare:'Worth comparing with case 2.',
+  record:3, cells:['nd'], exit:1, dep:0,
+  claim:'The county' + RSQ + 's leverage failed here, so the state cannot really have needed it.',
+  claimOk:false,
+  why:{ options:[
+      'A dependent state still ignores the county, because the county has nowhere to go \u2014 dependence on its own hands it nothing.',
+      'The budget papers are not evidence about dependence.',
+      'The county must have a credible exit option, or the state would not have acted.'
+    ], correct:0 },
+  after:'Note what narrowed this to a single cell. It was not the response \u2014 the behavior here is identical to case 2. Dependence had to come from the budget papers, because no response by a citizen who cannot leave could have supplied it.' },
+
+{ id:'b2', group:'base', n:4,
+  fields:[
+    ['The change','A licensing board caps the number of permits any single operator may hold.'],
+    ['The response','The largest operator files no objection, transfers permits to a subsidiary in an adjacent jurisdiction, and continues operating at the same scale.'],
+    ['Where it ended','The cap stands.']
+  ],
+  record:0, cells:['ea'], exit:0, dep:1,
+  claim:'The board was prepared to lose the operator from its jurisdiction rather than lift the cap.',
+  claimOk:true,
+  claimNote:'The operator went, and the cap stayed. In the model a government that will let a citizen with somewhere else to go walk rather than reverse itself is an autonomous one \u2014 it valued the cap above keeping the operator in its jurisdiction.' },
+
+{ id:'b3', group:'base', n:5,
+  fields:[
+    ['The change','A water authority reclassifies smallholder wells, raising their charges.'],
+    ['The response','The smallholders' + RSQ + ' association petitions and packs two months of hearings.'],
+    ['Where it ended','The authority restores the old classification.']
+  ],
+  record:2, cells:['ed'], exit:0, dep:0,
+  claim:'The petition worked because the authority found the smallholders' + RSQ + ' argument persuasive.',
+  claimOk:false,
+  why:{ options:[
+      'In the model the authority reverses because it is dependent and can see the smallholders would otherwise leave, not because it was convinced.',
+      'The authority is autonomous, so the reversal must have another cause.',
+      'The smallholders have no exit option, so the petition cannot have been what moved it.'
+    ], correct:0 } },
+
+{ id:'c1', group:'base', n:6,
+  fields:[
+    ['The change','A firm stops paying the premium its technicians earn for working night shifts.'],
+    ['The response','Technicians whose certifications transfer readily raise the cut collectively with management, noting they have offers from other employers.'],
+    ['Where it ended','The premium is restored.']
+  ],
+  record:2, cells:['ed'], exit:0, dep:0,
+  claim:'Had the technicians' + RSQ + ' certifications not transferred so readily, the same complaint would have gone nowhere.',
+  claimOk:true,
+  claimNote:'This is the kind of claim the model is built to answer: change one thing and re-solve. Make the technicians' + RSQ + ' exit payoff negative instead of positive, leave everything else as it is, and the equilibrium becomes loyalty and an ignored complaint \u2014 however good the argument, and however much management may also have been persuaded by it.' },
+
+{ id:'c2', group:'base', n:7,
+  fields:[
+    ['The change','An employer imposes an unpopular scheduling system at a plant in a single-employer town.'],
+    ['The response','No grievance is filed.'],
+    ['Where it ended','Staff work the new schedule.']
+  ],
+  record:3, cells:['na','nd'], exit:1, dep:2,
+  claim:'Whatever staff thought at first, the absence of any grievance since shows they are no longer unhappy about it.',
+  claimOk:false,
+  why:{ options:[
+      'The model predicts loyalty from an actor with no exit option regardless of what that actor would prefer.',
+      'Staff do have an exit option, even in a single-employer town.',
+      'The absence of a grievance shows the employer is autonomous.'
+    ], correct:0 } },
+
+{ id:'d1', group:'base', n:8,
+  fields:[
+    ['The change','A regional bloc in a governing coalition sees a revenue-sharing formula changed to its disadvantage.'],
+    ['The response','It files no objection and issues no statement.'],
+    ['Not in the record','Whether the bloc kept mobilizing turnout in its region at the same level, or quietly redirected its organizers toward local races.'],
+    ['Where it ended','The coalition holds and the new formula stands.']
+  ],
+  record:4, cells:['ea','na','nd'], exit:2, dep:2,
+  claim:'The record is too thin to support any conclusion about this relationship.',
+  claimOk:false,
+  why:{ options:[
+      'One cell is ruled out: the model has a dependent government facing a credible exit threat reversing itself, and nothing was reversed.',
+      'The record settles whether the bloc has a credible exit option.',
+      'The record settles whether the leadership depends on the bloc.'
+    ], correct:0 },
+  after:'A record with a hole in it still closed something off. It could not separate exit from loyalty, so neither parameter was settled \u2014 and one cell was eliminated anyway.' },
+
+{ id:'d2', group:'base', n:9,
+  fields:[
+    ['The change','A party' + RSQ + 's core constituency dislikes a policy.'],
+    ['The response','Rather than switch parties, a share of them stop turning out.'],
+    ['Where it ended','The party leaves the policy in place and redirects its attention to swing districts.']
+  ],
+  record:0, cells:['ea'], exit:0, dep:1,
+  claim:'The party judged it could afford to lose those voters.',
+  claimOk:true,
+  claimNote:'The voters went, and the policy stayed. In the model a government that would rather lose a citizen who can credibly leave than reverse itself is valuing what it took above her loyalty \u2014 which is what the claim says, and what redirecting attention to swing districts looks like in practice.' },
+
+/* ---------- section 2: the extension ---------- */
+{ id:'b1', group:'ext', n:10,
+  fields:[
+    ['The relationship','A state' + RSQ + 's largest trucking firms all belong to one industry group. Those firms already run depots in two neighboring states and could move their routes there.'],
+    ['What the record shows','The state transport agency has twice written new inspection rules that would have been expensive for those firms. Both times the rules were dropped before they were announced. The industry group has never written to the agency or asked for a meeting.']
+  ],
+  record:0, recordSet:'ext', cells:['ed'], exit:0, dep:0,
+  claim:'The industry group has little influence with the agency \u2014 it has never even written to them.',
+  claimOk:false,
+  why:{ options:[
+      'Dropping the rules twice is the evidence. In the extended game, an agency that depends on firms who could leave does not impose the cost in the first place.',
+      'Writing to the agency is the only form voice can take, so the record says nothing about influence either way.',
+      'The record does not establish that the firms could really move their routes.'
+    ], correct:0 } },
+
+{ id:'c3', group:'ext', n:11,
+  fields:[
+    ['The relationship','A systems administrator is the only person at her firm who understands how its billing system works. Recruiters contact her regularly with job offers she could take.'],
+    ['What the record shows','Twice in the past few years management has drawn up plans to cut her team' + RSQ + 's budget and hand part of its work to an outside contractor. Both times the plans were dropped before anything was announced. She has never asked management for anything.']
+  ],
+  record:0, recordSet:'ext', cells:['ed'], exit:0, dep:0,
+  claim:'She has never asked for anything, so she has no leverage over management.',
+  claimOk:false,
+  why:{ options:[
+      'The dropped plans are the evidence. In the extended game, an employer that depends on someone who could leave does not impose the cost in the first place.',
+      'Leverage in the model requires that an actor make a demand.',
+      'Job offers from recruiters do not establish an exit option.'
+    ], correct:0 } },
+
+{ id:'d3', group:'ext', n:12,
+  fields:[
+    ['The relationship','A county party organization supplies most of the volunteers for a district the state party has to hold. An independent campaign in the same district has been openly courting those volunteers.'],
+    ['What the record shows','Twice in three years, state leadership has considered cutting the money it spends on organizing in that district, and each time left it in place. The county chair has never asked for a commitment.']
+  ],
+  record:0, recordSet:'ext', cells:['ed'], exit:0, dep:0,
+  claim:'The chair has never asked for anything, so the organization has no pull with the state party.',
+  claimOk:false,
+  why:{ options:[
+      'Leadership weighing the move twice and dropping it twice is the observation: it is what dependence looks like when the other side can leave.',
+      'The organization' + RSQ + 's volunteers are not a credible exit option.',
+      'Pull would have to be exercised to exist.'
+    ], correct:0 } },
+
+{ id:'e1', group:'ext', n:13,
+  fields:[
+    ['The relationship','A parts maker sells most of what it produces to one big manufacturer. Two other manufacturers have said they would take the same parts, and the parts maker has switched customers before.'],
+    ['What the record shows','The manufacturer changes its payment terms in a way that cuts what the parts maker earns on each order.']
+  ],
+  record:1, recordSet:'ext', cells:['ea'], exit:0, dep:1,
+  claim:'We cannot say anything about the manufacturer until we see how the parts maker responds.',
+  claimOk:false,
+  why:{ options:[
+      'A manufacturer that depended on this parts maker would not have changed the terms at all, knowing it could sell to someone else instead. It changed them anyway.',
+      'The parts maker' + RSQ + 's response would tell us nothing either way.',
+      'The record does not establish that the parts maker has anywhere else to sell.'
+    ], correct:0 },
+  after:'Nothing in this record reports a response, and none was needed. Under the extension the taking is itself the observation.' },
+
+{ id:'e2', group:'ext', n:14,
+  fields:[
+    ['The relationship','A regional airline is the only carrier serving a state' + RSQ + 's three smallest airports, and has closed unprofitable routes in two other states within the past five years.'],
+    ['What the record shows','The state' + RSQ + 's transport department has cut the subsidy attached to those routes in three consecutive budgets.']
+  ],
+  record:1, recordSet:'ext', cells:['ea'], exit:0, dep:1,
+  claim:'The repeated cuts show the department can afford to lose the service.',
+  claimOk:true,
+  claimNote:'A department that needed those routes flown, facing a carrier with a demonstrated willingness to close routes, would not have cut the subsidy once, let alone three times.' },
+
+/* ---------- section 3: incomplete information ---------- */
+{ id:'f1', group:'info', n:15,
+  fields:[
+    ['The episode','A firm stops paying the premium its technicians earn for working night shifts. During the dispute the technicians produce written offers from a competing employer \u2014 the first management has heard of them.'],
+    ['Afterward','The firm restores the premium within the week.']
+  ],
+  baseSays:0,
+  cant:{ options:[
+      'Why the firm stopped paying the premium at all, if it depended on technicians who could leave.',
+      'Why the technicians spoke up rather than leaving immediately.',
+      'Why the firm restored the premium.'
+    ], correct:0,
+    nudges:[ null,
+      'The game does explain that one. It assumes the citizen would rather get the benefit back, even after paying the cost of speaking up, than leave \u2014 so she speaks up first.',
+      'The game explains that one too: a government that depends on a citizen who can credibly leave hands the benefit back.' ] },
+  who:0,
+  whoNote:'Right, and notice what voice is doing here: carrying information, not just costing the citizen money.',
+  claim:'Nothing in this episode is left unexplained once we note that the firm was dependent.',
+  claimOk:false,
+  why:{ options:[
+      'If the firm already knew what the technicians could do, a firm that depended on them would not have stopped paying the premium in the first place.',
+      'The firm' + RSQ + 's dependence is not established by the record.',
+      'Voice is costly, so the technicians should not have used it.'
+    ], correct:0 },
+  after:'Case 6 is the same episode. The first group of cases asks only what the reversal reveals, and stops there. The question here is why the firm cut the premium at all \u2014 and if the firm already knew what the technicians could do there is no answer, because a firm that depended on them would not have cut it. The technicians' + RSQ + ' outside offers being news to the firm is what makes this scenario possible. Providing new information is a job voice can do as long as both sides don' + RSQ + 't already know everything.' },
+
+{ id:'f6', group:'info', n:16,
+  fields:[
+    ['The episode','A county fair has run on the same fairgrounds for years. When the owner of the site raises the rent sharply, the fair' + RSQ + 's organizers campaign publicly for a reduction, confident the owner will give way because the fair fills the site every summer.'],
+    ['Afterward','The owner does not budge. The fair moves to a site two counties over.']
+  ],
+  baseSays:3,
+  cant:{ options:[
+      'Voice that is used, ignored, and then followed by the actor leaving.',
+      'A site owner raising the rent.',
+      'A fair moving to a different site.'
+    ], correct:0,
+    nudges:[ null,
+      'The game explains that one. A government that does not need the citizen keeps what it took.',
+      'The game explains that one too: an actor with somewhere else to go leaves.' ] },
+  who:1,
+  whoNote:'Right. The organizers had a real exit option and used it in the end. What they got wrong was the owner: they thought the fair was worth more to the owner than the higher rent, and it was not. The chapter describes this as a citizen overestimating how much the government values her loyalty, and finding out the hard way.',
+  claim:'The owner turned out not to depend on the fair.',
+  claimOk:true,
+  claimNote:'An owner who needed the fair more than the higher rent would have given way rather than lose it. Letting them go is what an autonomous government looks like \u2014 the organizers simply did not expect it.' },
+
+{ id:'f7', group:'info', n:17,
+  fields:[
+    ['The episode','A school district cuts the stipend it pays the coaches who run its after-school programs. The coaches organize and petition the board for two months.'],
+    ['Where it ended','The board does not restore the stipend.'],
+    ['Not in the record','Whether the coaches kept running the programs afterward, or gave them up.']
+  ],
+  baseSays:3,
+  cant:{ options:[
+      'Voice that is used and then ignored.',
+      'A school board cutting a stipend.',
+      'Coaches organizing a petition.'
+    ], correct:0,
+    nudges:[ null,
+      'The game explains that one \u2014 the prehistory of every case in this tool is a benefit being taken.',
+      'The game explains that one too. Using voice is one of the citizen' + RSQ + 's three options.' ] },
+  who:2,
+  whoNote:'Right. Perhaps the coaches could have walked away and the board did not believe it. Perhaps they could not, and were hoping the board would not work that out. The record never says what they did next, so it cannot choose between those two.',
+  claim:'The board evidently does not depend on the coaches.',
+  claimOk:false,
+  why:{ options:[
+      'If the coaches had nowhere else to go, even a board that depended on them would ignore the petition.',
+      'Restoring the stipend would have been the only possible sign of dependence.',
+      'A petition does not count as voice in the model.'
+    ], correct:0 } }
+];
+
+/* ============================================================
+   Guided walkthrough
+   ============================================================ */
+const GUIDED = [
+  { label:'Introduction',
+    html:'<p>Solving the exit, voice, and loyalty game gives you four predictions, one for each combination of the two parameters: whether the citizen has a credible exit threat, <span class="pay">E</span>, and whether the government depends on her, <span class="pay">L</span>.</p>'
+      + '<p>It is worth assembling these four predictions in one place and being precise about what each one would actually look like to somebody watching.</p>',
+    show:{} },
+
+  { label:'The table',
+    html:'<p>Two parameters with two values each, in four cells. The columns are the government and the rows are the citizen.</p>'
+      + '<p>The equilibria that go in these cells are derived in the chapter and in the companion tool on solving game trees. Here they arrive as given.</p>',
+    show:{} },
+
+  { label:'Credible exit threat, autonomous government',
+    html:'<p>The citizen can leave, and the government does not much mind if she does. Working back up the tree, the citizen would exit at her final choice node; knowing that, the government prefers to keep the benefit and let her go, because <span class="pay">L &lt; 1</span>; and knowing that, the citizen does not bother with voice, since paying <span class="pay">c</span> to be ignored is worse than simply leaving.</p>'
+      + '<p>The equilibrium is <span class="pay">(Exit, Exit; Ignore)</span>.</p>',
+    show:{ spe:['ea'] } },
+
+  { label:'Credible exit threat, dependent government',
+    html:'<p>The same citizen, facing a government that values her loyalty above the benefit it took. She would still exit at the final node \u2014 but now the government, looking down the tree at that, prefers to hand the benefit back, because <span class="pay">L &gt; 1</span>. Voice becomes worth its cost.</p>'
+      + '<p>The equilibrium is <span class="pay">(Voice, Exit; Respond)</span>. This is the only cell in which the citizen gets anything.</p>',
+    show:{ spe:['ea','ed'] } },
+
+  { label:'No credible exit threat, autonomous government',
+    html:'<p>The citizen has nowhere to go: remaining loyal is worth more to her than leaving. At the final node she stays, so ignoring her costs the government nothing at all \u2014 it collects <span class="pay">1 + L</span> rather than <span class="pay">L</span>. Voice would only cost the citizen <span class="pay">c</span> for nothing in return.</p>'
+      + '<p>The equilibrium is <span class="pay">(Loyalty, Loyalty; Ignore)</span>.</p>',
+    show:{ spe:['ea','ed','na'] } },
+
+  { label:'No credible exit threat, dependent government',
+    html:'<p>Now change the government to a dependent one and work through it again. The citizen still stays at the final node, so the government still collects <span class="pay">1 + L</span> by ignoring her, and <span class="pay">1 + L &gt; L</span> whatever <span class="pay">L</span> happens to be. Dependence changes nothing.</p>'
+      + '<p>The equilibrium is <span class="pay">(Loyalty, Loyalty; Ignore)</span> \u2014 the autonomous case, repeated. Two different types of government, but only one prediction.</p>',
+    show:{ spe:['ea','ed','na','nd'] } },
+
+  { label:'What an observer would see',
+    html:'<p>For each equilibrium, what could an observer witness?</p>'
+      + '<p>Three distinct behaviors come out of four cells: the citizen leaves; the citizen protests and wins; or nothing visible happens at all. Notice which cells are collapsed together.</p>',
+    show:{ spe:CELL_ORDER, obs:CELL_ORDER } },
+
+  { label:'What silence does and does not tell you',
+    html:'<p>Observing exit and successful voice each identify both parameters (<span class="pay">E</span> and <span class="pay">L</span>) exactly. Observing loyalty identifies only one: it tells you the citizen has no credible exit threat. It tells you nothing about dependence, because a dependent government and an autonomous one both ignore a citizen who cannot leave.</p>'
+      + '<p>And it is precisely because the citizen expects to be ignored that she stays quiet in the first place. The chapter' + RSQ + 's warning follows directly: governments that face little public opposition are not thereby shown to be autonomous. They may be deeply dependent and still perfectly free to ignore their citizens.</p>',
+    show:{ spe:CELL_ORDER, obs:CELL_ORDER, wash:['na','nd'] } },
+
+  { label:'The extension',
+    html:'<p>The game so far begins after the government has taken something. If we make that decision part of the game \u2014 the government first choosing whether to exploit the citizen at all \u2014 what an observer would see changes in one cell.</p>'
+      + '<p>A dependent government facing a citizen with a credible exit threat can see that it would have to hand the benefit back, and pay for the protest on the way. So it does not take it. The citizen never needs to use her voice.</p>'
+      + '<p>This replaces the original prediction in the <span class="pay">E &gt; 0, L &gt; 1</span> cell. It offers an explanation for what looks like nothing happening.</p>'
+,
+    show:{ spe:CELL_ORDER, obs:CELL_ORDER, ext:true } },
+
+  { label:'Two models, two questions',
+    html:'<p>The cases ahead are in three groups, and the first two ask different questions of the same table. Where a benefit has been taken in the prehistory of the game, the original game applies and the question is what the citizen' + RSQ + 's response reveals. Where the question is whether anything gets taken at all, the extended game applies.</p>'
+      + '<p>Which model is in force is determined by the type of case, not by you.</p>',
+    show:{ spe:CELL_ORDER, obs:CELL_ORDER, ext:true } },
+
+  { label:'When the players don' + RSQ + 't know',
+    html:'<p>Under complete information, the extended model cannot produce a dependent government taking something from a citizen who can credibly leave. Every real episode of successful voice is therefore a record of somebody having been wrong about something.</p>'
+      + '<p>If we allow that the government might not know whether the citizen' + RSQ + 's exit threat is credible, then the episode becomes understandable: it takes the benefit because it misreads the citizen, she protests, and the protest tells the government something it didn' + RSQ + 't know before.</p>',
+    show:{ spe:CELL_ORDER, obs:CELL_ORDER, ext:true } }
+];
+
+/* ============================================================
+   State
+   ============================================================ */
+let mode = 'guided';
+let stepIdx = 0;
+let caseIdx = -1;
+let taskIdx = 0;
+let tasks = [];
+let pick = null;           // chip index, or 'none'
+let gridPick = new Set();  // pending cell selection
+let cellState = {};        // id -> 'keep' | 'out'
+let findings = [];
+let awaitingNext = false;
+
+const $ = id => document.getElementById(id);
+
+/* ---------------- theme ---------------- */
+(function(){
+  const stored = null;
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(prefersDark ? 'dark' : 'light');
+  $('themeToggle').addEventListener('click', () => {
+    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+})();
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  const dark = t === 'dark';
+  $('themeToggle').setAttribute('aria-pressed', dark ? 'true' : 'false');
+  $('themeIcon').innerHTML = dark ? '&#9788;' : '&#9789;';
+  $('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+
+/* ---------------- pickers ---------------- */
+function buildPickers(){
+  const map = { base:$('pickerBase'), ext:$('pickerExt'), info:$('pickerInfo') };
+  Object.values(map).forEach(el => el.innerHTML = '');
+  CASES.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = 'Case ' + c.n;
+    b.addEventListener('click', () => selectCase(i));
+    map[c.group].appendChild(b);
+  });
+}
+function markPicker(){
+  const all = document.querySelectorAll('#pickerZone .chip');
+  all.forEach((b, i) => b.classList.toggle('active', i === caseIdx));
+}
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => {
+      const on = x === t;
+      x.classList.toggle('active', on);
+      x.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    mode = t.dataset.mode;
+    if (mode === 'guided'){ stepIdx = 0; renderGuided(); }
+    else { if (caseIdx < 0) caseIdx = 0; selectCase(caseIdx); }
+    $('pickerZone').style.display = mode === 'practice' ? '' : 'none';
+  });
+});
+
+/* ============================================================
+   The prediction table
+   ============================================================ */
+function renderTable(opts){
+  opts = opts || {};
+  const showSpe = new Set(opts.spe || CELL_ORDER);
+  const showObs = new Set(opts.obs || []);
+  const wash = new Set(opts.wash || []);
+  const clickable = !!opts.clickable;
+  const ext = opts.variant === 'ext';
+
+  const tbl = $('predTable');
+  tbl.innerHTML = '';
+
+  const head = document.createElement('tr');
+  head.appendChild(el('th', '', ''));
+  COL_HEADS.forEach(h => {
+    const th = document.createElement('th');
+    th.className = 'colhead';
+    th.setAttribute('scope','col');
+    th.innerHTML = 'The government<br>' + h.t + '<span class="par">' + h.p + '</span>';
+    head.appendChild(th);
+  });
+  tbl.appendChild(head);
+
+  ROW_HEADS.forEach((rh, r) => {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.className = 'rowhead';
+    th.setAttribute('scope','row');
+    th.innerHTML = 'The citizen<br>' + rh.t + '<span class="par">' + rh.p + '</span>';
+    tr.appendChild(th);
+
+    COL_HEADS.forEach((ch, c) => {
+      const cell = CELL_ORDER.map(id => CELLS[id]).find(x => x.r === r && x.c === c);
+      const td = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cellbtn';
+      btn.dataset.id = cell.id;
+      btn.setAttribute('role','gridcell');
+
+      const st = cellState[cell.id];
+      if (st === 'keep') btn.classList.add('keep');
+      else if (st === 'out') btn.classList.add('out');
+      if (gridPick.has(cell.id)) btn.classList.add('pending');
+      if (wash.has(cell.id)) btn.classList.add('keep');
+
+      const headline = ext ? cell.extOut : cell.spe;
+      const sub      = ext ? '' : cell.out;
+      const observed = ext ? cell.extObs : cell.obs;
+
+      const spe = document.createElement('div');
+      spe.className = (ext ? 'cell-pred' : 'cell-spe') + (showSpe.has(cell.id) ? '' : ' hidden');
+      spe.textContent = headline;
+      const out = document.createElement('div');
+      out.className = 'cell-out' + (showSpe.has(cell.id) && sub ? '' : ' hidden');
+      out.textContent = sub;
+      const obs = document.createElement('div');
+      obs.className = 'cell-obs' + (showObs.has(cell.id) ? '' : ' hidden');
+      obs.innerHTML = '<b>You would observe:</b> ' + observed;
+      const tag = document.createElement('div');
+      tag.className = 'cell-tag';
+      tag.textContent = st === 'keep' ? '\u25C6 consistent'
+                      : st === 'out'  ? '\u2715 ruled out'
+                      : gridPick.has(cell.id) ? '\u25CB selected'
+                      : wash.has(cell.id) ? '\u25C6 same prediction'
+                      : '';
+
+      btn.appendChild(spe); btn.appendChild(out); btn.appendChild(obs); btn.appendChild(tag);
+
+      let label = CELL_NAME[cell.id] + '. ';
+      if (showSpe.has(cell.id)) label += headline + '. ';
+      if (showObs.has(cell.id)) label += 'You would observe: ' + observed + ' ';
+      if (st === 'keep') label += 'Consistent with the record.';
+      else if (st === 'out') label += 'Ruled out.';
+      else if (wash.has(cell.id)) label += 'Same prediction as the neighboring cell.';
+      btn.setAttribute('aria-label', label);
+
+      if (clickable && !awaitingNext){
+        btn.addEventListener('click', () => toggleCell(cell.id));
+        btn.setAttribute('aria-pressed', gridPick.has(cell.id) ? 'true' : 'false');
+      } else {
+        btn.disabled = true;
+      }
+      td.appendChild(btn);
+      tr.appendChild(td);
+    });
+    tbl.appendChild(tr);
+  });
+}
+function el(tag, cls, txt){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt) e.textContent = txt;
+  return e;
+}
+function toggleCell(id){
+  if (gridPick.has(id)) gridPick.delete(id); else gridPick.add(id);
+  pick = null;
+  renderPractice();   // re-renders the panel too, so Check answer enables
+}
+function refreshGrid(){
+  const t = tasks[taskIdx];
+  const c = CASES[caseIdx];
+  renderTable({
+    spe: CELL_ORDER,
+    obs: CELL_ORDER,
+    variant: (c && c.group === 'ext') ? 'ext' : 'base',
+    clickable: !!(t && t.type === 'grid')
+  });
+}
+
+/* ============================================================
+   Task construction
+   ============================================================ */
+function shuffled(options, correct){
+  const idx = options.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+  return { options: idx.map(i => options[i]), correct: idx.indexOf(correct), orig: idx };
+}
+
+function buildTasks(c){
+  const T = [];
+  if (c.group === 'info'){
+    T.push({ type:'chips', kind:'baseSays',
+             q: c.baseSaysQ || 'Could this episode have happened in the game as the chapter presents it? If so, in which cell?',
+             options:BASE_SAYS, correct:c.baseSays });
+    const ct = shuffled(c.cant.options, c.cant.correct);
+    T.push({ type:'chips', kind:'cant', q:'The game assumes each side already knows everything about the other. What is it about this episode that it therefore cannot explain?',
+             options:ct.options, correct:ct.correct, orig:ct.orig, nudges:c.cant.nudges });
+    const wh = shuffled(WHO, c.who);
+    T.push({ type:'chips', kind:'who', q:'If we allow instead that the two sides may be uncertain about each other, what was it that someone did not know?',
+             options:wh.options, correct:wh.correct, note:c.whoNote });
+  } else {
+    const set = c.recordSet === 'ext' ? RECORD_EXT : RECORD_BASE;
+    T.push({ type:'chips', kind:'record', q:'What does the record show?', options:set, correct:c.record });
+    T.push({ type:'grid', kind:'cells', q:'Which cells are consistent with that record? Select every one of them.',
+             correct:c.cells });
+    T.push({ type:'chips', kind:'exit', q:'What follows about the citizen' + RSQ + 's exit option?',
+             options:EXITQ, correct:c.exit });
+    T.push({ type:'chips', kind:'dep', q:'What follows about whether the government depends on the citizen?',
+             options:DEPQ, correct:c.dep });
+  }
+  T.push({ type:'chips', kind:'claim',
+           q:'An analyst concludes: <em>' + c.claim + '</em> Is that supported by the record?',
+           options:CLAIMQ, correct:c.claimOk ? 0 : 1 });
+  if (!c.claimOk && c.why){
+    const wy = shuffled(c.why.options, c.why.correct);
+    T.push({ type:'chips', kind:'why', q:'Why not?', options:wy.options, correct:wy.correct });
+  }
+  return T;
+}
+
+/* ============================================================
+   Practice mode
+   ============================================================ */
+function selectCase(i){
+  caseIdx = i;
+  taskIdx = 0;
+  pick = null;
+  gridPick = new Set();
+  cellState = {};
+  findings = [];
+  awaitingNext = false;
+  tasks = buildTasks(CASES[i]);
+  clearNote();
+  markPicker();
+  renderCase();
+}
+
+function renderCase(){
+  const c = CASES[caseIdx];
+
+  // case card
+  const card = $('caseCard');
+  card.style.display = '';
+  let h = '<div class="card-head">Case ' + c.n + '</div>';
+  c.fields.forEach(([label, text]) => {
+    const gap = /not in the record/i.test(label) ? ' gap' : '';
+    h += '<div class="field"><div class="field-label' + gap + '">' + label + '</div>'
+       + '<div class="field-text">' + text + '</div></div>';
+  });
+  if (c.compare) h += '<div class="card-compare">' + c.compare + '</div>';
+  card.innerHTML = h;
+
+  // grid framing
+  $('gridCap').textContent = c.group === 'ext'
+    ? 'The model' + RSQ + 's predictions, with the extension in force'
+    : 'The model' + RSQ + 's four predictions';
+  $('gridNote').innerHTML = (c.group === 'ext'
+    ? 'The extended model with the government moving first and choosing whether to take the benefit away is used here. The cells show outcomes only, skipping the equilibria. What changes for an observer is one cell \u2014 where the citizen has a credible exit threat and the government is dependent, nothing is taken.'
+    : 'Every cell is a prediction about what an observer would see. Read the record against them.');
+
+  $('extCard').style.display = 'none';
+  renderPractice();
+}
+
+function renderPractice(){
+  const c = CASES[caseIdx];
+  const t = tasks[taskIdx];
+
+  // progress
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  tasks.forEach((_, i) => {
+    const s = document.createElement('span');
+    s.className = i < taskIdx ? 'done' : (i === taskIdx ? 'current' : '');
+    dots.appendChild(s);
+  });
+
+  if (!t){
+    $('stepLabel').textContent = 'Case complete';
+    $('stepText').innerHTML = '<p>' + closingLine(c) + '</p>';
+    $('opts').innerHTML = '';
+    clearNote();
+    const ctl = $('panelControls');
+    ctl.innerHTML = '';
+    const next = CASES[caseIdx + 1];
+    if (next){
+      ctl.appendChild(btn('Next case', 'primary', () => selectCase(caseIdx + 1)));
+    }
+    ctl.appendChild(btn('Start this case again', '', () => selectCase(caseIdx)));
+    refreshGrid();
+    renderFindings();
+    return;
+  }
+
+  $('stepLabel').textContent = 'Task ' + (taskIdx + 1) + ' of ' + tasks.length;
+  $('stepText').innerHTML = '<p>' + t.q + '</p>';
+
+  const opts = $('opts');
+  opts.innerHTML = '';
+  if (t.type === 'chips'){
+    t.options.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip wide' + (pick === i ? ' active' : '');
+      b.innerHTML = o;
+      b.setAttribute('aria-pressed', pick === i ? 'true' : 'false');
+      if (awaitingNext) b.disabled = true;
+      b.addEventListener('click', () => { pick = i; renderPractice(); });
+      opts.appendChild(b);
+    });
+  } else {
+    const p = document.createElement('p');
+    p.style.fontSize = '13px';
+    p.style.color = 'var(--secondary)';
+    p.style.margin = '0';
+    p.style.lineHeight = '1.6';
+    p.textContent = 'Select cells in the prediction table. More than one may be consistent.';
+    opts.appendChild(p);
+  }
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if (awaitingNext){
+    ctl.appendChild(btn(taskIdx === tasks.length - 1 ? 'Finish' : 'Next task', 'primary', () => {
+      taskIdx++; pick = null; gridPick = new Set(); awaitingNext = false;
+      clearNote();
+      renderPractice();
+    }));
+  } else {
+    const ready = t.type === 'chips' ? pick !== null : gridPick.size > 0;
+    const check = btn('Check answer', 'primary', checkAnswer);
+    check.disabled = !ready;
+    ctl.appendChild(check);
+  }
+  refreshGrid();
+  renderFindings();
+}
+
+function btn(label, cls, fn){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn' + (cls ? ' ' + cls : '');
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function clearNote(){
+  const n = $('resultNote');
+  n.className = 'result-note';
+  n.innerHTML = '';
+}
+
+function note(kind, msg){
+  const n = $('resultNote');
+  n.className = 'result-note show ' + kind;
+  n.innerHTML = msg;
+}
+
+function checkAnswer(){
+  const c = CASES[caseIdx];
+  const t = tasks[taskIdx];
+
+  if (t.type === 'grid'){
+    const want = new Set(t.correct);
+    const got = gridPick;
+    const hits = [...got].filter(x => want.has(x));
+    const extras = [...got].filter(x => !want.has(x));
+
+    if (hits.length === 0){
+      gridPick = new Set();
+      note('no', 'None of those could have produced this record. Work through the cells one at a time: what would each of them have you see?');
+      renderPractice(); return;
+    }
+    if (extras.length > 0){
+      gridPick = new Set();
+      note('no', 'One of your selections predicts something other than what the record shows. Check each against the record separately.');
+      renderPractice(); return;
+    }
+    if (hits.length < want.size){
+      gridPick = new Set();
+      note('no', 'More than one cell is consistent here, and all of them are wanted.');
+      renderPractice(); return;
+    }
+    // correct
+    CELL_ORDER.forEach(id => { cellState[id] = want.has(id) ? 'keep' : 'out'; });
+    gridPick = new Set();
+    addFinding('Consistent', [...want].map(id => CELL_NAME[id]).join('  \u00B7  ')
+      + (want.size > 1 ? ' \u2014 more than one balance of power fits this record' : ''));
+    note('ok', want.size === 1
+      ? 'One cell survives, so this record pins down both parameters.'
+      : 'Each of those cells is consistent with what the record shows, so the record cannot tell them apart.');
+    awaitingNext = true;
+    renderPractice(); return;
+  }
+
+  // chips
+  if (pick === t.correct){
+    onChipCorrect(c, t);
+    awaitingNext = true;
+    renderPractice(); return;
+  }
+  const msg = wrongChipMsg(c, t, pick);
+  pick = null;
+  note('no', msg);
+  renderPractice();
+}
+
+function onChipCorrect(c, t){
+  const chosen = t.options[t.correct];
+  switch (t.kind){
+    case 'record':
+      addFinding('The record', stripTags(chosen));
+      note('ok', recordOkMsg(c, t));
+      break;
+    case 'exit':
+      addFinding('The citizen' + RSQ + 's exit option', stripTags(chosen));
+      note('ok', t.correct === 2
+        ? 'Right \u2014 and this is the unusual case. The record does not say whether the citizen' + RSQ + 's behavior changed, which is the only thing that separates exit from loyalty.'
+        : (c.group === 'ext'
+          ? 'The record states the alternatives outright.'
+          : 'The behavior settles this one on its own.'));
+      break;
+    case 'dep':
+      addFinding('The government' + RSQ + 's dependence', stripTags(chosen));
+      note('ok', t.correct === 2
+        ? 'Right, and this is one of the key points of this tool. A dependent government and an autonomous one both ignore a citizen who cannot leave, so the citizen' + RSQ + 's silence cannot distinguish them.'
+        : 'The record settles this one too.');
+      break;
+    case 'claim':
+      addFinding('The analyst' + RSQ + 's conclusion', c.claimOk ? 'supported' : 'not supported');
+      note('ok', c.claimOk
+        ? (c.claimNote || 'The record does support this one.')
+        : 'It is not. The next task asks what goes wrong.');
+      break;
+    case 'why':
+      note('ok', 'That is the error exactly.');
+      break;
+    case 'baseSays':
+      if (c.baseSays === 3){
+        CELL_ORDER.forEach(id => { cellState[id] = 'out'; });
+        addFinding('The base game', 'no cell produces this episode');
+        note('ok', 'None of them leads to it. That is a finding about the model, not a failure to find the right cell \u2014 the next two tasks are about what would have to change.');
+      } else {
+        const id = c.baseSays === 0 ? 'ed' : c.baseSays === 1 ? 'ea' : 'na';
+        CELL_ORDER.forEach(x => { cellState[x] = x === id ? 'keep' : 'out'; });
+        addFinding('The base game reads this as', CELL_NAME[id]);
+        note('ok', 'That is what the table gives for this behavior. Keep it in mind \u2014 the rest of this case asks whether it holds up.');
+      }
+      break;
+    case 'cant':
+      addFinding('Unexplained', stripTags(chosen));
+      note('ok', 'Yes. Nothing in the game can deliver that so long as each side knows everything about the other.');
+      break;
+    case 'who':
+      addFinding('What was not known', stripTags(chosen));
+      note('ok', t.note || 'Right.');
+      break;
+    default:
+      note('ok', 'Correct.');
+  }
+}
+
+function recordOkMsg(c, t){
+  if (c.id === 'd2') return 'Abstention is exit. The citizen has accepted the change and altered her behavior to make the best of it \u2014 no vote cast, no voice used.';
+  if (c.id === 'b2') return 'Filing no objection is not loyalty. Moving the permits is a change of behavior, which makes it exit.';
+  if (c.id === 'd1') return 'Right. The record reports no objection, but not whether the citizen' + RSQ + 's behavior changed \u2014 and that is the only thing separating exit from loyalty.';
+  if (t.correct === 0 && c.recordSet === 'ext') return 'And the card establishes the part that makes an absence informative: there was occasion to act, more than once, and it was not taken.';
+  if (t.correct === 1 && c.recordSet === 'ext') return 'Notice that the record reports no response at all. In the extended game it does not have to, because whether to take the benefit is itself one of the government' + RSQ + 's choices.';
+  return 'Yes \u2014 that is what the record reports, before any inference. The next task asks which cells could have produced it.';
+}
+
+function wrongChipMsg(c, t, chosen){
+  switch (t.kind){
+    case 'record':
+      if (c.recordSet === 'ext') return 'Read the card again for two things: whether anything was actually taken, and whether she has somewhere else to go.';
+      if ([0,3].indexOf(chosen) >= 0 && [0,3].indexOf(t.correct) >= 0)
+        return 'Exit and loyalty both accept the change. What separates them is whether the citizen altered her behavior \u2014 check the record on that alone.';
+      return 'Go back to the record and take it literally. Was voice used? Was anything reversed? Did the citizen' + RSQ + 's behavior change?';
+    case 'exit':
+    case 'dep':
+      if (chosen === 2) return 'The record does settle this one. Look again at the cells you kept.';
+      return 'Compare that against the cells still standing. If they disagree with each other on this parameter, the record has not settled it.';
+    case 'claim':
+      return 'Read the claim against the cells still standing, not against the story. Does it assert more than they support?';
+    case 'why':
+      return 'That is not where it goes wrong. Try again.';
+    case 'baseSays':
+      if (chosen === 3) return 'One of the cells does lead to this. Work out which behavior the episode describes, then find the cell that predicts it.';
+      return 'Check that cell' + RSQ + 's prediction against the whole episode, including how it ends.';
+    case 'cant':
+      if (t.nudges && t.orig && t.nudges[t.orig[chosen]]) return t.nudges[t.orig[chosen]];
+      return 'The game explains two of these without difficulty. Work out which two, and the one left over is the answer.';
+    case 'who':
+      return 'Ask what each party would have had to believe for its own behavior to make sense.';
+    default:
+      return 'Not quite. Try again.';
+  }
+}
+
+function closingLine(c){
+  return baseClosing(c) + (c.after ? '</p><p>' + c.after : '');
+}
+function baseClosing(c){
+  if (c.group === 'info'){
+    return 'Case complete. A game in which each side already knows everything about the other cannot explain how this episode came about. Allowing the two sides to be uncertain about each other does explain it.';
+  }
+  if (c.group === 'ext'){
+    return 'Case complete. Notice how much came from a record in which, on the face of it, very little happened.';
+  }
+  const openE = c.exit === 2, openL = c.dep === 2;
+  if (openE && openL) return 'Case complete. Neither parameter is settled by this record.';
+  if (!openE && !openL) return 'Case complete. Both parameters identified from the record alone.';
+  return 'Case complete. One parameter identified, one left open \u2014 and no amount of further watching would close it, '
+       + 'because the cells still standing are consistent with the very same record.';
+}
+
+function addFinding(k, v){
+  findings.push([k, v]);
+}
+function renderFindings(){
+  const box = $('findings');
+  if (mode !== 'practice' || findings.length === 0){ box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.innerHTML = findings.map(([k, v]) =>
+    '<div><span class="k">' + k + ':</span>' + v + '</div>').join('');
+}
+function stripTags(s){ return String(s).replace(/<[^>]*>/g, ''); }
+
+/* ============================================================
+   Guided mode
+   ============================================================ */
+function renderGuided(){
+  const s = GUIDED[stepIdx];
+  $('caseCard').style.display = 'none';
+  $('findings').style.display = 'none';
+  clearNote();
+  $('opts').innerHTML = '';
+  cellState = {};
+  gridPick = new Set();
+
+  $('gridCap').textContent = s.show.ext
+    ? 'The model' + RSQ + 's four predictions, with the extension in force'
+    : 'The model' + RSQ + 's four predictions';
+  $('gridNote').innerHTML = s.show.ext
+    ? 'These cells give outcomes rather than equilibria, because the extension is a different game.'
+    : (stepIdx === 0
+      ? 'The equilibria are derived in the chapter and in the companion tool on solving game trees. Here they arrive as given.'
+      : 'The columns are the government, the rows are the citizen \u2014 following the chapter' + RSQ + 's summary table.');
+
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  GUIDED.forEach((_, i) => {
+    const sp = document.createElement('span');
+    sp.className = i < stepIdx ? 'done' : (i === stepIdx ? 'current' : '');
+    dots.appendChild(sp);
+  });
+
+  $('stepLabel').textContent = s.label;
+  $('stepText').innerHTML = s.html;
+
+  renderTable({ spe:s.show.spe || [], obs:s.show.obs || [], wash:s.show.wash || [],
+                variant: s.show.ext ? 'ext' : 'base', clickable:false });
+
+  const ext = $('extCard');
+  if (s.show.ext){
+    ext.style.display = '';
+    ext.innerHTML = '<h3>The extension: the taking as a choice too</h3>'
+      + '<p>Where the citizen has a credible exit threat <em>and</em> the government is dependent, the government does not take the benefit at all. It can see that it would only have to hand it back, and pay for the protest on the way.</p>'
+      + '<p><b>What an observer would see in that cell:</b> nothing taken, and no voice used \u2014 which identifies both parameters at once.</p>'
+
+      + '<p>Note that the equilibria will be different because the government moves first and has two decision nodes; the prediction in each cell is what matters here.</p>'
+      + '<p class="src">Derived in the chapter\u2019s discussion of the game\u2019s prehistory, and set as an end-of-chapter problem.</p>';
+  } else {
+    ext.style.display = 'none';
+  }
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  const back = btn('Back', '', () => { stepIdx--; renderGuided(); });
+  back.disabled = stepIdx === 0;
+  ctl.appendChild(back);
+  if (stepIdx < GUIDED.length - 1){
+    ctl.appendChild(btn('Next', 'primary', () => { stepIdx++; renderGuided(); }));
+  } else {
+    ctl.appendChild(btn('Go to the cases', 'primary', () => {
+      document.querySelector('.tab[data-mode="practice"]').click();
+    }));
+  }
+}
+
+/* ---------------- boot ---------------- */
+buildPickers();
+$('pickerZone').style.display = 'none';
+renderGuided();
+</script>
+</body>
+</html>

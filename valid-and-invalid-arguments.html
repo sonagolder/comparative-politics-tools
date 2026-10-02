@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valid and invalid arguments</title>
+<style>
+  :root{
+    /* base */
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the two terms of the conditional */
+    --p-color:#009E73;   /* bluish green — P, the antecedent */
+    --q-color:#CC79A7;   /* reddish purple — Q, the consequent */
+
+    /* semantic: valid / invalid, correct / incorrect */
+    --valid:#0072B2;
+    --invalid:#B33E00;
+    --neutral:#5F5E5A;
+
+    /* gold: scoped "found it" state only */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --p-color:#3FCFA0;
+    --q-color:#E29FC4;
+
+    --valid:#7FC7EE;
+    --invalid:#F08A4B;
+    --neutral:#A8A6A0;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:640px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+  .chip.wide{border-radius:8px;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .left-col{flex:1 1 430px; min-width:320px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:24px; margin-bottom:24px;
+  }
+  .card:last-child{margin-bottom:0;}
+
+  /* ---------- argument card ---------- */
+  .arg-line{display:flex; gap:16px; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--border);}
+  .arg-line:last-of-type{border-bottom:none;}
+  .arg-role{
+    flex:0 0 96px; font-size:11px; font-weight:700; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--secondary);
+  }
+  .arg-text{flex:1 1 auto; font-size:15px; line-height:1.55;}
+  .arg-line.conc .arg-text{font-weight:700;}
+  .tag{
+    display:inline-block; font-family:var(--font-data); font-size:10px; font-weight:700;
+    padding:1px 4px; border-radius:3px; margin-left:3px; vertical-align:2px;
+    border:1px solid currentColor;
+  }
+  .tag.tp{color:var(--p-color);}
+  .tag.tq{color:var(--q-color);}
+  .arg-key{
+    display:flex; flex-wrap:wrap; gap:8px 24px; margin-top:16px; padding-top:16px;
+    border-top:1px solid var(--border); font-size:12.5px; color:var(--secondary); line-height:1.5;
+  }
+  .arg-key div{flex:1 1 200px;}
+  .arg-key b{color:var(--ink); font-weight:600;}
+
+  /* ---------- diagram ---------- */
+  .diagram-head{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--secondary); margin:0 0 8px;}
+  svg.setdiagram{width:100%; height:auto; display:block; margin-bottom:16px;}
+  .shape-neither{fill:var(--panel-bg); stroke:var(--border); stroke-width:1.5;}
+  .shape-q{fill:color-mix(in srgb, var(--q-color) 12%, var(--panel-bg)); stroke:var(--q-color); stroke-width:2;}
+  .shape-p{fill:color-mix(in srgb, var(--p-color) 18%, var(--panel-bg)); stroke:var(--p-color); stroke-width:2;}
+  .setlabel{font-family:var(--font-data); font-size:17px; font-weight:700;}
+  .setlabel.lp{fill:var(--p-color);}
+  .setlabel.lq{fill:var(--q-color);}
+  .badge-ring{fill:var(--panel-bg); stroke:var(--ink); stroke-width:2;}
+  .badge-ring.gold{stroke:var(--gold-ui); stroke-width:3;}
+  .badge-glyph{font-family:var(--font-body); font-size:13px; font-weight:700; fill:var(--ink); text-anchor:middle;}
+  .badge-glyph.gold{fill:var(--gold-text);}
+
+  /* ---------- region controls ---------- */
+  .region-list{display:flex; flex-direction:column; gap:8px;}
+  .rg{
+    display:block; width:100%; text-align:left;
+    font-family:var(--font-body); font-size:13.5px; line-height:1.45;
+    background:var(--panel-bg); color:var(--ink);
+    border:1px solid var(--border); border-radius:5px; padding:8px 16px;
+  }
+  button.rg{cursor:pointer;}
+  button.rg:hover{border-color:var(--accent);}
+  button.rg:disabled{cursor:default;}
+  .rg.sel{box-shadow:inset 0 0 0 3px var(--gold-ui);}
+  .rg.poss{border-color:var(--ink); border-width:2px; padding:7px 15px;}
+  .rg.conc{
+    background-image:repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--secondary) 22%, transparent) 0 2px,
+      transparent 2px 8px);
+  }
+  .rg.ce{box-shadow:inset 0 0 0 3px var(--gold-ui);}
+  .rg-name{font-weight:600;}
+  .rg-tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;}
+  .rtag{
+    font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    padding:1px 6px; border-radius:3px; border:1px solid var(--secondary); color:var(--secondary);
+    background:var(--panel-bg);
+  }
+  .rtag.gold{border-color:var(--gold-ui); color:var(--gold-text);}
+  .region-note{font-size:12px; color:var(--secondary); line-height:1.55; margin:16px 0 0;}
+
+  /* ---------- panel ---------- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:320px; display:flex; flex-direction:column;
+  }
+  .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .step-text{font-size:14.5px; line-height:1.65; flex:1; color:var(--ink);}
+  .step-text b{color:var(--ink);}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .answer-controls{margin-top:16px;}
+  .answer-row{display:flex; flex-wrap:wrap; gap:8px;}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none; line-height:1.5;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--valid) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--invalid) 18%, transparent); color:var(--ink);}
+
+  /* ---------- verdict + findings ---------- */
+  .verdict{display:flex; align-items:flex-start; gap:8px; margin-top:16px; font-size:14px; line-height:1.5;}
+  .badge{
+    flex:0 0 auto; width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#fff; margin-top:1px;
+  }
+  html[data-theme="dark"] .badge{color:#141414;}
+  .badge.ok{background:var(--valid);}
+  .badge.no{background:var(--invalid);}
+  .badge.tie{background:var(--neutral);}
+
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:13.5px; color:var(--gold-text);
+  }
+  .findings div{margin:2px 0; line-height:1.5;}
+  .findings b{font-weight:700;}
+
+  /* ---------- asymmetry block ---------- */
+  .asym{margin-top:16px; border:1px solid var(--border); border-radius:5px; overflow:hidden;}
+  .asym-row{display:flex; gap:8px; align-items:flex-start; padding:8px 16px; font-size:13px; line-height:1.5;}
+  .asym-row + .asym-row{border-top:1px solid var(--border);}
+  .asym-row b{font-weight:700;}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+
+  @media (max-width:620px){
+    .arg-line{flex-direction:column; gap:2px;}
+    .arg-role{flex:0 0 auto;}
+    .arg-text{font-size:14.5px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Valid and invalid arguments</h1>
+      <p class="lede">A conditional argument is valid when accepting its premises forces you to accept its conclusion. Read each argument, work out where its minor premise leaves you standing in the diagram, and check whether the conclusion has to follow.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div id="pickers"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div class="layout">
+    <div class="left-col">
+      <div class="card" id="argCard"></div>
+      <div class="card" id="diagramCard"></div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots" aria-hidden="true"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="answer-controls" id="answerControls" style="display:none;"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+        <div id="findings" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Regions of the set diagram, in every argument:
+     both    = P and Q          (inside the P circle)
+     qOnly   = Q but not P      (the crescent inside Q, outside P)
+     neither = neither P nor Q  (outside the Q oval)
+   The major premise "if P then Q" is what rules out a fourth
+   region (P but not Q) — that is why P sits inside Q.
+============================================================ */
+
+const FORMS = {
+  'affirm-ant':  { name:'Affirming the antecedent', part:'antecedent', act:'affirms',
+                   possible:['both'],             concTrue:['both','qOnly'] },
+  'deny-ant':    { name:'Denying the antecedent',   part:'antecedent', act:'denies',
+                   possible:['qOnly','neither'],  concTrue:['neither'] },
+  'affirm-cons': { name:'Affirming the consequent', part:'consequent', act:'affirms',
+                   possible:['both','qOnly'],     concTrue:['both'] },
+  'deny-cons':   { name:'Denying the consequent',   part:'consequent', act:'denies',
+                   possible:['neither'],          concTrue:['qOnly','neither'] }
+};
+const FORM_ORDER = ['affirm-ant','deny-ant','affirm-cons','deny-cons'];
+const REGION_ORDER = ['both','qOnly','neither'];
+
+// A counterexample region is one the minor premise leaves open where the
+// conclusion is false. Derived, never hardcoded.
+function ceRegions(form){
+  const f = FORMS[form];
+  return f.possible.filter(r => !f.concTrue.includes(r));
+}
+function isValid(form){ return ceRegions(form).length === 0; }
+
+const ARGS = [
+  /* ---------- abstract ---------- */
+  { id:'g1', group:'Abstract form', form:'deny-cons',
+    majorHtml:'If <b>P</b><span class="tag tp">antecedent</span>, then <b>Q</b><span class="tag tq">consequent</span>.',
+    minor:'Not Q.', conclusion:'Therefore, not P.', concClause:'P is not the case',
+    pKey:'P', qKey:'Q',
+    regions:{ both:'P — and so Q as well', qOnly:'Q but not P', neither:'Neither P nor Q' } },
+
+  { id:'g2', group:'Abstract form', form:'affirm-cons',
+    majorHtml:'If <b>P</b><span class="tag tp">antecedent</span>, then <b>Q</b><span class="tag tq">consequent</span>.',
+    minor:'Q.', conclusion:'Therefore, P.', concClause:'P is the case',
+    pKey:'P', qKey:'Q',
+    regions:{ both:'P — and so Q as well', qOnly:'Q but not P', neither:'Neither P nor Q' } },
+
+  { id:'g3', group:'Abstract form', form:'affirm-ant',
+    majorHtml:'If <b>P</b><span class="tag tp">antecedent</span>, then <b>Q</b><span class="tag tq">consequent</span>.',
+    minor:'P.', conclusion:'Therefore, Q.', concClause:'Q is the case',
+    pKey:'P', qKey:'Q',
+    regions:{ both:'P — and so Q as well', qOnly:'Q but not P', neither:'Neither P nor Q' } },
+
+  { id:'g4', group:'Abstract form', form:'deny-ant',
+    majorHtml:'If <b>P</b><span class="tag tp">antecedent</span>, then <b>Q</b><span class="tag tq">consequent</span>.',
+    minor:'Not P.', conclusion:'Therefore, not Q.', concClause:'Q is not the case',
+    pKey:'P', qKey:'Q',
+    regions:{ both:'P — and so Q as well', qOnly:'Q but not P', neither:'Neither P nor Q' } },
+
+  /* ---------- wealth and democracy ---------- */
+  { id:'w1', group:'Wealth and democracy', form:'affirm-cons',
+    majorHtml:'If a country is <b>wealthy</b><span class="tag tp">P</span>, then it will be a <b>democracy</b><span class="tag tq">Q</span>.',
+    minor:'The country is a democracy.', conclusion:'Therefore, the country is wealthy.',
+    concClause:'the country is wealthy',
+    pKey:'the country is wealthy', qKey:'the country is a democracy',
+    regions:{ both:'Wealthy and a democracy', qOnly:'A democracy but not wealthy', neither:'Neither wealthy nor a democracy' },
+    note:'This argument confuses necessity with sufficiency. The major premise makes wealth sufficient for democracy; it never claims wealth is the only route to it. India sits in that middle region — a democracy that is not wealthy.' },
+
+  { id:'w2', group:'Wealth and democracy', form:'deny-cons',
+    majorHtml:'If a country is <b>wealthy</b><span class="tag tp">P</span>, then it will be a <b>democracy</b><span class="tag tq">Q</span>.',
+    minor:'The country is not a democracy.', conclusion:'Therefore, the country is not wealthy.',
+    concClause:'the country is not wealthy',
+    pKey:'the country is wealthy', qKey:'the country is a democracy',
+    regions:{ both:'Wealthy and a democracy', qOnly:'A democracy but not wealthy', neither:'Neither wealthy nor a democracy' } },
+
+  { id:'w3', group:'Wealth and democracy', form:'deny-ant',
+    majorHtml:'If a country is <b>wealthy</b><span class="tag tp">P</span>, then it will be a <b>democracy</b><span class="tag tq">Q</span>.',
+    minor:'The country is not wealthy.', conclusion:'Therefore, the country will not be a democracy.',
+    concClause:'the country is not a democracy',
+    pKey:'the country is wealthy', qKey:'the country is a democracy',
+    regions:{ both:'Wealthy and a democracy', qOnly:'A democracy but not wealthy', neither:'Neither wealthy nor a democracy' },
+    note:'India is one real case in that region — a democracy that is not wealthy. But the argument fails for a logical reason, not because of India: the major premise says only what follows from wealth, and nothing at all about countries that lack it.' },
+
+  { id:'w4', group:'Wealth and democracy', form:'affirm-ant',
+    majorHtml:'If a country is <b>wealthy</b><span class="tag tp">P</span>, then it will be a <b>democracy</b><span class="tag tq">Q</span>.',
+    minor:'The country is wealthy.', conclusion:'Therefore, the country will be a democracy.',
+    concClause:'the country is a democracy',
+    pKey:'the country is wealthy', qKey:'the country is a democracy',
+    regions:{ both:'Wealthy and a democracy', qOnly:'A democracy but not wealthy', neither:'Neither wealthy nor a democracy' } },
+
+  /* ---------- politics and everyday claims ---------- */
+  { id:'p1', group:'Politics and everyday claims', form:'affirm-cons',
+    majorHtml:'If a dictator engages in <b>electoral fraud</b><span class="tag tp">P</span>, then she will <b>win the election</b><span class="tag tq">Q</span>.',
+    minor:'The dictator won the election.', conclusion:'Therefore, the dictator engaged in electoral fraud.',
+    concClause:'the dictator engaged in fraud',
+    pKey:'the dictator engages in fraud', qKey:'the dictator wins the election',
+    regions:{ both:'Fraud, and a win', qOnly:'A win with no fraud', neither:'No fraud, and no win' },
+    note:'Dictators win elections for plenty of reasons other than fraud — genuine popularity, a divided opposition, a rigged constitution rather than a rigged count.' },
+
+  { id:'p2', group:'Politics and everyday claims', form:'affirm-ant',
+    majorHtml:'If the protesters are <b>non-violent</b><span class="tag tp">P</span>, then the police will <b>not use force</b><span class="tag tq">Q</span>.',
+    minor:'The protesters are non-violent.', conclusion:'Therefore, the police will not use force.',
+    concClause:'the police do not use force',
+    pKey:'the protesters are non-violent', qKey:'the police do not use force',
+    regions:{ both:'Non-violent protest, no force used', qOnly:'No force used, but the protest is violent', neither:'Violent protest, and force used' } },
+
+  { id:'p3', group:'Politics and everyday claims', form:'deny-ant',
+    majorHtml:'If I <b>work hard in class</b><span class="tag tp">P</span>, then I will <b>get a good grade</b><span class="tag tq">Q</span>.',
+    minor:'I did not work hard in class.', conclusion:'Therefore, I will not get a good grade.',
+    concClause:'I do not get a good grade',
+    pKey:'I work hard in class', qKey:'I get a good grade',
+    regions:{ both:'Worked hard, good grade', qOnly:'A good grade without working hard', neither:'Did not work hard, no good grade' },
+    note:'The premise says what hard work leads to. It says nothing about what happens without it — an easy course, a lucky exam, or prior knowledge all sit in the middle region.' },
+
+  { id:'p4', group:'Politics and everyday claims', form:'deny-cons',
+    majorHtml:'If the president commits a <b>criminal act</b><span class="tag tp">P</span>, then he will be <b>impeached</b><span class="tag tq">Q</span>.',
+    minor:'The president was not impeached.', conclusion:'Therefore, the president did not commit a criminal act.',
+    concClause:'the president did not commit a criminal act',
+    pKey:'the president commits a criminal act', qKey:'the president is impeached',
+    regions:{ both:'A crime, and an impeachment', qOnly:'Impeached without committing a crime', neither:'No crime, and no impeachment' } },
+
+  { id:'p5', group:'Politics and everyday claims', form:'affirm-ant',
+    majorHtml:'If a country employs <b>proportional representation</b><span class="tag tp">P</span>, then it will have <b>many parties</b><span class="tag tq">Q</span>.',
+    minor:'The country employs proportional representation.', conclusion:'Therefore, the country has many parties.',
+    concClause:'the country has many parties',
+    pKey:'the country employs proportional representation', qKey:'the country has many parties',
+    regions:{ both:'Proportional rules, many parties', qOnly:'Many parties without proportional rules', neither:'Neither proportional rules nor many parties' } },
+
+  { id:'p6', group:'Politics and everyday claims', form:'deny-cons',
+    majorHtml:'If <b>economic growth is high</b><span class="tag tp">P</span>, then the incumbent government will <b>remain in office</b><span class="tag tq">Q</span>.',
+    minor:'The incumbent government was voted out of office.', conclusion:'Therefore, economic growth was not high.',
+    concClause:'economic growth was not high',
+    pKey:'economic growth is high', qKey:'the incumbent remains in office',
+    regions:{ both:'High growth, incumbent stays', qOnly:'Incumbent stays without high growth', neither:'Low growth, incumbent voted out' } },
+
+  { id:'p7', group:'Politics and everyday claims', form:'affirm-cons',
+    majorHtml:'If <b>immigration levels are too high</b><span class="tag tp">P</span>, then <b>native wages will fall</b><span class="tag tq">Q</span>.',
+    minor:'Native wages have fallen in recent years.', conclusion:'Therefore, immigration levels are too high.',
+    concClause:'immigration levels are too high',
+    pKey:'immigration levels are too high', qKey:'native wages fall',
+    regions:{ both:'High immigration, and falling wages', qOnly:'Falling wages from some other cause', neither:'Neither high immigration nor falling wages' },
+    note:'Automation, offshoring, a recession, or declining union density would all put a country in the middle region — wages falling, immigration not the reason.' },
+
+  { id:'p8', group:'Politics and everyday claims', form:'affirm-cons',
+    majorHtml:'If <b>female leaders are more caring and communal</b><span class="tag tp">P</span> than male leaders, then countries led by women will have <b>low Covid death rates</b><span class="tag tq">Q</span>.',
+    minor:'Several countries led by women had low Covid death rates.', conclusion:'Therefore, female leaders are more caring and communal than male leaders.',
+    concClause:'female leaders are more caring and communal',
+    pKey:'female leaders are more caring and communal', qKey:'countries led by women had low death rates',
+    regions:{ both:'The claim holds, and death rates were low', qOnly:'Low death rates for some other reason', neither:'The claim is false, and death rates were not low' },
+    note:'Island geography, state capacity, population size and early border closures all sit in the middle region. Note too that looking only at successful female leaders leaves the unsuccessful ones unobserved.' },
+
+  /* ---------- testing a theory ---------- */
+  { id:'t1', group:'Testing a theory', form:'affirm-cons', theory:true, theoryAnswer:'may',
+    majorHtml:'If our <b>theory is correct</b><span class="tag tp">P</span>, then we should observe that <b>rich democracies live longer</b><span class="tag tq">Q</span> than poor ones.',
+    minor:'Rich democracies do live longer than poor democracies.', conclusion:'Therefore, our theory is correct.',
+    concClause:'our theory is correct',
+    pKey:'our theory is correct', qKey:'rich democracies live longer',
+    regions:{ both:'Theory correct, and rich democracies live longer', qOnly:'Rich democracies live longer, but for some other reason', neither:'Theory wrong, and rich democracies do not live longer' },
+    note:'Some process other than the one our theory describes could produce exactly the same observation. That possibility is the middle region, and nothing we have observed rules it out.' },
+
+  { id:'t2', group:'Testing a theory', form:'deny-cons', theory:true, theoryAnswer:'incorrect',
+    majorHtml:'If our <b>theory is correct</b><span class="tag tp">P</span>, then we should observe that <b>rich democracies live longer</b><span class="tag tq">Q</span> than poor ones.',
+    minor:'Rich democracies do not live longer than poor democracies.', conclusion:'Therefore, our theory is incorrect.',
+    concClause:'our theory is incorrect',
+    pKey:'our theory is correct', qKey:'rich democracies live longer',
+    regions:{ both:'Theory correct, and rich democracies live longer', qOnly:'Rich democracies live longer, but for some other reason', neither:'Theory wrong, and rich democracies do not live longer' } },
+
+  { id:'t3', group:'Testing a theory', form:'affirm-cons', theory:true, theoryAnswer:'may',
+    majorHtml:'If <b>theory T is correct</b><span class="tag tp">P</span>, then <b>voters will discriminate against female candidates</b><span class="tag tq">Q</span>.',
+    minor:'Voters discriminate against female candidates.', conclusion:'Therefore, theory T is correct.',
+    concClause:'theory T is correct',
+    pKey:'theory T is correct', qKey:'voters discriminate against female candidates',
+    regions:{ both:'Theory T correct, and voters discriminate', qOnly:'Voters discriminate, but for some other reason', neither:'Theory T wrong, and voters do not discriminate' },
+    note:'To show theory T is wrong you would need to observe that voters do not discriminate — denying the consequent, which is the valid move.' }
+];
+
+ARGS.forEach((a,i) => { a.title = 'Argument ' + (i+1); });
+
+const THEORY_OPTIONS = [
+  ['correct',   'The theory is correct'],
+  ['may',       'The theory may be correct'],
+  ['incorrect', 'The theory is incorrect'],
+  ['nothing',   'We can conclude nothing at all']
+];
+
+/* ---------- state ---------- */
+let currentIdx = 0;
+let mode = 'guided';
+let guidedStep = 0;
+
+let taskIdx = 0;
+let checked = false;
+let selRegions = new Set();
+let noneSelected = false;   // "no such region" answer on the counterexample task
+let formAnswer = null;
+let verdictAnswer = null;
+let theoryAnswer = null;
+let solved = {};            // accumulating findings for this round
+
+function A(){ return ARGS[currentIdx]; }
+function F(){ return FORMS[A().form]; }
+function CE(){ return ceRegions(A().form); }
+function valid(){ return isValid(A().form); }
+function stepsTotal(){ return A().theory ? 5 : 4; }
+
+/* ---------- theme ---------- */
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeIcon').textContent = dark ? '\u2600' : '\u263D';
+  document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeToggle').setAttribute('aria-pressed', String(dark));
+}
+let isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(isDark);
+document.getElementById('themeToggle').onclick = () => { isDark = !isDark; applyTheme(isDark); };
+
+/* ---------- picker ---------- */
+function renderPicker(){
+  const host = document.getElementById('pickers');
+  host.innerHTML = '';
+  const groups = [];
+  ARGS.forEach((a,i) => {
+    let g = groups.find(x => x.name === a.group);
+    if(!g){ g = { name:a.group, items:[] }; groups.push(g); }
+    g.items.push(i);
+  });
+  groups.forEach(g => {
+    const label = document.createElement('p');
+    label.className = 'group-label';
+    label.textContent = g.name;
+    host.appendChild(label);
+    const row = document.createElement('div');
+    row.className = 'picker';
+    g.items.forEach(i => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (i === currentIdx ? ' active' : '');
+      b.type = 'button';
+      b.textContent = ARGS[i].title;
+      b.setAttribute('aria-pressed', String(i === currentIdx));
+      b.onclick = () => { currentIdx = i; resetAll(); renderAll(); };
+      row.appendChild(b);
+    });
+    host.appendChild(row);
+  });
+}
+
+/* ---------- argument card ---------- */
+function renderArgCard(){
+  const a = A();
+  document.getElementById('argCard').innerHTML =
+    `<p class="group-label">${a.title}</p>
+     <div class="arg-line"><span class="arg-role">Major premise</span><span class="arg-text">${a.majorHtml}</span></div>
+     <div class="arg-line"><span class="arg-role">Minor premise</span><span class="arg-text">${a.minor}</span></div>
+     <div class="arg-line conc"><span class="arg-role">Conclusion</span><span class="arg-text">${a.conclusion}</span></div>
+     <div class="arg-key">
+       <div><span class="tag tp">P</span> <b>${a.pKey}</b></div>
+       <div><span class="tag tq">Q</span> <b>${a.qKey}</b></div>
+     </div>`;
+}
+
+/* ---------- diagram ---------- */
+const ANCHORS = { both:[292,120], qOnly:[110,120], neither:[46,34] };
+
+function renderDiagram(st){
+  // st: { poss:Set, conc:Set, ce:Set, sel:Set, interactive:bool, onToggle }
+  const a = A();
+  const has = (s, r) => s && s.has(r);
+
+  function badges(r){
+    const items = [];
+    if(has(st.poss, r)) items.push(['\u25CF', false]);   // filled dot — you could be here
+    if(has(st.ce, r))   items.push(['\u2715', true]);    // gold cross — counterexample
+    if(!items.length) return '';
+    const [ax, ay] = ANCHORS[r];
+    const startX = ax - ((items.length - 1) * 15);
+    return items.map(([g, gold], i) =>
+      `<circle class="badge-ring${gold ? ' gold' : ''}" cx="${startX + i*30}" cy="${ay}" r="12"></circle>
+       <text class="badge-glyph${gold ? ' gold' : ''}" x="${startX + i*30}" y="${ay+4.5}">${g}</text>`
+    ).join('');
+  }
+
+  const hatch = r => has(st.conc, r) ? '' : ' style="display:none"';
+
+  const svg =
+    `<svg class="setdiagram" viewBox="0 0 440 240" role="img" aria-hidden="true" focusable="false">
+       <defs>
+         <pattern id="hatchpat" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+           <line x1="0" y1="0" x2="0" y2="8" stroke="var(--secondary)" stroke-width="2.5" opacity="0.42"></line>
+         </pattern>
+       </defs>
+
+       <rect class="shape-neither" x="2" y="2" width="436" height="236" rx="6"></rect>
+       <rect x="2" y="2" width="436" height="236" rx="6" fill="url(#hatchpat)"${hatch('neither')}></rect>
+
+       <ellipse class="shape-q" cx="210" cy="120" rx="184" ry="98"></ellipse>
+       <ellipse cx="210" cy="120" rx="184" ry="98" fill="url(#hatchpat)"${hatch('qOnly')}></ellipse>
+
+       <circle class="shape-p" cx="292" cy="120" r="72"></circle>
+       <circle cx="292" cy="120" r="72" fill="url(#hatchpat)"${hatch('both')}></circle>
+
+       <text class="setlabel lq" x="78" y="72" text-anchor="middle">Q</text>
+       <text class="setlabel lp" x="292" y="70" text-anchor="middle">P</text>
+
+       ${badges('neither')}${badges('qOnly')}${badges('both')}
+     </svg>`;
+
+  const rows = REGION_ORDER.map(r => {
+    const cls = ['rg'];
+    if(has(st.poss, r)) cls.push('poss');
+    if(has(st.conc, r)) cls.push('conc');
+    if(has(st.ce, r))   cls.push('ce');
+    if(has(st.sel, r))  cls.push('sel');
+
+    const tags = [];
+    if(has(st.poss, r)) tags.push(['You could be here', false]);
+    if(has(st.conc, r)) tags.push(['Conclusion holds', false]);
+    if(has(st.ce, r))   tags.push(['Counterexample', true]);
+    if(has(st.sel, r))  tags.push(['Selected', true]);
+
+    const inner =
+      `<span class="rg-name">${a.regions[r]}</span>` +
+      (tags.length ? `<span class="rg-tags">${tags.map(([t,g]) => `<span class="rtag${g?' gold':''}">${t}</span>`).join('')}</span>` : '');
+
+    if(st.interactive){
+      return `<button type="button" class="${cls.join(' ')}" data-region="${r}"
+                aria-pressed="${has(st.sel, r)}">${inner}</button>`;
+    }
+    return `<div class="${cls.join(' ')}">${inner}</div>`;
+  }).join('');
+
+  document.getElementById('diagramCard').innerHTML =
+    `<p class="diagram-head">The major premise as a picture</p>
+     ${svg}
+     <p class="sr-only">The major premise places every case of P inside Q. That leaves three regions: ${REGION_ORDER.map(r => a.regions[r]).join('; ')}.</p>
+     <div class="region-list">${rows}</div>
+     <p class="region-note">Every case in the world sits in exactly one of these three regions. There is no fourth region for &ldquo;P but not Q&rdquo; &mdash; the major premise is what rules it out.</p>`;
+
+  if(st.interactive){
+    document.querySelectorAll('button.rg').forEach(b => {
+      b.onclick = () => st.onToggle(b.dataset.region);
+    });
+  }
+}
+
+/* ---------- guided walkthrough ---------- */
+function guidedState(){
+  const step = guidedStep, f = F();
+  const st = { poss:new Set(), conc:new Set(), ce:new Set(), sel:new Set(), interactive:false };
+  if(step >= 2) f.possible.forEach(r => st.poss.add(r));
+  if(step >= 3) f.concTrue.forEach(r => st.conc.add(r));
+  if(step >= 4) CE().forEach(r => st.ce.add(r));
+  return st;
+}
+
+function guidedInfo(step){
+  const a = A(), f = F();
+
+  if(step === 0){
+    return { label:'Start here', text:
+      `Start with the argument itself. Its <b>major premise</b> is a conditional &mdash; an &ldquo;if &hellip; then &hellip;&rdquo; claim. The <b>minor premise</b> makes a claim about one of the conditional's two halves, and the <b>conclusion</b> is what we are being asked to accept. An argument is <b>valid</b> when accepting the premises forces us to accept the conclusion, and <b>invalid</b> when we are free to accept the premises and reject the conclusion anyway.` };
+  }
+  if(step === 1){
+    return { label:'The major premise', text:
+      `&ldquo;If P, then Q&rdquo; says that every case of <b>${a.pKey}</b> is also a case of <b>${a.qKey}</b>. That is why the P circle sits entirely inside the Q oval. Notice what the premise does <i>not</i> say: it makes no claim at all about cases outside the P circle, so it constrains nothing at all about the rest of the diagram.` };
+  }
+  if(step === 2){
+    const one = f.possible.length === 1;
+    const names = f.possible.map(r => `<b>${a.regions[r]}</b>`).join(' or ');
+    return { label:'Where the minor premise puts us', text:
+      `The minor premise says: <b>${a.minor}</b> Accepting it tells us where in the diagram we are standing. ${one
+        ? `It pins us to exactly one region &mdash; ${names}. There is nowhere else we could be.`
+        : `But it does not pin us to one place. We could be standing in either of two regions: ${names}. Both are fully consistent with the premises.`}` };
+  }
+  if(step === 3){
+    const names = f.concTrue.map(r => `<b>${a.regions[r]}</b>`).join(' and ');
+    return { label:'What the conclusion claims', text:
+      `The conclusion asks us to accept that <b>${a.concClause}</b>. That holds in ${names}, now tagged <b>Conclusion holds</b> below. Compare those with the regions where we could be standing. Is the conclusion true in every one of them?` };
+  }
+  if(step === 4){
+    if(valid()){
+      return { label:'Verdict', text:
+        `The conclusion holds in every region where we could be standing. There is nowhere to stand where both premises are true and the conclusion is false &mdash; so accepting the premises <b>compels</b> us to accept the conclusion. This is <b>${f.name.toLowerCase()}</b>, and it is a <b>valid</b> argument.` };
+    }
+    const ce = CE().map(r => `<b>${a.regions[r]}</b>`).join(', ');
+    return { label:'Verdict', text:
+      `There is one region where we could be standing and the conclusion does not hold: ${ce}. Standing there, both premises are true and the conclusion is false. So the premises do not compel the conclusion, and this is <b>${f.name.toLowerCase()}</b> &mdash; an <b>invalid</b> argument.${a.note ? ' ' + a.note : ''} Note carefully what this does <i>not</i> mean: the conclusion may well be true. Invalidity says only that the premises fail to force it.` };
+  }
+  return { label:'Confirming and disconfirming', text:
+    `This is the asymmetry at the heart of testing theories. When we <b>do</b> observe what a theory predicts, concluding the theory is correct means affirming the consequent &mdash; invalid, because some other process could produce the same observation. When we <b>do not</b> observe it, concluding the theory is wrong means denying the consequent &mdash; valid, and we are compelled. We are logically entitled to far more confidence when we reject a theory than when we do not. This is why theories are never proven, only corroborated: the strongest thing a confirming observation buys us is that the theory has not been falsified yet.` };
+}
+
+function asymBlock(){
+  return `<div class="asym">
+    <div class="asym-row">
+      <span class="badge no" aria-hidden="true">&#10005;</span>
+      <span><b>We observe the implication.</b> Affirming the consequent &mdash; invalid. The most we can say is that the theory <i>may</i> be correct.</span>
+    </div>
+    <div class="asym-row">
+      <span class="badge ok" aria-hidden="true">&#10003;</span>
+      <span><b>We do not observe it.</b> Denying the consequent &mdash; valid. We are compelled to conclude the theory is incorrect.</span>
+    </div>
+  </div>`;
+}
+
+function guidedFindings(){
+  const a = A(), lines = [];
+  if(guidedStep >= 4){
+    lines.push(`<b>Form:</b> ${F().name.toLowerCase()}`);
+    lines.push(`<b>Verdict:</b> ${valid() ? 'valid' : 'invalid'}`);
+    if(!valid()) lines.push(`<b>Counterexample:</b> ${CE().map(r => a.regions[r].toLowerCase()).join(', ')}`);
+  }
+  if(guidedStep >= 5) lines.push(`<b>What follows about the theory:</b> ${a.theoryAnswer === 'may' ? 'it may be correct' : 'it is incorrect'}`);
+  return lines;
+}
+
+function renderGuided(){
+  renderDiagram(guidedState());
+  const info = guidedInfo(guidedStep);
+  document.getElementById('stepLabel').innerHTML = info.label;
+  document.getElementById('stepText').innerHTML = info.text + (guidedStep === 5 ? asymBlock() : '');
+  document.getElementById('answerControls').style.display = 'none';
+  document.getElementById('resultNote').className = 'result-note';
+
+  const total = stepsTotal();
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  for(let i=0;i<=total;i++){
+    const d = document.createElement('span');
+    if(i < guidedStep) d.classList.add('done');
+    if(i === guidedStep) d.classList.add('current');
+    dots.appendChild(d);
+  }
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+  const back = document.createElement('button');
+  back.className = 'btn'; back.type = 'button'; back.textContent = 'Back';
+  back.disabled = guidedStep === 0;
+  back.onclick = () => { guidedStep = Math.max(0, guidedStep - 1); renderGuided(); };
+  const next = document.createElement('button');
+  next.className = 'btn primary'; next.type = 'button';
+  next.textContent = guidedStep === total ? 'Start over' : (guidedStep === 0 ? 'Begin' : 'Next');
+  next.onclick = () => { guidedStep = guidedStep === total ? 0 : guidedStep + 1; renderGuided(); };
+  controls.appendChild(back); controls.appendChild(next);
+
+  renderFindings(guidedFindings());
+}
+
+/* ---------- practice ---------- */
+function tasks(){
+  const a = A(), t = [];
+  t.push({ type:'form',
+    prompt:`The minor premise makes a claim about one half of the major premise, and either affirms it or denies it. <b>Which form of categorical syllogism is this?</b>` });
+  t.push({ type:'verdict',
+    prompt:`Each region in the diagram is now tagged with whether we could be standing there and whether the conclusion holds there. <b>Is this argument valid or invalid?</b> A valid argument is one where accepting the premises compels us to accept the conclusion.` });
+  if(a.theory) t.push({ type:'theory',
+    prompt:`Our theory predicted an observation, and we went out and looked. <b>What can we now conclude about the theory itself?</b>` });
+  return t;
+}
+
+function practiceState(){
+  const f = F();
+  const st = { poss:new Set(), conc:new Set(), ce:new Set(), sel:new Set(),
+               interactive:false, onToggle:null };
+
+  // Once the form is identified, the diagram shows both halves of the
+  // comparison the verdict rests on: where the minor premise leaves us,
+  // and where the conclusion holds. The counterexample is held back until
+  // the verdict has been given, so it never gives the answer away.
+  if(solved.form){
+    f.possible.forEach(r => st.poss.add(r));
+    f.concTrue.forEach(r => st.conc.add(r));
+  }
+  if(solved.verdict) CE().forEach(r => st.ce.add(r));
+  return st;
+}
+
+function renderAnswerControls(){
+  const host = document.getElementById('answerControls');
+  const task = tasks()[taskIdx];
+  host.innerHTML = '';
+
+  function chipRow(options, current, onPick){
+    const row = document.createElement('div');
+    row.className = 'answer-row';
+    options.forEach(([val, text]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip wide' + (current === val ? ' active' : '');
+      b.textContent = text;
+      b.disabled = checked;
+      b.setAttribute('aria-pressed', String(current === val));
+      b.onclick = () => { onPick(val); renderAnswerControls(); renderControls(); };
+      row.appendChild(b);
+    });
+    return row;
+  }
+
+  if(task.type === 'form'){
+    host.style.display = 'block';
+    host.appendChild(chipRow(FORM_ORDER.map(k => [k, FORMS[k].name]), formAnswer, v => { formAnswer = v; }));
+  } else if(task.type === 'verdict'){
+    host.style.display = 'block';
+    host.appendChild(chipRow([['valid','Valid'],['invalid','Invalid']], verdictAnswer, v => { verdictAnswer = v; }));
+  } else if(task.type === 'theory'){
+    host.style.display = 'block';
+    host.appendChild(chipRow(THEORY_OPTIONS, theoryAnswer, v => { theoryAnswer = v; }));
+  } else {
+    host.style.display = 'none';
+  }
+}
+
+function practiceFindings(){
+  const a = A(), lines = [];
+  if(solved.form)    lines.push(`<b>Form:</b> ${F().name.toLowerCase()}`);
+  if(solved.verdict) lines.push(`<b>Verdict:</b> ${valid() ? 'valid' : 'invalid'}`);
+  if(solved.verdict) lines.push(valid()
+      ? `<b>Counterexample:</b> none exists`
+      : `<b>Counterexample:</b> ${CE().map(r => a.regions[r].toLowerCase()).join(', ')}`);
+  if(solved.theory)  lines.push(`<b>What follows about the theory:</b> ${a.theoryAnswer === 'may' ? 'it may be correct' : 'it is incorrect'}`);
+  return lines;
+}
+
+function renderPractice(){
+  renderDiagram(practiceState());
+  const list = tasks(), task = list[taskIdx];
+  document.getElementById('stepLabel').innerHTML = `Practice &middot; Task ${taskIdx+1} of ${list.length}`;
+  document.getElementById('stepText').innerHTML = task.prompt;
+  renderAnswerControls();
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  list.forEach((_,i) => {
+    const d = document.createElement('span');
+    if(i < taskIdx) d.classList.add('done');
+    if(i === taskIdx) d.classList.add('current');
+    dots.appendChild(d);
+  });
+
+  renderControls();
+  renderFindings(practiceFindings());
+}
+
+function renderControls(){
+  const list = tasks(), task = list[taskIdx];
+  const note = document.getElementById('resultNote');
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+
+  const ready =
+    task.type === 'form'    ? formAnswer !== null :
+    task.type === 'verdict' ? verdictAnswer !== null :
+                              theoryAnswer !== null;
+
+  const check = document.createElement('button');
+  check.className = 'btn primary'; check.type = 'button'; check.textContent = 'Check answer';
+  check.disabled = checked || !ready;
+  check.onclick = () => { gradeTask(task, note); };
+
+  const next = document.createElement('button');
+  next.className = 'btn'; next.type = 'button';
+  next.textContent = taskIdx === list.length - 1 ? 'Start over' : 'Next task';
+  next.disabled = !checked;
+  next.onclick = () => {
+    taskIdx = taskIdx === list.length - 1 ? 0 : taskIdx + 1;
+    checked = false; selRegions = new Set(); noneSelected = false;
+    formAnswer = null; verdictAnswer = null; theoryAnswer = null;
+    if(taskIdx === 0) solved = {};
+    document.getElementById('resultNote').className = 'result-note';
+    renderPractice();
+  };
+
+  controls.appendChild(check); controls.appendChild(next);
+}
+
+function gradeTask(task, note){
+  const a = A(), f = F();
+  const right = (msg) => { checked = true; note.className = 'result-note show ok'; note.innerHTML = msg || 'Correct.'; };
+  const wrong = (msg) => { note.className = 'result-note show no'; note.innerHTML = msg; };
+
+  if(task.type === 'form'){
+    if(formAnswer === a.form){ solved.form = true; right(); }
+    else {
+      const picked = FORMS[formAnswer];
+      wrong(picked.part === f.part
+        ? `You have identified the right half of the major premise, but check again whether the minor premise affirms it or denies it. Try the task again.`
+        : `Look again at which half of the major premise the minor premise is talking about &mdash; the &ldquo;if&rdquo; part (the antecedent) or the &ldquo;then&rdquo; part (the consequent). Try the task again.`);
+      formAnswer = null;
+    }
+  }
+
+  else if(task.type === 'verdict'){
+    const want = valid() ? 'valid' : 'invalid';
+    if(verdictAnswer === want){ solved.verdict = true; right(); }
+    else {
+      wrong(`Work it through on the diagram before answering again. Each region is tagged with whether we could be standing there and whether the conclusion holds there. If we could be standing somewhere the conclusion fails, the premises do not compel it. Try the task again.`);
+      verdictAnswer = null;
+    }
+  }
+
+  else if(task.type === 'theory'){
+    if(theoryAnswer === a.theoryAnswer){ solved.theory = true; right(); }
+    else if(a.theoryAnswer === 'may'){
+      wrong(theoryAnswer === 'correct'
+        ? `Accepting that would mean accepting the conclusion of an invalid argument &mdash; some other process could produce the very same observation. Try the task again.`
+        : theoryAnswer === 'incorrect'
+        ? `Nothing here shows the theory is wrong: the implication was observed, after all. Try the task again.`
+        : `A confirming observation is not worthless. The theory survived a real chance of being falsified, so we can hold it with a little more confidence. There is a stronger statement available. Try the task again.`);
+    } else {
+      wrong(`This argument is valid, so accepting the premises does force a conclusion about the theory. Try the task again.`);
+    }
+    theoryAnswer = null;
+  }
+
+  renderPractice();
+}
+
+/* ---------- findings ---------- */
+function renderFindings(lines){
+  const host = document.getElementById('findings');
+  if(!lines.length){ host.innerHTML = ''; return; }
+  host.innerHTML = `<div class="findings">${lines.map(l => `<div>${l}</div>`).join('')}</div>`;
+}
+
+/* ---------- master ---------- */
+function resetAll(){
+  guidedStep = 0;
+  taskIdx = 0; checked = false;
+  selRegions = new Set(); noneSelected = false;
+  formAnswer = null; verdictAnswer = null; theoryAnswer = null;
+  solved = {};
+  document.getElementById('resultNote').className = 'result-note';
+}
+function renderAll(){
+  renderPicker();
+  renderArgCard();
+  if(mode === 'guided') renderGuided(); else renderPractice();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+    tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+    mode = tab.dataset.mode;
+    resetAll();
+    renderAll();
+  };
+});
+
+renderAll();
+</script>
+</body>
+</html>

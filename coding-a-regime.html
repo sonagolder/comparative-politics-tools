@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coding the same country three ways</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the three measures. Fills, borders and swatches only —
+       none of the three clears 4.5:1 as small text except vermillion, and the
+       measure names are set in --ink with a swatch beside them instead. */
+    --mDD:#009E73;   /* bluish green   */
+    --mFH:#CC79A7;   /* reddish purple */
+    --mVD:#B33E00;   /* text-safe vermillion, third-category exception */
+
+    /* semantic: correct / incorrect — messaging surfaces only */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state — here, a settled verdict */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --mDD:#3FCFA0;
+    --mFH:#E29FC4;
+    --mVD:#F08A4B;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 4px;}
+  .group-sub{font-size:12.5px; color:var(--secondary); margin:0 0 8px; line-height:1.5; max-width:660px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+  .chip.wide{border-radius:8px; display:block; width:100%; line-height:1.5; padding:10px 16px; font-weight:500;}
+  .chip.wide.active{font-weight:600;}
+  .chip.num{font-family:var(--font-data); min-width:44px; text-align:center;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .rec-col{flex:1 1 540px; min-width:320px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  /* Anything a "look at" pointer can send you to leaves one spacing unit
+     above it when it arrives at the top of the viewport. */
+  #recCard, #cardDD, #cardFH, #cardVD, #cardVerdict{scroll-margin-top:16px;}
+
+  /* ---- the record card ---- */
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .card-head{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin-bottom:4px;}
+  .card-title{font-size:16px; font-weight:700; margin-bottom:12px;}
+  .field{padding:6px 0; border-left:3px solid transparent;}
+  .field + .field{border-top:1px dashed var(--border);}
+  /* the field is used by the measure currently being applied */
+  .field.used{padding-left:10px;}
+  .field.used.dd{border-left-color:var(--mDD); background:color-mix(in srgb, var(--mDD) 8%, transparent);}
+  .field.used.fh{border-left-color:var(--mFH); background:color-mix(in srgb, var(--mFH) 10%, transparent);}
+  .field.used.vd{border-left-color:var(--mVD); background:color-mix(in srgb, var(--mVD) 8%, transparent);}
+  .field-label{font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--secondary); margin-bottom:2px; text-transform:uppercase;}
+  .field-text{font-size:14px; line-height:1.6; color:var(--ink);}
+  .field.dim .field-label, .field.dim .field-text{color:var(--deemph);}
+  .field-users{display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:5px;}
+  .uprefix{font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--deemph); margin-right:2px;}
+  .utag{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--ink); background:var(--panel-bg);
+    border:1px solid var(--border); border-radius:10px; padding:2px 7px;
+  }
+  .utag .dot{width:7px; height:7px; border-radius:50%; display:inline-block; flex:0 0 auto;}
+  .utag.dd .dot{background:var(--mDD);}
+  .utag.fh .dot{background:var(--mFH);}
+  .utag.vd .dot{background:var(--mVD);}
+  /* the measure currently being applied */
+  .utag.on{border-width:2px; padding:1px 6px;}
+  .utag.dd.on{border-color:var(--mDD); background:color-mix(in srgb, var(--mDD) 16%, var(--panel-bg));}
+  .utag.fh.on{border-color:var(--mFH); background:color-mix(in srgb, var(--mFH) 20%, var(--panel-bg));}
+  .utag.vd.on{border-color:var(--mVD); background:color-mix(in srgb, var(--mVD) 16%, var(--panel-bg));}
+  /* a measure that reads this field but is not the one in play */
+  .utag.off{color:var(--deemph); border-style:dashed;}
+  .utag.off .dot{background:var(--deemph);}
+  .reading-note{
+    margin-top:12px; padding-top:12px; border-top:1px solid var(--border);
+    font-size:12.5px; color:var(--secondary); line-height:1.6;
+  }
+
+  /* ---- measure cards ---- */
+  .mcard{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px; border-left-width:5px; border-left-style:solid;
+  }
+  .mcard.dd{border-left-color:var(--mDD);}
+  .mcard.fh{border-left-color:var(--mFH);}
+  .mcard.vd{border-left-color:var(--mVD);}
+  .mcard h2{font-size:15px; font-weight:700; margin:0 0 2px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .mcard .sub{font-size:12px; color:var(--secondary); margin:0 0 12px; line-height:1.55;}
+  .swatch{width:11px; height:11px; border-radius:3px; display:inline-block; flex:0 0 auto;}
+  .swatch.dd{background:var(--mDD);} .swatch.fh{background:var(--mFH);} .swatch.vd{background:var(--mVD);}
+
+  /* DD conditions */
+  ol.conds{list-style:none; margin:0; padding:0;}
+  ol.conds li{
+    display:flex; align-items:flex-start; gap:10px; padding:8px 0; font-size:13.5px; line-height:1.5;
+    border-top:1px dashed var(--border);
+  }
+  ol.conds li:first-child{border-top:none;}
+  .mark{
+    font-family:var(--font-data); font-size:13px; font-weight:700; flex:0 0 auto;
+    width:26px; height:26px; border-radius:5px; border:2px solid var(--border);
+    display:flex; align-items:center; justify-content:center; color:var(--deemph);
+  }
+  .mark.one{border-color:var(--gold-ui); color:var(--gold-text);}
+  .mark.zero{border-color:var(--gold-ui); color:var(--gold-text);}
+  .cond-txt.done{color:var(--ink);}
+  .cond-txt.todo{color:var(--deemph);}
+  .arith{
+    margin-top:12px; padding-top:12px; border-top:1px solid var(--border);
+    font-family:var(--font-data); font-size:14px; font-weight:700; line-height:1.6;
+  }
+  .arith .lbl{font-family:var(--font-body); font-weight:400; font-size:12.5px; color:var(--secondary); display:block; margin-bottom:2px;}
+
+  /* FH question table */
+  table.fh{border-collapse:collapse; width:100%; margin-top:4px;}
+  table.fh caption{
+    caption-side:top; text-align:left; font-size:11px; font-weight:700; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--secondary); padding:8px 0 4px;
+  }
+  table.fh td{font-size:13px; line-height:1.5; padding:5px 0; border-top:1px dashed var(--border); vertical-align:top;}
+  table.fh tr:first-child td{border-top:none;}
+  td.score{
+    font-family:var(--font-data); font-weight:700; text-align:right; width:56px; padding-left:8px; white-space:nowrap;
+  }
+  tr.pending td{color:var(--ink);}
+  tr.pending td.score{color:var(--accent);}
+  tr.expert td, tr.expert td.score{color:var(--deemph);}
+  tr.mine td.score{color:var(--gold-text);}
+  .fh-tag{font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;}
+
+  /* V-Dem components */
+  table.vd{border-collapse:collapse; width:100%;}
+  table.vd td{font-size:13px; padding:5px 0; border-top:1px dashed var(--border);}
+  table.vd tr:first-child td{border-top:none;}
+  table.vd td.val{font-family:var(--font-data); font-weight:700; text-align:right; width:64px;}
+  table.vd td.wt{font-family:var(--font-data); text-align:right; width:70px; color:var(--secondary); font-size:12px;}
+  table.vd td.ci{font-family:var(--font-data); text-align:right; width:118px; color:var(--secondary); font-size:12px; padding-left:8px; white-space:nowrap;}
+  table.vd td.ci.none{font-family:var(--font-body); font-style:italic;}
+
+  /* verdict strip */
+  .verdicts{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .vbox{
+    flex:1 1 150px; border:1px solid var(--border); border-radius:8px; padding:12px 16px;
+    background:var(--panel-bg); border-top-width:4px; border-top-style:solid;
+  }
+  .vbox.dd{border-top-color:var(--mDD);} .vbox.fh{border-top-color:var(--mFH);} .vbox.vd{border-top-color:var(--mVD);}
+  .vbox .who{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--secondary); margin-bottom:4px;}
+  .vbox .val{font-size:15px; font-weight:700; color:var(--deemph);}
+  .vbox.settled{border-color:var(--gold-ui);}
+  .vbox.settled .val{color:var(--gold-text);}
+  .vbox .why{font-size:11.5px; color:var(--secondary); margin-top:4px; line-height:1.45; font-family:var(--font-data);}
+
+  .note-card{
+    margin-top:16px; padding:16px 24px; border-radius:8px;
+    border:1px solid var(--gold-ui); background:var(--panel-bg);
+  }
+  .note-card h3{font-size:13px; margin:0 0 8px; color:var(--gold-text); letter-spacing:.03em;}
+  .note-card p{font-size:13.5px; line-height:1.65; margin:0 0 8px; color:var(--ink);}
+  .note-card p:last-child{margin-bottom:0;}
+
+  /* ---- panel ---- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:360px; display:flex; flex-direction:column;
+    position:sticky; top:16px;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.65; color:var(--ink);}
+  .panel .step-text p{margin:0 0 10px;}
+  .panel .step-text p:last-child{margin-bottom:0;}
+  .panel .step-text .pay{font-family:var(--font-data); font-weight:700;}
+  /* ---- "look at" pointers ---- */
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{
+    font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--secondary);
+  }
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  /* ---- back to the panel ---- */
+  .back-to-step{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:#fff;
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  html[data-theme="dark"] .back-to-step{color:#0A1E28;}
+  .back-to-step[hidden]{display:none;}
+
+  .opts{margin-top:16px; display:flex; flex-direction:column; gap:6px;}
+  .opts.row{flex-direction:row; flex-wrap:wrap;}
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .scale-note{font-size:11.5px; color:var(--secondary); margin-top:8px; line-height:1.5;}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (max-width:820px){
+    .panel{position:static;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Coding the same country three ways</h1>
+      <p class="lede">Democracy is a concept. Before we can test theories about it, we must operationalize it by defining a rule that maps observable characteristics of a country onto a measure of democracy. Three widely used measures are Democracy-Dictatorship, Freedom House, and V-Dem, and their coding rules do not always assign the same score or category to the same country-year.</p>
+      <p class="lede">Here you are handed one country-year at a time and you code it under all three. The point is not that one of them is right. It is to see exactly where in the coding rules the three measures part company &mdash; what information each one uses from the record, what it ignores, and how it puts the pieces together.</p>
+      <p class="lede">Countries in practice mode are labeled by letter. The records are written for this tool; they are not real country-years, and the letters are there so that nothing you already believe about a particular country does the coding for you.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div id="pickerZone" style="display:none;">
+    <p class="group-label">One country-year at a time</p>
+    <p class="group-sub">Code each under all three measures, then account for wherever they disagree.</p>
+    <div class="picker" id="pickerMain"></div>
+
+    <p class="group-label">Two countries compared</p>
+    <p class="group-sub">These two are worth doing back to back, and in either order.</p>
+    <div class="picker" id="pickerPair"></div>
+  </div>
+
+  <div class="layout">
+    <div class="rec-col">
+      <div class="card" id="recCard"></div>
+
+      <div class="mcard dd" id="cardDD">
+        <h2><span class="swatch dd" aria-hidden="true"></span>Democracy-Dictatorship</h2>
+        <p class="sub">Four conditions. A country is a democracy if and only if all four hold; if any one fails, it is a dictatorship. Each condition is scored 1 or 0 and the four are multiplied.</p>
+        <ol class="conds" id="condList"></ol>
+        <div class="arith" id="ddArith"></div>
+      </div>
+
+      <div class="mcard fh" id="cardFH">
+        <h2><span class="swatch fh" aria-hidden="true"></span>Freedom House</h2>
+        <p class="sub">Questions on political rights and on civil rights, each scored 0 to 4 by a country expert. Each set is summed, converted to a 7-point scale, and the two are averaged. Lower is more free. Freedom House asks ten political rights questions and fifteen civil rights questions; five of each are shown here so the arithmetic stays readable, and the conversion bands are adjusted to match.</p>
+        <div id="fhBody"></div>
+      </div>
+
+      <div class="mcard vd" id="cardVD">
+        <h2><span class="swatch vd" aria-hidden="true"></span>V-Dem &mdash; electoral democracy</h2>
+        <p class="sub">Five component indices ranging from 0 to 1. Three are derived from multiple expert assessments using V-Dem's Bayesian measurement model and include uncertainty intervals. Two are deterministic indices computed from institutional and legal information and therefore do not have uncertainty intervals. The components are combined twice &mdash; once by multiplying, once by adding with weights &mdash; and the two results are averaged.</p>
+        <div id="vdBody"></div>
+      </div>
+
+      <div class="mcard" id="cardVerdict" style="border-left-color:var(--border);">
+        <h2>Verdicts</h2>
+        <div class="verdicts" id="verdictStrip"></div>
+      </div>
+
+      <div class="note-card" id="noteCard" style="display:none;"></div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="opts" id="opts"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+  <p class="sr-only" id="srStatus" aria-live="polite"></p>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Which fields of the record each measure actually reads.
+   This is the tool's central visual claim: a measure is a rule
+   about what to look at, and the three rules look at different
+   parts of the same page.
+   ============================================================ */
+const FIELDS = [
+  {k:'exec',        label:'The chief executive'},
+  {k:'leg',         label:'The legislature'},
+  {k:'parties',     label:'Parties'},
+  {k:'alternation', label:'Alternation in power'},
+  {k:'conduct',     label:'How the elections were run'},
+  {k:'suffrage',    label:'Who may vote'},
+  {k:'expression',  label:'Expression and the press'},
+  {k:'association', label:'Association and assembly'},
+  {k:'other',       label:'Courts, property, corruption, opportunity'}
+];
+
+const READS = {
+  dd:   ['exec','leg','parties','alternation'],
+  fh:   ['exec','leg','parties','alternation','conduct','suffrage','expression','association','other'],
+  vd:   ['exec','leg','conduct','suffrage','expression','association']
+};
+
+const FH_PR = [
+  'Is the head of government chosen through free and fair elections?',
+  'Is the legislature chosen through free and fair elections?',
+  'Is there a competitive opposition with a realistic chance of gaining power?',
+  'Are safeguards against corruption strong and effective?',
+  'Does the government operate with openness and transparency?'
+];
+const FH_CR = [
+  'Are the media free and independent?',
+  'Is there freedom of assembly?',
+  'Is there an independent judiciary?',
+  'Is there equality of opportunity?',
+  'Do people have the right to own property?'
+];
+
+const VD_COMP = [
+  {k:'foe', label:'Freedom of expression', w:0.25},
+  {k:'foa', label:'Freedom of association', w:0.25},
+  {k:'ce',  label:'Clean elections',        w:0.25},
+  {k:'suf', label:'Share of the population with suffrage', w:0.125},
+  {k:'eo',  label:'Elected officials',      w:0.125}
+];
+
+const DD_CONDS = [
+  {k:'exec',    text:'The chief executive is elected.'},
+  {k:'leg',     text:'The legislature is elected.'},
+  {k:'parties', text:'More than one party competes in the elections.'},
+  {k:'alt',     text:'An alternation in power under identical electoral rules has taken place.'}
+];
+
+/* Why the three can disagree. Fixed option set; per-case correct subsets. */
+const WHY = [
+  {id:1, text:'One measure counts substantive outcomes \u2014 courts, unions, corruption, opportunity \u2014 that another ignores entirely.'},
+  {id:2, text:'One measure takes no account of who is allowed to vote.'},
+  {id:3, text:'One measure will not call a country a democracy until an incumbent has actually lost and left office.'},
+  {id:4, text:'One measure multiplies its components, so a weak score on one holds the total down even when the rest are strong.'},
+  {id:5, text:'One measure can place a country in between, where the others have to choose a side.'},
+  {id:6, text:'All three return the same verdict here, so there is nothing to account for.'}
+];
+
+/* ============================================================
+   Cases
+   ============================================================ */
+const CASES = [
+{ id:'A', group:'main', title:'Country A, 1994',
+  rec:{
+    exec:'The president is elected by the National Assembly, which is itself directly elected.',
+    leg:'Every seat in the National Assembly is filled by direct election on a five-year cycle.',
+    parties:'Seven parties contested the last election. Four hold seats.',
+    alternation:'The party that led the country to independence in 1966 has won every election since. No incumbent has ever lost.',
+    conduct:'Observers report no significant fraud, intimidation or vote buying. The count was not disputed.',
+    suffrage:'All citizens aged 18 and over may vote. Registration is straightforward and turnout is high.',
+    expression:'Newspapers criticize the government freely. The state broadcaster is widely seen as favoring the governing party.',
+    association:'Parties, unions and civic groups organize without prior permission. Assembly is unrestricted.',
+    other:'The judiciary is independent and rules against the government regularly. Property rights are secure and corruption cases are prosecuted. Income inequality is among the highest in the region and rural districts are markedly poorer.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:0},
+  fhPR:[4,4,2,3,3], fhCR:[3,4,4,2,4],
+  ask:[{set:'PR',i:2},{set:'CR',i:0},{set:'CR',i:3}],
+  bands:[[1,3],[2,4],[1,3]],
+  vd:{foe:0.82, foa:0.88, ce:0.85, suf:0.96, eo:1},
+  miChips:['about 0.09','about 0.29','about 0.59','about 0.88'], miAns:2,
+  why:[3],
+  note:'Everything observable about this country-year points the same way except one thing, and Democracy-Dictatorship hangs its entire verdict on that one thing. The reasoning behind the fourth condition is that an incumbent who has never lost has never been tested. A party that keeps winning because it is genuinely popular and a party that holds elections only because it knows it cannot lose look identical from outside until the day one of them loses. Rather than guess, Democracy-Dictatorship codes the country a dictatorship \u2014 it would rather mistake a democracy for a dictatorship than the reverse. Freedom House and V-Dem take the opposite view: they read the freedoms and the clean elections and score the country high. Neither side is making an error. They are answering different questions.'
+},
+{ id:'B', group:'main', title:'Country B, 1968',
+  rec:{
+    exec:'The prime minister is the leader of the largest party in the elected parliament.',
+    leg:'Parliament is filled by direct election every four years.',
+    parties:'Five parties contest seats and three hold them. Campaigns are vigorous and outcomes are not foregone.',
+    alternation:'The governing party lost the 1953 election and handed over office under unchanged rules. Power has changed hands twice more since then.',
+    conduct:'Among those entitled to vote, elections are administered cleanly. No fraud has been alleged.',
+    suffrage:'Only citizens of one ethnic group \u2014 about 19% of the adult population \u2014 may register to vote. The rest are excluded by statute.',
+    expression:'Newspapers serving the enfranchised group publish sharp criticism of the government. Publications serving the excluded majority are routinely banned and their editors detained.',
+    association:'Parties and unions of the enfranchised group operate freely. Organizations of the excluded majority are illegal.',
+    other:'The courts are independent in disputes between enfranchised citizens and apply a separate, harsher body of law to everyone else. Members of the excluded majority may not own property outside designated districts.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:1},
+  fhPR:[1,1,2,2,2], fhCR:[1,1,1,0,0],
+  ask:[{set:'PR',i:0},{set:'CR',i:0},{set:'CR',i:3}],
+  bands:[[0,2],[0,2],[0,1]],
+  vd:{foe:0.55, foa:0.50, ce:0.70, suf:0.19, eo:1},
+  miChips:['about 0.04','about 0.19','about 0.44','about 0.59'], miAns:0,
+  why:[2,4],
+  note:'This is the case that unsettles students, and it should. All four of Democracy-Dictatorship\u2019s conditions hold: the executive is elected, the legislature is elected, several parties compete, and an incumbent has lost and left. So the measure returns democracy for a country that excludes four adults in five from the franchise by law. This is not a bug in the coding \u2014 it follows from the measure being built on Dahl\u2019s contestation dimension alone. The published defense is that between 1946 and 2020 there is almost no variation left in suffrage to measure, since nearly every country had adopted universal suffrage by then. That defense holds for the period the measure covers. It does not hold for this country-year, and if your research question is about inclusion, this measure cannot answer it. Notice also what happened inside V-Dem: the additive index came out at 0.586, comfortably above the line, and the multiplicative index dragged the final score to roughly half of that. Multiplying is how V-Dem refuses to let a strong showing elsewhere pay for a franchise of 19%.'
+},
+{ id:'C', group:'main', title:'Country C, 1981',
+  rec:{
+    exec:'The chairman of the council of ministers is appointed by the party\u2019s central committee.',
+    leg:'Deputies to the supreme assembly are elected. One approved candidate stands per seat and reported turnout exceeds 98%.',
+    parties:'One party is legal. Candidates appear on a single approved list.',
+    alternation:'The party has governed since 1949. No election has ever produced a change of government.',
+    conduct:'Voting is conducted openly in many workplaces. There is no independent observation of the count.',
+    suffrage:'All citizens aged 18 and over are registered automatically and participation is near universal.',
+    expression:'All publishing is licensed by the state. Criticism of the party leadership is a criminal offense.',
+    association:'Independent unions and associations are prohibited. The sole legal union is an organ of the party.',
+    other:'Courts are formally subordinate to the party. Private ownership of productive property is prohibited. Schooling and healthcare are provided universally and access is broadly equal across regions.'
+  },
+  dd:{exec:0, leg:1, parties:0, alt:0},
+  fhPR:[0,0,0,0,0], fhCR:[0,0,0,2,0],
+  ask:[{set:'PR',i:2},{set:'CR',i:0},{set:'CR',i:3}],
+  bands:[[0,1],[0,1],[1,3]],
+  vd:{foe:0.05, foa:0.06, ce:0.10, suf:0.92, eo:0.5},
+  miChips:['about 0.000','about 0.05','about 0.14','about 0.23'], miAns:0,
+  why:[6],
+  note:'The three measures agree, and it is worth being clear about why. Scholars often note that these measures correlate highly with one another, and this case is the reason: most of the agreement comes from countries where nothing is in doubt. An easy case cannot tell you that two measures are interchangeable. It can only tell you that they both manage the easy cases. Note one wrinkle even here \u2014 the legislature is elected, so that condition scores 1, and the second condition on its own would not have caught this country. Three of the four did the work. Note also that equality of opportunity, one of Freedom House\u2019s fifteen civil rights questions, scores respectably in a state with no elections at all.'
+},
+{ id:'D', group:'main', title:'Country D, 2009',
+  rec:{
+    exec:'The president is directly elected to a four-year term.',
+    leg:'The congress is directly elected.',
+    parties:'Two large parties and several smaller ones compete for seats.',
+    alternation:'The sitting president lost in 2003 and left office. The electoral law was not changed before or after.',
+    conduct:'Polling day was orderly and the count was accepted by all parties. Campaign spending is heavily skewed toward incumbents, who also control the distribution of public works contracts during campaigns.',
+    suffrage:'All citizens aged 18 and over may vote.',
+    expression:'Most national broadcasters are owned by three families with close ties to the governing party. Journalists reporting on official corruption have been sued repeatedly and two were assaulted in 2008.',
+    association:'Parties organize freely and demonstrations are permitted, though police dispersed three opposition rallies in 2009. Registering a union requires ministry approval, which is often withheld without stated reason.',
+    other:'Judges are appointed by the president without legislative confirmation and rarely rule against the government. The wealthiest tenth of the population receives about half of national income. Corruption investigations are opened frequently and concluded rarely.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:1},
+  fhPR:[3,3,3,1,1], fhCR:[1,2,1,1,3],
+  ask:[{set:'PR',i:3},{set:'CR',i:0},{set:'CR',i:2}],
+  bands:[[0,2],[0,2],[0,2]],
+  vd:{foe:0.48, foa:0.62, ce:0.74, suf:0.96, eo:1},
+  miChips:['about 0.05','about 0.21','about 0.48','about 0.71'], miAns:1,
+  why:[1,4,5],
+  note:'Three measures, three different answers, and each one is behaving exactly as designed. Democracy-Dictatorship asks only whether offices are filled through contested elections in which an incumbent has demonstrably lost, and here they are, so: democracy. Freedom House asks in addition whether the courts are independent, whether unions can register, whether corruption is checked and whether income is distributed tolerably \u2014 and answers those questions badly enough to pull the country into its middle category. V-Dem sits between the two in what it counts, but its multiplicative half punishes the one weak component hard enough to land the score below the customary 0.5 line. If you were writing a paper on this country you would have to say which of these three answers you meant, and defend it.'
+},
+{ id:'E', group:'main', title:'Country E, 1972',
+  rec:{
+    exec:'The prime minister is the leader of the largest bloc in the elected lower house.',
+    leg:'The lower house is directly elected.',
+    parties:'Six parties contest seats. The governing coalition faces an organized opposition that campaigns nationally.',
+    alternation:'The governing coalition lost its majority in 1969. It then declared a state of emergency, suspended parliament for two years, and redrew constituency boundaries and rewrote the emergency powers before elections resumed in 1971, which it won. No opposition party has ever taken office.',
+    conduct:'The 1971 election itself was orderly. Several opposition figures were detained without trial in the year preceding it.',
+    suffrage:'All citizens aged 21 and over may vote.',
+    expression:'Newspapers hold licenses that must be renewed annually. Reporting on certain listed subjects is prohibited by statute.',
+    association:'Parties operate legally. Public assembly requires a police permit, which is routinely refused to opposition groups.',
+    other:'Courts function and hear ordinary cases, but may not review detentions made under the emergency powers. Property rights are secure. A share of public employment is allocated by ethnic quota.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:0},
+  fhPR:[2,2,2,2,2], fhCR:[1,1,2,1,3],
+  ask:[{set:'PR',i:2},{set:'CR',i:0},{set:'CR',i:1}],
+  bands:[[1,3],[0,2],[0,2]],
+  vd:{foe:0.38, foa:0.42, ce:0.58, suf:0.90, eo:1},
+  miChips:['about 0.08','about 0.23','about 0.38','about 0.58'], miAns:0,
+  why:[5],
+  note:'The fourth condition is not "has an incumbent ever lost." It is "has an alternation in power taken place under identical electoral rules." An incumbent here did lose, and then changed the rules and the timetable rather than hand over office. That is precisely the evidence the condition exists to catch: what the country demonstrated in 1969 is that this incumbent would not give up power on losing, which also tells you something retrospective about the two elections it had won before. Read the fine print of a coding rule before deciding a country satisfies it. On the substance the three measures are not far apart here \u2014 the only real difference is that Freedom House has a middle category available and the other two do not, so they must round this country to one side or the other.'
+},
+{ id:'F', group:'main', title:'Country F, 2015',
+  rec:{
+    exec:'The president is directly elected.',
+    leg:'The national assembly is directly elected under a proportional system.',
+    parties:'Nine parties contest seats and six hold them. Opposition parties are well organized and well funded.',
+    alternation:'The governing party has held office since the constitution was adopted in 1991 and has never lost an election.',
+    conduct:'The last two elections were accepted by international observers, with scattered complaints about the accuracy of the voter roll.',
+    suffrage:'All citizens aged 18 and over may vote. Citizens resident abroad, roughly 6% of the electorate, cannot register.',
+    expression:'The two national broadcasters are state-owned and their political coverage tilts toward the government. Print and online outlets operate without restriction. One editor was prosecuted for criminal defamation in 2014 and acquitted.',
+    association:'Parties, unions and civic groups operate freely. Permits for two large demonstrations were denied in 2015.',
+    other:'The constitutional court has struck down government legislation three times since 2012. Corruption investigations reach cabinet level but rarely conclude. Regional income gaps are wide and growing.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:0},
+  fhPR:[3,3,2,2,2], fhCR:[2,3,3,2,4],
+  ask:[{set:'PR',i:2},{set:'CR',i:0},{set:'CR',i:4}],
+  bands:[[1,3],[1,3],[3,4]],
+  vd:{foe:0.62, foa:0.70, ce:0.78, suf:0.93, eo:1},
+  miChips:['about 0.10','about 0.31','about 0.62','about 0.77'], miAns:1,
+  why:[1,3,5],
+  note:'Look at how close the numbers are to their own dividing lines. V-Dem lands at 0.541 against a customary cutoff of 0.5, so a modest downward nudge in a single component would move this country from the democracy column to the dictatorship column of any table built on that cutoff. Freedom House averages to exactly 3.0; one additional point on any two of the ten questions would have raised the political rights score to a 2, brought the average to 2.5, and made the country Free. The sentence "42.3% of countries were democratic in 2021" is doing something quite specific: it is counting how many countries fell on one side of a line that somebody chose. Countries near the line are not measured badly. They are the countries about which the measure has the least to say, which is why V-Dem publishes an uncertainty range alongside each score and why that range is widest in the middle.'
+},
+{ id:'G', group:'pair', title:'Country G, 1998',
+  rec:{
+    exec:'The president is directly elected.',
+    leg:'The national assembly is directly elected.',
+    parties:'Four parties compete and three hold seats.',
+    alternation:'The opposition won the 1994 election and took office under unchanged rules.',
+    conduct:'Elections are competitive. The voter roll is out of date in several provinces and observers report administrative irregularities in about a tenth of districts.',
+    suffrage:'All citizens aged 18 and over are entitled to vote, but must re-register in person every four years in their district of birth. About a third of adults were not on the roll at the last election.',
+    expression:'Private newspapers publish criticism. Broadcast licenses are granted by a ministry and two were revoked in 1997 after unfavorable coverage.',
+    association:'Demonstrations require advance notice and are refused about as often as they are allowed in the mining provinces. Unions are legal in most sectors and banned in mining and transport.',
+    other:'Courts are slow and inconsistent but not directed by the government. Property registration is unreliable outside the capital. Corruption is widespread at the local level.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:1},
+  fhPR:[2,2,3,2,2], fhCR:[2,2,2,2,3],
+  ask:[{set:'PR',i:2},{set:'CR',i:0},{set:'CR',i:2}],
+  bands:[[2,4],[1,3],[1,3]],
+  vd:{foe:0.60, foa:0.60, ce:0.60, suf:1, eo:1},
+  miChips:['about 0.02','about 0.22','about 0.60','about 0.70'], miAns:1,
+  why:[4,5],
+  note:'Three of the five components are 0.60 and the other two are 1, so the weighted additive index comes to exactly 0.700. The multiplicative index is 0.216 \u2014 the two components at 1 cost the product nothing, so it is just three sixths multiplied together, which is a bit over a fifth rather than a bit under six tenths. Products of numbers below one collapse fast, and most people badly underestimate how fast. Hold this country\u2019s two indices in mind and open Country H.'
+},
+{ id:'H', group:'pair', title:'Country H, 1998',
+  rec:{
+    exec:'The president is directly elected by those entitled to vote.',
+    leg:'The national assembly is directly elected.',
+    parties:'Five parties compete and four hold seats.',
+    alternation:'The opposition won the 1992 election and took office under unchanged rules. Power changed hands again in 1996.',
+    conduct:'Elections are administered cleanly and the rolls are accurate. Observers report no irregularities.',
+    suffrage:'The franchise is limited to citizens who meet a property qualification \u2014 about 7% of the adult population. There is no restriction by sex, religion or ethnicity among those who qualify.',
+    expression:'The press is unrestricted and vigorously critical. There is no licensing regime.',
+    association:'Unions, parties and civic associations operate without restriction, including among those who cannot vote.',
+    other:'The courts are independent and efficient. Property rights are strongly protected. Corruption is rare. Access to the professions and to higher education tracks inherited wealth closely.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:1},
+  fhPR:[1,1,2,3,3], fhCR:[4,4,3,0,4],
+  ask:[{set:'PR',i:0},{set:'CR',i:0},{set:'CR',i:3}],
+  bands:[[0,2],[3,4],[0,1]],
+  vd:{foe:0.755, foa:0.755, ce:0.755, suf:0.07, eo:1},
+  miChips:['about 0.03','about 0.13','about 0.43','about 0.70'], miAns:0,
+  why:[2,4,5],
+  note:'Set this beside Country G. G is mediocre at everything; H is excellent at almost everything and disenfranchises 93% of its adults. Their weighted additive indices are both exactly 0.700. An index that only added would call these two countries identical, because adding lets a strong score on one attribute pay for a weak score on another. Multiplying refuses that trade: G\u2019s multiplicative index is 0.216 and H\u2019s is 0.030, seven times smaller, and it is that half of the calculation that separates them. The same thing happened one level up inside Freedom House: H scored 4 on political rights and 2 on civil rights, G scored 4 and 4, and averaging landed them in the same category by a different route. Whenever a measure adds or averages, ask what is being allowed to pay for what.'
+}
+];
+
+/* ============================================================
+   Measure arithmetic
+   ============================================================ */
+function fh7(raw){
+  if(raw>=18) return 1;
+  if(raw>=15) return 2;
+  if(raw>=12) return 3;
+  if(raw>=9)  return 4;
+  if(raw>=6)  return 5;
+  if(raw>=3)  return 6;
+  return 7;
+}
+function fhCategory(avg){
+  if(avg<=2.5) return 'Free';
+  if(avg<=5.0) return 'Partly free';
+  return 'Not free';
+}
+function fhResult(c){
+  const praw=c.fhPR.reduce((a,b)=>a+b,0), craw=c.fhCR.reduce((a,b)=>a+b,0);
+  const p7=fh7(praw), c7=fh7(craw), avg=(p7+c7)/2;
+  return {praw,craw,p7,c7,avg,cat:fhCategory(avg)};
+}
+function vdResult(c){
+  const v=c.vd;
+  const mi = v.foe*v.foa*v.ce*v.suf*v.eo;
+  const ai = 0.25*v.foe + 0.25*v.foa + 0.25*v.ce + 0.125*v.suf + 0.125*v.eo;
+  const score = 0.5*mi + 0.5*ai;
+  return {mi,ai,score,dem:score>0.5};
+}
+function ddResult(c){
+  const p = c.dd.exec*c.dd.leg*c.dd.parties*c.dd.alt;
+  return {product:p, dem:p===1};
+}
+function fmt(x,n){ return x.toFixed(n===undefined?3:n); }
+
+/* ============================================================
+   Guided walkthrough — worked on the chapter's own example
+   ============================================================ */
+/* Steps 4, 5 and 7 of the walkthrough contain narrative specific to this case
+   (the governing party, the year of independence). Every derived NUMBER in the
+   steps is templated from the data below and cannot drift, but that prose is
+   not -- revise it by hand if the guided case is ever replaced. */
+const GUIDED_CASE = {
+  id:'NA', title:'Namibia, 2017',
+  /* The record paraphrases Freedom House's own country report for this year,
+     so that the ten question scores below can be checked against it. */
+  rec:{
+    exec:'The president is both chief of state and head of government, directly elected for up to two five-year terms. In 2014 Hage Geingob won the presidency with 87% of the vote.',
+    leg:'The 96 elected seats of the National Assembly are filled by party-list proportional representation for five-year terms. A 2014 constitutional amendment also lets the president appoint 8 non-voting members.',
+    parties:'SWAPO took 80% of the vote in 2014 and holds 77 of the elected seats. The closest opposition party won 4.8% and five seats, with eight further parties holding the rest. Parties form and operate freely, but in practice the opposition is weak and fragmented.',
+    alternation:'SWAPO has been in power since independence in 1990. No incumbent has ever lost.',
+    conduct:'Observers judged the 2014 polls competitive and credible, with some logistical problems reported with the electronic voting machines. Candidate registration fees are a real burden on smaller parties.',
+    suffrage:'Universal adult suffrage.',
+    expression:'Journalists face few legal restrictions and can generally work without risk to their safety. Self-censorship is common in state media while private outlets remain critical of government; a 2017 cabinet decision prioritized state-owned media for government advertising.',
+    association:'Assembly is guaranteed and usually observed, though police stopped two peaceful marches in 2017. Human rights groups operate without interference. Union rights are respected, though essential public-sector workers may not strike.',
+    other:'The separation of powers is observed and judges are not frequently subject to undue influence, though the judiciary is under-resourced. The legal framework against corruption is sound but inconsistently enforced. Forced child labor persists in agriculture and in domestic work, and human trafficking remains a challenge.'
+  },
+  dd:{exec:1, leg:1, parties:1, alt:0},
+  /* Freedom House's own published indicator scores for Namibia, taken from
+     the Freedom in the World 2018 COUNTRY REPORT on Namibia -- the edition that
+     ASSESSES calendar year 2017. Not the volume published as "Freedom in the
+     World 2018", which is a global overview essay with no country detail.
+     Source: freedomhouse.org/country/namibia/freedom-world/2018
+     Plain-text mirrors: ecoi.net document 2000829; Refworld 121919.
+       political rights  A1 4, A2 3, B2 2, C2 3, C3 3
+       civil liberties   D1 3, E1 4, F1 3, G4 2, G2 3
+     FH's published rating for 2017 was Free, PR 2, CL 2. */
+  fhPR:[4,3,2,3,3], fhCR:[3,4,3,2,3],
+  /* V-Dem's published component scores for Namibia in 2017.
+     Three are latent-variable estimates from the Bayesian measurement model and
+     carry a credible interval; two are rule-based indices and do not. */
+  vd:{foe:0.845, foa:0.884, ce:0.756, suf:1, eo:1},
+  ci:{foe:[0.799,0.909], foa:[0.838,0.949], ce:[0.675,0.868]}
+};
+
+const GFH       = fhResult(GUIDED_CASE);
+const GCOUNTRY  = GUIDED_CASE.title.split(',')[0].trim();
+
+const GUIDED_VERDICTS = (function(){
+  const d=ddResult(GUIDED_CASE), f=fhResult(GUIDED_CASE), v=vdResult(GUIDED_CASE);
+  return (d.dem?'Democracy':'Dictatorship')+', '+f.cat+', and '+fmt(v.score,3);
+})();
+
+const STEPS = [
+  { label:'The gap this tool is about',
+    focus:null, look:['recCard'],
+    html:'<p>You have a concept of democracy. Turning a concept into a measure is called <b>operationalization</b>. This process takes observable facts about a country and returns a score or a category. The question is never whether a measure simplifies (it always does). It is what it chooses to keep.</p>'
+      +'<p>Three rules are worked here on one country-year: <b>'+GUIDED_CASE.title+'</b>.</p>' },
+  { label:'The record',
+    focus:null, look:['recCard'],
+    html:'<p>Everything the three measures will use is on the record card, split into labeled fields. Nothing outside those fields counts as evidence.</p>'
+      +'<p>Read it once now. Then watch which parts of it each measure actually picks up. While a measure is being applied, the fields it uses are marked with a colored rule and its own tag is filled in; the fields it does not use are dimmed and every tag on them goes gray.</p>' },
+  { label:'Democracy-Dictatorship reads four fields',
+    focus:'dd', look:['recCard'], fresh:true,
+    html:'<p>Four of the nine fields, and no others. Democracy-Dictatorship does not look at how clean the elections were, who is allowed to vote, whether the press is free, or what the courts do.</p>'
+      +'<p>That is deliberate. The measure is built on Dahl\u2019s contestation dimension alone and on facts that are simply observable, so that two people coding the same country-year will produce the same answer.</p>' },
+  { label:'The four conditions',
+    focus:'dd', look:['cardDD'], fresh:true,
+    html:'<p>The president is directly elected, so the first condition holds. The National Assembly is elected by proportional representation, so does the second. Several parties compete and more than one holds seats, so does the third.</p>'
+      +'<p>The fourth condition asks whether an alternation in power under identical electoral rules has taken place. SWAPO has won every election since independence in 1990. It has never lost, so it has never had to hand over office. That condition scores 0.</p>' },
+  { label:'Multiplying, and what a zero does',
+    focus:'dd', look:['cardDD','cardVerdict'], fresh:true,
+    html:'<p><span class="pay">1 \u00d7 1 \u00d7 1 \u00d7 0 = 0</span>. This is a <b>multiplicative</b> rule: every condition is necessary, so a single failure settles the verdict on its own and the other three cannot compensate.</p>'
+      +'<p>Why insist on seeing an incumbent lose? Because a party that keeps winning because it is popular and a party that holds elections only because it is sure of the result look exactly the same from outside, right up until one of them loses. The two situations are observationally equivalent. Rather than guess, the measure codes the country a dictatorship. It would rather mistake a democracy for a dictatorship than the other way round \u2014 and every measure has to make some choice of this kind.</p>'
+      +'<p>A verdict that turns on this condition is never permanent, and the chapter\u2019s own example shows why. Botswana was coded a dictatorship on exactly this condition for decades. Then in October 2024 (after the textbook was published) the governing party lost, conceded, and handed office to the opposition \u2014 so the condition is now satisfied and Democracy-Dictatorship codes Botswana a democracy. The coding rule did not change. The evidence did.</p>' },
+  { label:'Freedom House reads everything',
+    focus:'fh', look:['recCard','cardFH'], fresh:true,
+    html:'<p>Nothing is dimmed, because Freedom House uses all of it. Ten questions on political rights and fifteen on civil rights, each scored 0 to 4 by a country expert. This tool shows five of each so the arithmetic stays legible.</p>' },
+  { label:'Adding, and what that permits',
+    focus:'fh', look:['cardFH','cardVerdict'], fresh:true,
+    html:'<p>Each set of questions is summed, the sum is converted to a 7-point scale, and the two scales are averaged. '+GCOUNTRY+' comes out at '+GFH.p7+' and '+GFH.c7+', so '+fmt(GFH.avg,1)+' \u2014 '+GFH.cat+'.</p>'
+      +'<p>This is an <b>additive</b> rule, and it works on the opposite principle to Democracy-Dictatorship. No single attribute is necessary. A low score on one question can be paid for by a high score on another, and there are hundreds of different combinations of answers that produce the same overall score. That is worth remembering when someone tells you two countries are both "partly free."</p>'
+      +'<p>Notice too that the third political-rights question scored a 2 here, for exactly the fact that made Democracy-Dictatorship code the country a dictatorship. The same observation goes into both measures. One lets it decide the verdict; the other lets it cost two points out of forty.</p>' },
+  { label:'V-Dem\u2019s five components',
+    focus:'vd', look:['recCard','cardVD'], fresh:true,
+    html:'<p>Six of the nine fields. V-Dem reads how the elections were run, who may vote, expression, and association, along with the two fields on the executive and the legislature. It does not read the parties field or the alternation field at all &mdash; the fact that settled Democracy-Dictatorship\u2019s verdict is not an input here &mdash; and it leaves the courts, property and corruption to Freedom House.</p>'
+      +'<p>V-Dem does not hand you a rule you could apply yourself. Three of the five components \u2014 freedom of expression, freedom of association, clean elections \u2014 are built from batches of low-level indicators, forty of them in all, coded by multiple experts whose judgments are combined in a Bayesian measurement model.</p>'
+      +'<p>Rather than producing a single \u201cbest guess\u201d alone, the model also quantifies how uncertain that estimate is\u2014reflecting factors such as disagreement among experts and the amount of information available\u2014and reports that uncertainty as a <b>credible interval</b>. Clean elections here is 0.756, with an interval of 0.675 to 0.868. That is uncertainty about the estimate \u2014 not a menu of scores V-Dem might have given instead.</p>'
+      +'<p>The other two components carry no interval at all. Suffrage and elected officials are rule-based: they follow from factual matters like who is legally entitled to vote and which offices are filled by election, so there is no expert disagreement to model. Both are 1 here. This is what the chapter\u2019s error bars are showing, and why they are narrow for clearly democratic and clearly dictatorial countries and widest in the middle.</p>' },
+  { label:'Multiplying and adding, then splitting the difference',
+    focus:'vd', look:['cardVD','cardVerdict'], fresh:true,
+    html:'<p>The five components are combined twice. The multiplicative index multiplies them. The additive index adds them, weighting expression, association and clean elections at 0.25 each and suffrage and elected officials at 0.125 each.</p>'
+      +'<p>Then <span class="pay">V-Dem = 0.5 \u00d7 MI + 0.5 \u00d7 AI</span>. Rather than choose between the two philosophies of aggregation, V-Dem takes half of each. The result is continuous, from 0 to 1, and a cutoff of 0.5 is conventional rather than built in \u2014 somebody chose it.</p>'
+      +'<p>Watch what the two components of 1 do here. Multiplying by 1 costs the product nothing, so the multiplicative index is just the three estimated components multiplied together. A component only bites when it falls below 1, and the further below, the harder it bites \u2014 which is the whole point of including a multiplicative half.</p>' },
+  { label:'Three verdicts',
+    focus:null, look:['cardVerdict'], fresh:true,
+    html:'<p>'+GUIDED_VERDICTS+'. One country-year, one record, three answers.</p>'
+      +'<p>This is not a sign that any of the measures are incorrect. They are built on different concepts of democracy, so they are supposed to part company on cases like this one. The chapter\u2019s advice is to pick the measure whose underlying concept matches the concept in your theory, and to say which you picked.</p>'
+      +'<p>One further asymmetry is worth noticing. You could have coded Democracy-Dictatorship yourself from the record, because its four conditions are straightforward to observe. You could have attempted the Freedom House scores, but so could a colleague, and there are no published rules saying why a country gets a 3 rather than a 2, so your two codings might differ. You could produce a V-Dem-style expert coding using the same ordinal response categories that V-Dem coders use, but you would not be able to produce the published V-Dem measure, because that requires multiple independent experts and V-Dem\u2019s statistical aggregation model. How much of a measure you can check for yourself tracks how observable its attributes are (see the discussion of reliability in the chapter).</p>' },
+  { label:'Over to you',
+    focus:null, look:null,
+    html:'<p>Practice mode gives you eight country-years, labeled by letter so that what you already believe about a real country cannot do the coding for you.</p>'
+      +'<p>For each one you work the four Democracy-Dictatorship conditions, score three of the Freedom House questions yourself, estimate what multiplying does to the V-Dem components, and then account for wherever the three measures ended up disagreeing.</p>' }
+];
+
+/* ============================================================
+   State
+   ============================================================ */
+let mode='guided';
+let stepIdx=0;
+let caseIdx=-1;
+let taskIdx=0;
+let tasks=[];
+let pick=null;
+let multiPick=new Set();
+let awaitingNext=false;
+let answers={};
+
+const $ = id => document.getElementById(id);
+
+/* ---------------- theme ---------------- */
+(function(){
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(prefersDark ? 'dark' : 'light');
+})();
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  const dark = t==='dark';
+  $('themeToggle').setAttribute('aria-pressed', dark ? 'true':'false');
+  $('themeIcon').innerHTML = dark ? '&#9788;' : '&#9789;';
+  $('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+$('themeToggle').addEventListener('click', ()=>{
+  setTheme(document.documentElement.getAttribute('data-theme')==='dark' ? 'light':'dark');
+});
+
+/* ---------------- pickers ---------------- */
+function buildPickers(){
+  const main=$('pickerMain'), pair=$('pickerPair');
+  main.innerHTML=''; pair.innerHTML='';
+  CASES.forEach((c,i)=>{
+    const b=document.createElement('button');
+    b.className='chip'; b.type='button'; b.textContent=c.title;
+    b.addEventListener('click',()=>selectCase(i));
+    (c.group==='pair'?pair:main).appendChild(b);
+  });
+}
+function syncPicker(){
+  const all=[...$('pickerMain').children, ...$('pickerPair').children];
+  all.forEach((b,i)=> b.classList.toggle('active', i===caseIdx));
+}
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-selected','false');});
+    t.classList.add('active'); t.setAttribute('aria-selected','true');
+    mode=t.dataset.mode;
+    $('pickerZone').style.display = mode==='practice' ? '' : 'none';
+    lastLook=null;
+    if(mode==='guided'){ stepIdx=0; caseIdx=-1; renderGuided(); }
+    else { caseIdx=-1; renderPracticeIdle(); }
+    syncPicker();
+    queueSyncBack();
+  });
+});
+
+/* ============================================================
+   Rendering the record card
+   ============================================================ */
+function currentCase(){
+  if(mode==='guided') return GUIDED_CASE;
+  return caseIdx>=0 ? CASES[caseIdx] : null;
+}
+function renderRecord(focus){
+  const c=currentCase();
+  const el=$('recCard');
+  if(!c){
+    el.innerHTML='<div class="card-head">The record</div>'
+      +'<p class="field-text" style="color:var(--secondary)">Choose a country-year to begin. Its record appears here, and the three measure cards below fill in as you code it.</p>';
+    return;
+  }
+  let h='<div class="card-head">The record</div><div class="card-title">'+c.title+'</div>';
+  const LABELS={dd:'DD', fh:'FH', vd:'V-Dem'};
+  FIELDS.forEach(f=>{
+    const used = focus ? READS[focus].includes(f.k) : false;
+    let cls='field';
+    if(focus) cls += used ? (' used '+focus) : ' dim';
+    let tags='';
+    ['dd','fh','vd'].forEach(k=>{
+      if(!READS[k].includes(f.k)) return;
+      const on  = (focus===k);
+      const off = (focus && focus!==k);
+      tags+='<span class="utag '+k+(on?' on':'')+(off?' off':'')+'">'
+           +'<span class="dot" aria-hidden="true"></span>'+LABELS[k]+'</span>';
+    });
+    h+='<div class="'+cls+'">'
+      +'<div class="field-label">'+f.label+'</div>'
+      +'<div class="field-text">'+c.rec[f.k]+'</div>'
+      +'<div class="field-users"><span class="uprefix">used by</span>'+tags+'</div>'
+      +'</div>';
+  });
+  h+='<p class="reading-note">Every field says which measures use it. Democracy-Dictatorship uses four of the nine. V-Dem uses six. Freedom House uses all of them. While a measure is being applied its own tag is filled in and the fields it does not use are dimmed.</p>';
+  el.innerHTML=h;
+}
+
+/* ============================================================
+   Rendering the three measure cards
+   ============================================================ */
+function renderDD(){
+  const c=currentCase();
+  const list=$('condList'), arith=$('ddArith');
+  if(!c){ list.innerHTML=''; arith.innerHTML=''; return; }
+  const shown = k => (mode==='guided') ? guidedShows('dd',k) : (answers.dd && answers.dd[k]!==undefined);
+  let h='';
+  DD_CONDS.forEach((d,i)=>{
+    const on=shown(d.k);
+    const v=c.dd[d.k];
+    h+='<li><span class="mark '+(on?(v?'one':'zero'):'')+'" aria-hidden="true">'+(on?v:'?')+'</span>'
+      +'<span class="cond-txt '+(on?'done':'todo')+'">'+(i+1)+'. '+d.text+'</span></li>';
+  });
+  list.innerHTML=h;
+  const allOn = (mode==='guided')
+    ? guidedShows('dd','verdict')
+    : DD_CONDS.every(d=>shown(d.k));
+  if(allOn){
+    const r=ddResult(c);
+    arith.innerHTML='<span class="lbl">Product of the four conditions</span>'
+      + c.dd.exec+' \u00d7 '+c.dd.leg+' \u00d7 '+c.dd.parties+' \u00d7 '+c.dd.alt+' = '+r.product
+      + '<span class="lbl" style="margin-top:8px;">Verdict</span>'+(r.dem?'Democracy':'Dictatorship');
+  } else {
+    arith.innerHTML='<span class="lbl">Product of the four conditions</span><span style="color:var(--deemph)">pending</span>';
+  }
+}
+
+function fhRowsShown(){
+  if(mode==='guided') return guidedShows('fh','scores');
+  return answers.fhDone===true;
+}
+function renderFH(){
+  const c=currentCase();
+  const body=$('fhBody');
+  if(!c){ body.innerHTML=''; return; }
+
+  const asked = (mode==='practice' && c.ask) ? c.ask : [];
+  const answeredCount = answers.fhAnswered || 0;
+  const isAsked = (set,i)=> asked.some(a=>a.set===set && a.i===i);
+  const askedIndex = (set,i)=> asked.findIndex(a=>a.set===set && a.i===i);
+  const revealed = (set,i)=>{
+    if(mode==='guided') return guidedShows('fh','scores');
+    const ai=askedIndex(set,i);
+    if(ai===-1) return answers.fhDone===true;
+    return ai < answeredCount;
+  };
+
+  function tbl(setName, caption, qs, scores){
+    let h='<table class="fh"><caption>'+caption+'</caption><tbody>';
+    qs.forEach((q,i)=>{
+      const mine=isAsked(setName,i);
+      const show=revealed(setName,i);
+      const cls = show ? (mine?'mine':'expert') : 'pending';
+      let cell;
+      if(show) cell = scores[i]+' / 4';
+      else if(mine && askedIndex(setName,i)===answeredCount) cell = 'you';
+      else cell = '&mdash;';
+      h+='<tr class="'+cls+'"><td>'+q+(mine&&show?' <span class="fh-tag">yours</span>':'')+'</td><td class="score">'+cell+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    return h;
+  }
+  let h = tbl('PR','Political rights', FH_PR, c.fhPR) + tbl('CR','Civil rights', FH_CR, c.fhCR);
+
+  const allShown = (mode==='guided') ? guidedShows('fh','total') : (answers.fhDone===true);
+  if(allShown){
+    const r=fhResult(c);
+    h+='<div class="arith"><span class="lbl">Political rights</span>'+r.praw+' / 20 \u2192 '+r.p7+' on the 7-point scale'
+      +'<span class="lbl" style="margin-top:8px;">Civil rights</span>'+r.craw+' / 20 \u2192 '+r.c7+' on the 7-point scale'
+      +'<span class="lbl" style="margin-top:8px;">Average, and category</span>'+fmt(r.avg,1)+' \u2192 '+r.cat+'</div>'
+      +(mode==='guided'
+        ? '<p class="scale-note"><b>Where these ten scores come from.</b> They are Freedom House\u2019s own published indicator scores, from its <i>Freedom in the World 2018</i> <b>country report on Namibia</b> \u2014 the edition that assesses calendar year 2017. Two things make this hard to look up. Freedom House names each edition for the year it is published, not the year it covers, so the report on 2017 is the 2018 report, and the 2017 report covers 2016 and is abridged with no indicator breakdown. And the volume published as <i>Freedom in the World 2018</i> is a short global overview essay with summary tables; it contains no country detail. The indicator scores are in the separate per-country report, at freedomhouse.org/country/namibia/freedom-world/2018, and mirrored in plain text by ecoi.net and Refworld. All three measures on this page are coded for the same country-year, 2017.</p>'
+          +'<p class="scale-note">In Freedom House\u2019s own numbering the ten questions here are A1, A2, B2, C2 and C3 on political rights, and D1, E1, F1, G4 and G2 on civil liberties. Each is one whole Freedom House indicator, not a blend of several \u2014 trade union rights, for instance, is a separate indicator (E3) and is simply one of the fifteen civil liberties questions not shown. Its published rating for 2017 was Free, with 2 on political rights and 2 on civil liberties, which is what the reduced set above reproduces. Indicator-level scores, each with a paragraph of justification, have been published since the 2018 edition. The scores in practice mode are written for this tool.</p>'
+        : '')
+      +'<p class="scale-note">Lower is more free. Free is 1.0 to 2.5, partly free 3.0 to 5.0, not free 5.5 to 7.0. The chapter states the partly-free band as 3 to 5.5 and the not-free band as 5.5 to 7, which overlap at 5.5; this tool puts 5.5 in not free, following Freedom House\u2019s own convention.</p>';
+  } else {
+    h+='<div class="arith"><span class="lbl">Totals</span><span style="color:var(--deemph)">pending</span></div>';
+  }
+  body.innerHTML=h;
+}
+
+function renderVD(){
+  const c=currentCase();
+  const body=$('vdBody');
+  if(!c){ body.innerHTML=''; return; }
+  const r=vdResult(c);
+  const hasCI = !!c.ci;
+  let h='<table class="vd"><tbody>';
+  VD_COMP.forEach(k=>{
+    h+='<tr><td>'+k.label+'</td><td class="wt">weight '+k.w+'</td><td class="val">'+fmt(c.vd[k.k],3)+'</td>';
+    if(hasCI){
+      h+= c.ci[k.k]
+        ? '<td class="ci">['+fmt(c.ci[k.k][0],3)+', '+fmt(c.ci[k.k][1],3)+']</td>'
+        : '<td class="ci none">no interval</td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+
+  const showMI = (mode==='guided') ? guidedShows('vd','indices') : (answers.miDone===true);
+  const showFinal = (mode==='guided') ? guidedShows('vd','final') : (answers.vdDone===true);
+
+  h+='<div class="arith"><span class="lbl">Multiplicative index \u2014 the five multiplied together</span>'
+    +(showMI?fmt(r.mi,3):'<span style="color:var(--deemph)">pending</span>')
+    +'<span class="lbl" style="margin-top:8px;">Additive index \u2014 the five added, with weights</span>'
+    +(showMI?fmt(r.ai,3):'<span style="color:var(--deemph)">pending</span>')
+    +'<span class="lbl" style="margin-top:8px;">Final score \u2014 half of each</span>'
+    +(showFinal?(fmt(r.score,3)+'  ('+(r.dem?'above':'below')+' 0.5)'):'<span style="color:var(--deemph)">pending</span>')
+    +'</div>';
+  if(mode==='guided' && showMI){
+    h+='<p class="scale-note"><b>Where these five scores come from.</b> They are V-Dem\u2019s published component indices for this country-year: v2x_freexp_altinf, v2x_frassoc_thick, v2xel_frefair, v2x_suffr and v2x_elecoff. Three carry a credible interval and two do not, and the reason is worth knowing. Freedom of expression, freedom of association and clean elections are <em>latent-variable estimates</em>: several experts code the underlying indicators, they disagree, and a Bayesian measurement model estimates both a best value and how uncertain that value is. Suffrage and elected officials are rule-based indices computed from factual information, so there is no expert disagreement to model and no interval to report. The interval is uncertainty about the estimate, not a range of alternative scores \u2014 0.756 is the estimate for clean elections, and 0.675 and 0.868 are not rival codings of it.</p>'
+      +'<p class="scale-note"><b>A note on elected officials (v2x_elecoff).</b> This is a rule-based index summarizing whether the chief executive and the legislature ultimately derive their authority from elections. It is reported on a 0 to 1 scale, but for most contemporary countries it takes only a handful of values, because it rests on a limited set of constitutional arrangements rather than on expert judgment. Looking only at recent decades you will typically see just 0, 0.25, 0.5, 0.75 and 1. Across the full historical dataset, which reaches back to 1789, other values do occur \u2014 legislatures only partly elected, or filled by more complex appointment rules. So those five are the values most commonly encountered for modern countries, not the only ones mathematically possible. Every country-year in practice mode is modern, so this component takes one of the five there.</p>';
+  }
+  body.innerHTML=h;
+}
+
+function renderVerdicts(){
+  const c=currentCase();
+  const strip=$('verdictStrip');
+  if(!c){ strip.innerHTML='<p class="field-text" style="color:var(--secondary)">Nothing coded yet.</p>'; return; }
+  const ddOn = (mode==='guided') ? guidedShows('dd','verdict') : DD_CONDS.every(d=>answers.dd && answers.dd[d.k]!==undefined);
+  const fhOn = (mode==='guided') ? guidedShows('fh','total') : answers.fhDone===true;
+  const vdOn = (mode==='guided') ? guidedShows('vd','final') : answers.vdDone===true;
+  const dr=ddResult(c), fr=fhResult(c), vr=vdResult(c);
+  const box=(cls,who,on,val,why)=>
+    '<div class="vbox '+cls+(on?' settled':'')+'"><div class="who">'+who+'</div>'
+    +'<div class="val">'+(on?val:'not yet coded')+'</div>'
+    +(on&&why?'<div class="why">'+why+'</div>':'')+'</div>';
+  strip.innerHTML =
+      box('dd','Democracy-Dictatorship', ddOn, dr.dem?'Democracy':'Dictatorship', 'product = '+dr.product)
+    + box('fh','Freedom House', fhOn, fr.cat, 'average = '+fmt(fr.avg,1))
+    + box('vd','V-Dem', vdOn, vr.dem?'Democracy':'Dictatorship', 'score = '+fmt(vr.score,3));
+}
+
+function renderAll(focus){
+  renderRecord(focus);
+  renderDD(); renderFH(); renderVD(); renderVerdicts();
+}
+
+/* ============================================================
+   Pointing at the card a step is about
+
+   The left column runs to six cards and is taller than a laptop screen,
+   so the card a step is talking about is routinely out of sight at the
+   moment it fills in: below the fold on a laptop, above the fold on a
+   phone, where the column stacks on top of the panel. A student can step
+   the whole way through the walkthrough without ever seeing the record
+   pick up its Democracy-Dictatorship marking or the four conditions
+   resolve, because nothing tells them anything happened.
+
+   Two things fix that. Every step names the card or cards it is about, as
+   controls that scroll there on demand; and a step that actually puts
+   something new in its card brings that card into view once. The pointer
+   names the card rather than a direction, so the same text is right in
+   both layouts. Nothing moves while the card is already on screen, nothing
+   moves on the opening render, and a step that only carries on talking
+   about a card the last step filled in moves nothing either.
+   ============================================================ */
+const CARD_NAMES = {
+  recCard:     'the record card',
+  cardDD:      'the Democracy-Dictatorship card',
+  cardFH:      'the Freedom House card',
+  cardVD:      'the V-Dem card',
+  cardVerdict: 'the verdict strip'
+};
+
+/* the card the last rendered step pointed at, so the opening render can be
+   told apart from a step that has moved somewhere new */
+let lastLook = null;
+
+function smoothly(){
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function bringIntoView(id, forced){
+  const el=$(id);
+  if(!el) return;
+  requestAnimationFrame(()=>{
+    const box=el.getBoundingClientRect();
+    const vh=window.innerHeight || document.documentElement.clientHeight;
+    /* leave it alone if it is already there: either wholly on screen, or
+       (the record card on a phone, which is taller than the screen) open at
+       the top with most of the screen given over to it */
+    const seen = Math.min(box.bottom,vh) - Math.max(box.top,0);
+    if(!forced && box.top>=0 && (box.bottom<=vh || seen>=vh*0.6)) return;
+    el.scrollIntoView({behavior:smoothly(), block:'start'});
+  });
+}
+
+/* Renders into the step text rather than beside it, so the live region
+   announces "look at the record card" along with the step. */
+function renderLook(targets){
+  if(!targets || !targets.length) return;
+  const host=$('stepText');
+  const row=document.createElement('div');
+  row.className='look';
+  const lead=document.createElement('span');
+  lead.className='look-lead'; lead.textContent='Look at';
+  row.appendChild(lead);
+  targets.forEach(id=>{
+    const b=document.createElement('button');
+    b.className='look-btn'; b.type='button';
+    b.textContent=CARD_NAMES[id];
+    b.setAttribute('aria-label','Go to '+CARD_NAMES[id]);
+    b.addEventListener('click',()=>bringIntoView(id,true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+
+/* ------------------------------------------------------------
+   Getting back
+
+   Following a pointer can leave the panel — and with it the step text and
+   the Next control — off screen, which on a phone means several cards'
+   worth of scrolling to find it again. This appears only while the panel's
+   controls are actually out of sight, so it never shows on a laptop, where
+   the panel is pinned beside the cards.
+   ------------------------------------------------------------ */
+const backBtn=document.createElement('button');
+backBtn.className='back-to-step'; backBtn.type='button'; backBtn.hidden=true;
+backBtn.addEventListener('click',()=>{
+  document.querySelector('.panel').scrollIntoView({behavior:smoothly(), block:'end'});
+});
+document.body.appendChild(backBtn);
+
+function stacked(){
+  const rec=document.querySelector('.rec-col'), pan=document.querySelector('.panel-col');
+  return !!(rec && pan) && rec.offsetTop!==pan.offsetTop;
+}
+function syncBack(){
+  const pc=$('panelControls');
+  /* side by side, the panel is pinned beside the cards and cannot be lost */
+  if(!pc || pc.children.length===0 || !stacked()){ backBtn.hidden=true; return; }
+  const box=pc.getBoundingClientRect();
+  const vh=window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top>=0 && box.bottom<=vh;
+  backBtn.hidden = inSight;
+  if(!inSight){
+    backBtn.textContent = (mode==='guided') ? 'Back to step '+(stepIdx+1) : 'Back to the task';
+  }
+}
+let backTicking=false;
+function queueSyncBack(){
+  if(backTicking) return;
+  backTicking=true;
+  requestAnimationFrame(()=>{ backTicking=false; syncBack(); });
+}
+window.addEventListener('scroll', queueSyncBack, {passive:true});
+window.addEventListener('resize', queueSyncBack);
+
+/* ============================================================
+   Guided mode
+   ============================================================ */
+function guidedShows(measure, what){
+  const s=stepIdx;
+  if(measure==='dd'){
+    /* conditions fill in on the conditions step; the product and verdict
+       wait for the step that explains what multiplying does. */
+    if(what==='verdict') return s>=4;
+    return s>=3;
+  }
+  if(measure==='fh'){
+    if(what==='total') return s>=6;
+    if(what==='scores') return s>=5;
+    return false;
+  }
+  if(measure==='vd'){
+    if(what==='final') return s>=8;
+    if(what==='indices') return s>=8;
+    return false;
+  }
+  return false;
+}
+function renderGuided(){
+  $('opts').innerHTML='';
+  $('resultNote').className='result-note';
+  const st=STEPS[stepIdx];
+  renderAll(st.focus);
+  $('noteCard').style.display='none';
+
+  const dots=$('progressDots'); dots.innerHTML='';
+  STEPS.forEach((_,i)=>{
+    const s=document.createElement('span');
+    if(i<stepIdx) s.className='done'; else if(i===stepIdx) s.className='current';
+    dots.appendChild(s);
+  });
+  $('stepLabel').textContent='Step '+(stepIdx+1)+' of '+STEPS.length+' \u2014 '+st.label;
+  $('stepText').innerHTML=st.html;
+  renderLook(st.look);
+
+  /* The first card named is the one the step is chiefly about. Bring it in
+     when this step put something new there (fresh), or when the step has
+     moved on to a different card. Not on the opening render, where nothing
+     has scrolled away yet, and not when the card is already on screen. */
+  const target = (st.look && st.look.length) ? st.look[0] : null;
+  if(target){
+    if(lastLook && (st.fresh || target!==lastLook)) bringIntoView(target,false);
+    lastLook=target;
+  }
+
+  const pc=$('panelControls'); pc.innerHTML='';
+  const back=document.createElement('button');
+  back.className='btn'; back.type='button'; back.textContent='Back'; back.disabled=stepIdx===0;
+  back.addEventListener('click',()=>{ stepIdx--; renderGuided(); });
+  pc.appendChild(back);
+  if(stepIdx<STEPS.length-1){
+    const nx=document.createElement('button');
+    nx.className='btn primary'; nx.type='button'; nx.textContent='Next';
+    nx.addEventListener('click',()=>{ stepIdx++; renderGuided(); });
+    pc.appendChild(nx);
+  } else {
+    const go=document.createElement('button');
+    go.className='btn primary'; go.type='button'; go.textContent='Go to practice mode';
+    go.addEventListener('click',()=>{ document.querySelector('.tab[data-mode="practice"]').click(); });
+    pc.appendChild(go);
+  }
+  queueSyncBack();
+}
+
+/* ============================================================
+   Practice mode
+   ============================================================ */
+function renderPracticeIdle(){
+  answers={};
+  renderAll(null);
+  $('noteCard').style.display='none';
+  $('progressDots').innerHTML='';
+  $('opts').innerHTML='';
+  $('panelControls').innerHTML='';
+  $('resultNote').className='result-note';
+  $('stepLabel').textContent='Practice mode';
+  $('stepText').innerHTML='<p>Pick a country-year. You will code it under all three measures and then account for wherever they disagree.</p>'
+    +'<p>A wrong answer never tells you the right one \u2014 it tells you which part of the record to read again.</p>';
+  queueSyncBack();
+}
+
+function buildTasks(c){
+  const T=[];
+  DD_CONDS.forEach(d=>T.push({kind:'dd', key:d.k, text:d.text}));
+  c.ask.forEach((a,i)=>T.push({kind:'fh', ask:a, band:c.bands[i], idx:i}));
+  T.push({kind:'mi'});
+  T.push({kind:'final'});
+  T.push({kind:'why'});
+  return T;
+}
+
+function selectCase(i){
+  caseIdx=i; syncPicker();
+  answers={dd:{}, fhAnswered:0, fhDone:false, miDone:false, vdDone:false};
+  tasks=buildTasks(CASES[i]);
+  taskIdx=0; pick=null; multiPick=new Set(); awaitingNext=false;
+  $('noteCard').style.display='none';
+  renderTask();
+}
+
+function taskFocus(t){
+  if(!t) return null;
+  if(t.kind==='dd') return 'dd';
+  if(t.kind==='fh') return 'fh';
+  if(t.kind==='mi'||t.kind==='final') return 'vd';
+  return null;
+}
+
+function renderTask(){
+  const c=CASES[caseIdx];
+  const t=tasks[taskIdx];
+  renderAll(taskFocus(t));
+
+  const dots=$('progressDots'); dots.innerHTML='';
+  tasks.forEach((_,i)=>{
+    const s=document.createElement('span');
+    if(i<taskIdx) s.className='done'; else if(i===taskIdx) s.className='current';
+    dots.appendChild(s);
+  });
+
+  if(!t){ renderComplete(); return; }
+
+  $('stepLabel').textContent='Task '+(taskIdx+1)+' of '+tasks.length;
+  const opts=$('opts'); opts.innerHTML=''; opts.className='opts';
+  const pc=$('panelControls'); pc.innerHTML='';
+  $('resultNote').className='result-note';
+
+  if(t.kind==='dd'){
+    $('stepText').innerHTML='<p>Democracy-Dictatorship, condition '+(taskIdx+1)+' of 4.</p>'
+      +'<p><b>'+t.text+'</b></p><p>Score it 1 if it holds and 0 if it does not, reading only the record.</p>';
+    addChips(opts, ['1 \u2014 it holds','0 \u2014 it does not'], true);
+  }
+  else if(t.kind==='fh'){
+    const q = t.ask.set==='PR' ? FH_PR[t.ask.i] : FH_CR[t.ask.i];
+    const setName = t.ask.set==='PR' ? 'political rights' : 'civil rights';
+    $('stepText').innerHTML='<p>Freedom House, one of the '+setName+' questions. The country expert scored the rest; this one is yours.</p>'
+      +'<p><b>'+q+'</b></p><p>Score it 0 to 4, where 0 is the least free and 4 the most. There are no published rules for choosing between adjacent scores, so a range of answers is accepted here \u2014 which is itself the point.</p>';
+    opts.className='opts row';
+    addChips(opts, ['0','1','2','3','4'], false, 'num');
+  }
+  else if(t.kind==='mi'){
+    const v=c.vd;
+    $('stepText').innerHTML='<p>V-Dem\u2019s five component scores are on the card. The multiplicative index is all five multiplied together.</p>'
+      +'<p>Before the tool works it out: roughly what does <span class="pay">'
+      +VD_COMP.map(k=>fmt(v[k.k],3)).join(' \u00d7 ')+'</span> come to?</p>';
+    addChips(opts, c.miChips, true);
+  }
+  else if(t.kind==='final'){
+    const r=vdResult(c);
+    $('stepText').innerHTML='<p>The multiplicative index is <span class="pay">'+fmt(r.mi,3)+'</span> and the weighted additive index is <span class="pay">'+fmt(r.ai,3)+'</span>.</p>'
+      +'<p>The final score is half of each. Does it land above or below the 0.5 line that is conventionally used to call a country a democracy?</p>';
+    addChips(opts, ['Above 0.5','Below 0.5'], true);
+  }
+  else if(t.kind==='why'){
+    const dr=ddResult(c), fr=fhResult(c), vr=vdResult(c);
+    $('stepText').innerHTML='<p>The three verdicts are in: <b>'+(dr.dem?'democracy':'dictatorship')+'</b>, <b>'+fr.cat.toLowerCase()+'</b>, and <b>'+fmt(vr.score,3)+'</b>.</p>'
+      +'<p>Which of these accounts for what happened here? Select every one that applies in this specific case, then check.</p>';
+    WHY.forEach(w=>{
+      const b=document.createElement('button');
+      b.className='chip wide'; b.type='button'; b.textContent=w.text;
+      b.setAttribute('aria-pressed','false');
+      b.addEventListener('click',()=>{
+        if(awaitingNext) return;
+        if(multiPick.has(w.id)) multiPick.delete(w.id); else multiPick.add(w.id);
+        b.classList.toggle('active', multiPick.has(w.id));
+        b.setAttribute('aria-pressed', multiPick.has(w.id)?'true':'false');
+        $('checkBtn').disabled = multiPick.size===0;
+      });
+      opts.appendChild(b);
+    });
+  }
+
+  const check=document.createElement('button');
+  check.className='btn primary'; check.type='button'; check.id='checkBtn';
+  check.textContent='Check'; check.disabled=true;
+  check.addEventListener('click', checkAnswer);
+  pc.appendChild(check);
+  queueSyncBack();
+}
+
+function addChips(container, labels, wide, extraClass){
+  labels.forEach((lab,i)=>{
+    const b=document.createElement('button');
+    b.className='chip'+(wide?' wide':'')+(extraClass?' '+extraClass:'');
+    b.type='button'; b.textContent=lab;
+    b.addEventListener('click',()=>{
+      if(awaitingNext) return;
+      pick=i;
+      [...container.children].forEach((x,j)=>x.classList.toggle('active', j===i));
+      $('checkBtn').disabled=false;
+    });
+    container.appendChild(b);
+  });
+}
+
+function say(ok, msg){
+  const n=$('resultNote');
+  n.className='result-note show '+(ok?'ok':'no');
+  n.innerHTML=msg;
+  $('srStatus').textContent=(ok?'Correct. ':'Not yet. ')+n.textContent;
+}
+
+function clearPicks(){
+  pick=null; multiPick=new Set();
+  [...$('opts').children].forEach(x=>{x.classList.remove('active'); if(x.hasAttribute('aria-pressed')) x.setAttribute('aria-pressed','false');});
+  $('checkBtn').disabled=true;
+}
+
+function advance(){
+  awaitingNext=false;
+  taskIdx++;
+  pick=null; multiPick=new Set();
+  renderTask();
+}
+
+function offerNext(){
+  awaitingNext=true;
+  const pc=$('panelControls'); pc.innerHTML='';
+  const nx=document.createElement('button');
+  nx.className='btn primary'; nx.type='button';
+  nx.textContent = taskIdx===tasks.length-1 ? 'Finish' : 'Next task';
+  nx.addEventListener('click', advance);
+  pc.appendChild(nx);
+  [...$('opts').children].forEach(x=>x.disabled=true);
+  queueSyncBack();
+}
+
+function checkAnswer(){
+  const c=CASES[caseIdx];
+  const t=tasks[taskIdx];
+
+  if(t.kind==='dd'){
+    const chose = pick===0 ? 1 : 0;
+    const truth = c.dd[t.key];
+    if(chose===truth){
+      answers.dd[t.key]=truth;
+      renderAll('dd');
+      let m = truth===1 ? 'That condition holds.' : 'That condition fails.';
+      if(t.key==='alt' && truth===0) m += ' Nothing else can make up for it \u2014 the four conditions are multiplied.';
+      say(true, m);
+      offerNext();
+    } else {
+      say(false, 'Not quite. Read the field on '+ddFieldName(t.key)+' again, and answer only from what it says \u2014 not from what the rest of the record suggests about the country. Try the task again.');
+      clearPicks();
+    }
+    return;
+  }
+
+  if(t.kind==='fh'){
+    const score = pick;
+    const [lo,hi]=t.band;
+    if(score>=lo && score<=hi){
+      answers.fhAnswered = t.idx+1;
+      if(answers.fhAnswered === c.ask.length) answers.fhDone=true;
+      renderAll('fh');
+      const expert = t.ask.set==='PR' ? c.fhPR[t.ask.i] : c.fhCR[t.ask.i];
+      let m='Accepted. Coders working from this record land between '+lo+' and '+hi+'; the expert coding used here is '+expert+'.';
+      if(hi-lo>=2) m+=' A spread that wide is the reliability problem the chapter raises \u2014 two careful people can code the same country-year differently and neither is doing it wrong.';
+      say(true, m);
+      offerNext();
+    } else {
+      const dir = score<lo ? 'harsher' : 'more generous';
+      say(false, 'That is '+dir+' than the record will support. Reread the field this question draws on and ask what a coder could point to for the score you chose. Try the task again.');
+      clearPicks();
+    }
+    return;
+  }
+
+  if(t.kind==='mi'){
+    if(pick===c.miAns){
+      answers.miDone=true;
+      renderAll('vd');
+      const r=vdResult(c);
+      let m='Right \u2014 '+fmt(r.mi,3)+'.';
+      if(r.mi < r.ai/3) m+=' Multiplying numbers below one drives the result down fast, and much further than most people expect.';
+      say(true, m);
+      offerNext();
+    } else {
+      say(false, 'Not that. Two things pull the wrong way here: a product of numbers below one is always smaller than the smallest of them, and it falls faster the more of them there are. Try the task again.');
+      clearPicks();
+    }
+    return;
+  }
+
+  if(t.kind==='final'){
+    const r=vdResult(c);
+    const chose = pick===0;
+    if(chose===r.dem){
+      answers.vdDone=true;
+      renderAll('vd');
+      let m='Yes \u2014 '+fmt(r.score,3)+'.';
+      if(Math.abs(r.score-0.5)<0.06) m+=' Close to the line, and 0.5 is a convention rather than something the measure itself supplies.';
+      say(true, m);
+      offerNext();
+    } else {
+      say(false, 'Not quite. Take half of each index and add them, then compare with 0.5. Try the task again.');
+      clearPicks();
+    }
+    return;
+  }
+
+  if(t.kind==='why'){
+    const correct=new Set(c.why);
+    const chosen=multiPick;
+    const hits=[...chosen].filter(x=>correct.has(x));
+    const extras=[...chosen].filter(x=>!correct.has(x));
+    if(chosen.has(6) && chosen.size>1){
+      say(false, 'Those cannot both be true. Either the three measures returned the same verdict, in which case there is nothing to explain, or they did not and something produced the difference. Read the three verdicts again and decide which. Try the task again.');
+      clearPicks(); return;
+    }
+    if(hits.length===0){
+      say(false, 'None of those is what produced this result. Look at the three verdicts side by side, then at the field list \u2014 the disagreement always comes from one measure reading something another does not, or from the way one of them combines what it read. Try the task again.');
+      clearPicks(); return;
+    }
+    if(extras.length>0){
+      say(false, 'One of your selections did not play a part in this country-year, even if it is true of the measures in general. Check each one against what actually happened here. Try the task again.');
+      clearPicks(); return;
+    }
+    if(hits.length<correct.size){
+      say(false, 'What you have selected is right, but something else is also at work here. Try the task again.');
+      clearPicks(); return;
+    }
+    renderAll(null);
+    say(true, 'That is the whole of it.');
+    offerNext(); return;
+  }
+}
+
+function ddFieldName(k){
+  if(k==='exec') return 'the chief executive';
+  if(k==='leg') return 'the legislature';
+  if(k==='parties') return 'parties';
+  return 'alternation in power';
+}
+
+function renderComplete(){
+  const c=CASES[caseIdx];
+  renderAll(null);
+  $('stepLabel').textContent='Country coded';
+  const dr=ddResult(c), fr=fhResult(c), vr=vdResult(c);
+  $('stepText').innerHTML='<p>Democracy-Dictatorship: <b>'+(dr.dem?'democracy':'dictatorship')+'</b>. '
+    +'Freedom House: <b>'+fr.cat.toLowerCase()+'</b>. V-Dem: <b>'+fmt(vr.score,3)+'</b>.</p>'
+    +'<p>Pick another country-year, or reread this record now that you know where the three measures took it.</p>';
+  $('opts').innerHTML='';
+  $('panelControls').innerHTML='';
+  $('resultNote').className='result-note';
+  const nc=$('noteCard');
+  nc.style.display='';
+  nc.innerHTML='<h3>'+c.title+'</h3><p>'+c.note+'</p>';
+  queueSyncBack();
+}
+
+/* ---------------- init ---------------- */
+buildPickers();
+renderGuided();
+</script>
+</body>
+</html>

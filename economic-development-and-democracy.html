@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Economic development and democracy</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the two parameters of the model */
+    --pE:#009E73;   /* bluish green   — the economic actor's exit option */
+    --pL:#CC79A7;   /* reddish purple — the ruler's dependence */
+
+    /* semantic: correct / incorrect — messaging surfaces only */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state — here, the cell the case lands in */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --structure-ink:#141414;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --pE:#3FCFA0;
+    --pL:#E29FC4;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --structure-ink:#E8E8E8;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 16px;}
+  .lede:last-of-type{margin-bottom:24px;}
+  .lede em{color:var(--ink);}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 4px;}
+  .group-sub{font-size:12.5px; color:var(--secondary); margin:0 0 8px; line-height:1.5; max-width:680px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .case-col{flex:1 1 540px; min-width:320px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  /* ---- case card ---- */
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .card-head{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin-bottom:12px;}
+  .field + .field{margin-top:12px;}
+  .field-label{font-size:11px; font-weight:700; letter-spacing:.04em; margin-bottom:2px; text-transform:uppercase; color:var(--secondary);}
+  .field-label.actor{color:var(--pE);}
+  .field-text{font-size:14.5px; line-height:1.6; color:var(--ink);}
+  .card-compare{
+    margin-top:16px; padding-top:12px; border-top:1px dashed var(--border);
+    font-size:12.5px; color:var(--secondary); line-height:1.6;
+  }
+
+  /* ---- outcome table ---- */
+  .grid-outer{background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:16px 24px 24px;}
+  .grid-cap{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 4px;}
+  .grid-note{font-size:12px; color:var(--secondary); margin:0 0 16px; line-height:1.6;}
+  table.pred{border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed;}
+  table.pred th{
+    font-size:11.5px; font-weight:700; color:var(--secondary); text-align:left;
+    padding:4px 8px 8px; vertical-align:bottom; line-height:1.4;
+  }
+  table.pred th.colhead{color:var(--pL);}
+  table.pred th.rowhead{color:var(--pE); width:26%; vertical-align:middle; padding-right:12px;}
+  table.pred th .par{font-family:var(--font-data); font-weight:700; display:block; font-size:11px; color:var(--secondary);}
+  table.pred td{padding:0 0 8px 8px; vertical-align:top;}
+  .cellbox{
+    display:block; width:100%; text-align:left;
+    background:var(--panel-bg); border:2px solid var(--border); border-radius:6px;
+    padding:12px; min-height:88px;
+  }
+  .cell-pred{font-size:13.5px; font-weight:700; line-height:1.5;}
+  .cell-gloss{font-size:11.5px; color:var(--secondary); margin-top:4px; line-height:1.45;}
+  .cell-tag{
+    display:none; margin-top:8px; font-size:10px; font-weight:700; letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+  /* consistent with what has been established so far — gold, the "found it" state */
+  .cellbox.keep{border-color:var(--gold-ui);}
+  .cellbox.keep .cell-tag{display:block; color:var(--gold-text);}
+  /* ruled out — hatch + mark + label, text stays legible */
+  .cellbox.out{
+    background-image:repeating-linear-gradient(45deg,
+      transparent 0 6px, color-mix(in srgb, var(--deemph) 22%, transparent) 6px 7px);
+  }
+  .cellbox.out .cell-pred, .cellbox.out .cell-gloss{color:var(--deemph);}
+  .cellbox.out .cell-tag{display:block; color:var(--deemph);}
+
+  /* ---- findings ---- */
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:13.5px; color:var(--ink);
+  }
+  .findings div{margin:4px 0; line-height:1.5;}
+  .findings .k{font-weight:700; color:var(--gold-text); margin-right:4px;}
+
+  /* ---- panel ---- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:340px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.65; color:var(--ink);}
+  .panel .step-text p{margin:0 0 8px;}
+  .panel .step-text p:last-child{margin-bottom:0;}
+  .panel .step-text .par{font-family:var(--font-data); font-weight:700;}
+
+  /* ---- "look at" pointers ---- */
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{
+    font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--secondary);
+  }
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  /* ---- back to the panel ---- */
+  .back-to-step{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:#fff;
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  html[data-theme="dark"] .back-to-step{color:#0A1E28;}
+  .back-to-step[hidden]{display:none;}
+
+  #caseCard, #predTable, #findings{scroll-margin-top:16px;}
+
+  .opts{margin-top:16px; display:flex; flex-direction:column; gap:6px; flex:1;}
+  .opt{
+    font-family:var(--font-body); font-size:13.5px; line-height:1.5;
+    text-align:left; padding:8px 16px; border-radius:8px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .opt:hover{border-color:var(--accent);}
+  .opt.sel{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--panel-bg));}
+  .opt:disabled{cursor:default;}
+  .opt .par{font-family:var(--font-data); font-weight:700; font-size:12.5px; color:var(--secondary);}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .caveat{
+    margin-top:16px; padding:12px 16px; border-left:3px solid var(--border);
+    font-size:13px; color:var(--secondary); line-height:1.65;
+  }
+  .caveat b{color:var(--ink);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (max-width:820px){
+    table.pred th.rowhead{width:28%; font-size:11px;}
+    .cellbox{min-height:0;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Economic development and democracy</h1>
+      <p class="lede">What matters in the exit, voice, and loyalty game is whether the ruler depends on the economic actor and whether the economic actor can put its assets beyond the ruler&rsquo;s reach. Chapter 6 argues that we can think about things like natural resource wealth, foreign aid, and the state&rsquo;s role in the economy in terms of whether the ruler is autonomous or dependent and whether the economic actor has a credible exit option. Here you are given a description of an economy and asked to assess it along these lines.</p>
+      <p class="lede">The game is not re-solved here. Its four solutions arrive as given, from the chapter.</p>
+      <p class="lede">Two points before you start. First, <em>L</em> and <em>E</em> are properties of a relationship, not of a country: a ruler can depend on financiers and be indifferent to farm laborers in the same year, and the model then gives two different answers about the same place. Every case therefore names the economic actor it concerns. Second, <em>exit</em> means putting productive assets beyond the ruler&rsquo;s reach &mdash; hiding them, idling them, or taking them out of the country. Economic actors who exit need not go anywhere themselves.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div id="pickerZone">
+    <p class="group-label">Who the ruler taxes</p>
+    <p class="group-sub">One ruler, one economic actor, and enough about the economy to settle both parameters &mdash; or to show that one of them does not need settling.</p>
+    <div class="picker" id="pickerA"></div>
+
+    <p class="group-label">One country, two actors</p>
+    <p class="group-sub">Each of these countries is run twice against two different economic actors. Do both, and compare.</p>
+    <div class="picker" id="pickerB"></div>
+
+    <p class="group-label">Resources, remittances, and the state&rsquo;s role in the economy</p>
+    <p class="group-sub">Where a government&rsquo;s money comes from, and what that does to the two parameters.</p>
+    <div class="picker" id="pickerC"></div>
+
+    <p class="group-label">Foreign aid: the ruler and the donor</p>
+    <p class="group-sub">Aid does not make a ruler autonomous in general. It moves the dependence onto the donor, so these cases are a <em>different game with a different second player</em> &mdash; the ruler and the aid donor, not the ruler and the citizenry. The outcome table changes with them.</p>
+    <div class="picker" id="pickerD"></div>
+  </div>
+
+  <div class="layout">
+    <div class="case-col">
+      <div class="card" id="caseCard" style="display:none;"></div>
+
+      <div class="grid-outer">
+        <p class="grid-cap" id="gridCap">What the model predicts</p>
+        <p class="grid-note" id="gridNote"></p>
+        <table class="pred" id="predTable" aria-label="Predictions of the exit, voice, and loyalty game"></table>
+        <p class="sr-only" id="gridSummary" aria-live="polite"></p>
+      </div>
+
+      <div class="findings" id="findings" style="display:none;" aria-live="polite"></div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="opts" id="opts"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const RSQ = "\u2019";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   The outcome table. Two variants, one per section, because the
+   aid cases are a different game with a different second player.
+   Columns are the ruler's dependence; rows are the economic actor's exit
+   option. Cell ids are <row><col>: e / n for the exit rows,
+   d / a for the dependence columns.
+   ============================================================ */
+const TABLES = {
+  base: {
+    note: 'Rows are the economic actor' + RSQ + 's exit option, columns the ruler' + RSQ + 's dependence on that economic actor. The four solutions come from the chapter \u2014 they are not re-derived here.',
+    colHeads: [
+      {label:'The ruler is autonomous', par:'L < 1'},
+      {label:'The ruler is dependent', par:'L > 1'}
+    ],
+    rowHeads: [
+      {label:'Economic actor has credible exit threat', par:'E > 0'},
+      {label:'Economic actor has no credible exit threat', par:'E < 0'}
+    ],
+    cells: {
+      ea:{pred:'Unconstrained state, stagnant economy', gloss:'The economic actor holds its assets back; the ruler has no reason to bargain and no need to.'},
+      ed:{pred:'Constrained state, growing economy',    gloss:'The ruler accepts limits on its own behavior rather than lose the revenue.'},
+      na:{pred:'Unconstrained state, growing economy',  gloss:'The economic actor keeps investing and paying; the ruler ignores it.'},
+      nd:{pred:'Unconstrained state, growing economy',  gloss:'The economic actor keeps investing and paying; the ruler ignores it.'}
+    }
+  },
+  aid: {
+    note: 'The same game with a different second player: here the economic actor is the aid donor. Rows are whether the donor can credibly stop paying, columns whether the ruler needs the money.',
+    colHeads: [
+      {label:'The ruler is autonomous from the aid', par:'L < 1'},
+      {label:'The ruler is dependent on the aid', par:'L > 1'}
+    ],
+    rowHeads: [
+      {label:'Donor can credibly stop paying', par:'E > 0'},
+      {label:'Donor cannot credibly stop paying', par:'E < 0'}
+    ],
+    cells: {
+      ea:{pred:'Demands ignored', gloss:'The ruler can do without the money, so the threat to withdraw it changes nothing.'},
+      ed:{pred:'The ruler concedes', gloss:'Reforms follow \u2014 but only as far as the ruler can go without endangering its hold on power.'},
+      na:{pred:'Demands ignored', gloss:'Neither the money nor the threat has any hold on the ruler.'},
+      nd:{pred:'Demands ignored', gloss:'The ruler needs the money but knows it will keep coming, so the demands cost nothing to refuse.'}
+    }
+  }
+};
+
+const CELL_ORDER = ['ea','ed','na','nd'];
+const cellId = (E, L) => (E === 'pos' ? 'e' : 'n') + (L === 'dep' ? 'd' : 'a');
+
+/* Which cells are still consistent with what has been established. A case that
+   leaves dependence open keeps both cells in its row. */
+function consistentCells(E, L){
+  let live = CELL_ORDER.slice();
+  if(L && L !== 'cant'){
+    const col = (L === 'dep') ? 'd' : 'a';
+    live = live.filter(k => k[1] === col);
+  }
+  if(E){
+    const row = (E === 'pos') ? 'e' : 'n';
+    live = live.filter(k => k[0] === row);
+  }
+  return live;
+}
+
+/* ============================================================
+   Cases
+   ============================================================ */
+const CASES = [
+  /* ---- who the ruler taxes ---- */
+  {
+    id:'A1', group:'A', label:'Country A \u2014 the tenant farmers', table:'base',
+    country:'Much of Country A' + RSQ + 's revenue comes from a land tax on tenant farmers. The crop stands in the field where the collector can count it, and the farmers hold nothing else.',
+    actor:'The tenant farmers',
+    L:'dep', E:'neg', predict:'nd',
+    note:'Dependence without a credible threat buys nothing. The ruler needs this revenue badly and still has no reason to bargain for it, because there is no version of events in which it stops arriving.'
+  },
+  {
+    id:'A2', group:'A', label:'Country B \u2014 the mill owners', table:'base',
+    country:'Country B' + RSQ + 's ruler largely funds the state from a monopoly on a transit route, with supplements from the taxes the rest of the country pays. Its textile mills are the largest thing in that economy, and the ruler has taken to seizing stock from them whenever revenue runs short. Their owners hold most of their wealth as inventory and foreign credit.',
+    actor:'The mill owners',
+    L:'auto', E:'pos', predict:'ea',
+    note:'The one cell where the economy does not grow, and the case that shows why: the owners keep the looms idle rather than restock a warehouse that will be emptied again. Nobody leaves the country. The assets simply stop working. The transit money is worth a second look, because it is doing two jobs. It is why the ruler can shrug at the mills going quiet \u2014 the state' + RSQ + 's own finances survive. It is also why the economy still stagnates: the route earns the ruler a toll, not the country an output, and the mills were the country' + RSQ + 's output.'
+  },
+  {
+    id:'A3', group:'A', label:'Country C \u2014 the quarry owners', table:'base',
+    country:'Country C taxes its quarries, its ports and its farms, and does not publish how much it collects from each. The quarry beds cannot be moved, their owners hold no business outside the country, and stone left uncut earns nothing.',
+    actor:'The quarry owners',
+    L:'cant', E:'neg', predict:'nd',
+    note:'The case names three sources of revenue and no shares, so how much the ruler stands to lose if the quarries stop paying is simply not on the page \u2014 and it does not matter. Both cells in this row carry the same prediction, so dependence is both unrecoverable and inert here. In "Inferring power from behavior" the same collapse shows up from the other side: an observer watching an economic actor stay loyal cannot recover the ruler' + RSQ + 's dependence either. Note that the two parameters are not alike in this. No case can leave the exit threat open and still have an answer, because every column of the table predicts something different depending on which row you are in. Dependence can be inert; exit never is.'
+  },
+
+  /* ---- one country, two actors ---- */
+  {
+    id:'B1a', group:'B', label:'Country D \u2014 the professions', table:'base',
+    country:'Country D is a middle-income dictatorship with a large professional middle class. Its treasury runs on income tax collected from private practice and private firms; its state-owned enterprises cost the budget more each year than they return to it.',
+    actor:'The country' + RSQ + 's surgeons, engineers and software developers in private practice, who hold licenses recognized in a dozen other countries and could go together if their professional associations called it',
+    L:'dep', E:'pos', predict:'ed',
+    compare:'Country D is also run against its state employees. The two are worth comparing.',
+    note:'What these professionals can withhold is themselves, and their earning power walks out with them. Note what makes this a credible exit threat rather than ordinary brain drain: a few hundred doctors leaving each year for better pay is attrition, and no part of this game, because nothing is threatened and nothing is demanded. A profession that could go together, and says so, is holding something the ruler has to answer.'
+  },
+  {
+    id:'B1b', group:'B', label:'Country D \u2014 the state employees', table:'base',
+    country:'Country D is a middle-income dictatorship with a large professional middle class. Its treasury runs on income tax collected from private practice and private firms; its state-owned enterprises cost the budget more each year than they return to it.',
+    actor:'The country' + RSQ + 's teachers, clerks and employees of state-owned firms, whose salaries, housing and pensions come out of the budget rather than contributing to it',
+    L:'auto', E:'neg', predict:'na',
+    compare:'Country D is also run against its professions. The two are worth comparing.',
+    note:'Same country, same year, opposite cell. This is why "a large middle class" is not a parameter: half of this one holds a threat the ruler must answer and half of it depends on the ruler for everything, and the model has nothing to say about "the middle class" as such.'
+  },
+  {
+    id:'B2a', group:'B', label:'Country E \u2014 the owners of capital', table:'base',
+    country:'Country E' + RSQ + 's government raises about half its revenue from taxes on company profits and about half from taxes on wages.',
+    actor:'The owners of capital, who can hold their money in foreign markets rather than put it into plant at home',
+    L:'dep', E:'pos', predict:'ed',
+    compare:'Country E is also run against its wage earners. The two are worth comparing.',
+    note:'Nothing here rests on the state needing capital more than labor. It is told that the two matter equally.'
+  },
+  {
+    id:'B2b', group:'B', label:'Country E \u2014 the wage earners', table:'base',
+    country:'Country E' + RSQ + 's government raises about half its revenue from taxes on company profits and about half from taxes on wages.',
+    actor:'The wage earners, who have their labor and little else, and who lose more by withholding it than the state does',
+    L:'dep', E:'neg', predict:'nd',
+    compare:'Country E is also run against its owners of capital. The two are worth comparing.',
+    note:'Equal dependence, opposite outcomes, and the difference is entirely in what each side can withhold. This is what the chapter means by the structural dependence of the state on capital, and it explains why economic policy often changes so little even when the party in office does.'
+  },
+
+  /* ---- resources, remittances, the state's role ---- */
+  {
+    id:'C1', group:'C', label:'Country F \u2014 the trading companies', table:'base',
+    country:'Nearly all of Country F' + RSQ + 's government revenue comes from offshore gas, which the state sells directly and which employs few citizens. Most of what the country produces is bought and shipped abroad by a few large trading companies, and the ruler seizes goods from their warehouses when it suits him. What these companies hold is goods and money in the bank, and they can keep the money in foreign banks and ship nothing.',
+    actor:'The trading companies',
+    L:'auto', E:'pos', predict:'ea',
+    compare:'Country G has the same kind of trading companies and a ruler whose money comes from somewhere else. The two are worth comparing.',
+    note:'Note what is exposed and what is not: goods sitting in a warehouse can be taken, money in a foreign bank cannot. The trading companies do not leave. They stop bringing anything into the country worth taking, and the trade the ruler was skimming stops with it. That is what makes this the stagnant cell \u2014 the gas keeps flowing and the ruler' + RSQ + 's treasury stays full, but the part of the economy citizens actually live on shrinks, and the ruler has no reason to care.'
+  },
+  {
+    id:'C2', group:'C', label:'Country G \u2014 the trading companies', table:'base',
+    country:'Country G has large copper deposits, and mining supplies about a tenth of government revenue. The rest comes from taxes on the large trading companies that buy what the country produces and ship it abroad. What these companies hold is goods and money in the bank, and they can keep the money in foreign banks and ship nothing.',
+    actor:'The trading companies',
+    L:'dep', E:'pos', predict:'ed',
+    compare:'Country F has the same kind of trading companies and a ruler whose money comes from gas. The two are worth comparing.',
+    note:'Same economic actor as in Country F, holding the same kind of assets, and the opposite outcome. Nothing about the trading companies changed \u2014 what changed is where the ruler' + RSQ + 's money comes from, and that is the whole of the political resource curse. Note also that Country G has plenty of copper in the ground. Abundance is not the parameter; dependence on it is, which is why the chapter says a resource-rich country can still democratize so long as the resource earns the government little beside everything else.'
+  },
+  {
+    id:'C3', group:'C', label:'Country H \u2014 the companies holding the licenses', table:'base',
+    country:'Country H' + RSQ + 's gas fields are run by private companies under license from the state, and the state takes most of its revenue from them. The fields are also most of what the country produces and employ a good part of its workforce. The rigs and the fields beneath them stay where they are, and a company that stops producing loses its license to a competitor.',
+    actor:'The companies holding the licenses',
+    L:'dep', E:'neg', predict:'nd',
+    note:'The chapter makes this point directly: it does not matter whether a resource is owned by the state or by private firms. A rig cannot be moved and a field cannot be hidden, so the people holding them have nothing to withhold, and a government is free to take from them as it pleases. Be careful about what \"growing economy\" is claiming here. It is not that the ruler spends the gas money well or spreads it around; the model says nothing about either, and this ruler is as unconstrained as Country F' + RSQ + 's. It says only that the assets stay in production, which they do, because a company that stops loses the field to someone else.'
+  },
+  {
+    id:'C4', group:'C', label:'Country I \u2014 the households receiving remittances', table:'base',
+    country:'Migrants working abroad send home money equal to a fifth of household income in Country I. The state' + RSQ + 's main source of revenue is a tax on what people buy, and the money reaches households directly rather than passing through the government.',
+    actor:'The households receiving the money',
+    L:'dep', E:'neg', predict:'nd',
+    note:'Worth comparing with what aid does. Remittances do not loosen the ruler' + RSQ + 's dependence on the people. But notice how little of what remittances can do shows up in this cell. They can fund opposition groups, cut through the networks an incumbent uses to buy loyalty, and make protest easier to organize; this game has one economic actor, no collective action, and no place to put any of that. The prediction is not wrong. It is just not where the interesting part is. These topics will be explored in Chapter 8.'
+  },
+
+  /* ---- foreign aid: a different game ---- */
+  {
+    id:'D1', group:'D', label:'Country J \u2014 the donor', table:'aid',
+    country:'Aid is two-fifths of Country J' + RSQ + 's budget. The donor has no strategic interest in the country and has suspended aid to other recipients when promised reforms went nowhere.',
+    actor:'The aid donor',
+    L:'dep', E:'pos', predict:'ed',
+    note:'The reforms that follow are real but narrow, and likely superficial. A ruler in this position has every reason to do enough to keep the money coming and no reason to do anything that puts its own position at risk \u2014 which is why studies find aid raising political competition on paper more reliably than in practice.'
+  },
+  {
+    id:'D2', group:'D', label:'Country K \u2014 the donor', table:'aid',
+    country:'Aid is two-fifths of Country K' + RSQ + 's budget. The donor needs its air base and has never suspended aid anywhere.',
+    actor:'The aid donor',
+    L:'dep', E:'neg', predict:'nd',
+    note:'Same dependence as Country J, opposite result, and the whole difference is whether the donor could walk away. A recipient that knows it is strategically valuable knows the threat is empty.'
+  }
+];
+
+const byId = id => CASES.find(c => c.id === id);
+
+/* ============================================================
+   Option sets. Fixed order, not shuffled: the correct answer
+   already varies across the bank for all three tasks, so
+   position carries no information, and a stable order lets a
+   student compare one case against the last.
+   ============================================================ */
+const OPT_L = [
+  {key:'dep',  text:'The ruler is dependent on this economic actor', par:'L > 1'},
+  {key:'auto', text:'The ruler is autonomous from this economic actor', par:'L < 1'},
+  {key:'cant', text:'The case does not settle it'}
+];
+const OPT_E = [
+  {key:'pos', text:'They have a credible exit threat', par:'E > 0'},
+  {key:'neg', text:'They have no credible exit threat', par:'E < 0'},
+  {key:'cant', text:'The case does not settle it'}
+];
+const OPT_PRED_BASE = [
+  {key:'ed', text:'A constrained state, and a growing economy'},
+  {key:'nd', text:'An unconstrained state, and a growing economy'},
+  {key:'ea', text:'An unconstrained state, and a stagnant economy'}
+];
+const OPT_PRED_AID = [
+  {key:'ed', text:'The ruler concedes, and limited reforms follow'},
+  {key:'nd', text:'The demands are ignored'}
+];
+
+/* Two cells of each table carry the same prediction, so the option list offers
+   one key per distinct prediction rather than one per cell. Grade on the text:
+   find the option whose cell says what this case's cell says. Matching on cell
+   ids instead silently breaks every case landing in a repeated prediction --
+   half the bank -- because the option's key and the case's cell are different
+   ids for the same answer. */
+function predOptionsFor(c){
+  return (c.table === 'aid') ? OPT_PRED_AID : OPT_PRED_BASE;
+}
+function predKeyOf(c){
+  const t = TABLES[c.table];
+  const want = t.cells[c.predict].pred;
+  const hit = predOptionsFor(c).find(o => t.cells[o.key].pred === want);
+  return hit ? hit.key : null;
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+let mode = 'guided';
+let current = null;       // case id in practice mode
+let taskIdx = 0;
+let pick = null;
+let awaitingNext = false;
+let answers = {};         // {L, E, pred}
+let stepIdx = 0;
+
+/* ============================================================
+   Guided walkthrough — the chapter's own two cases
+   ============================================================ */
+const GUIDED = [
+  {
+    label:'Before we start',
+    html:'<p>The chapter' + RSQ + 's own worked pair is England and France in the seventeenth century, from Bates and Lien. Both Crowns needed money from their economic elites. Only one of them ended up constrained.</p>' +
+         '<p>Everything turns on two questions, and we ask them in the same order every time. <b>Does the ruler depend on this economic actor?</b> That is <span class="par">L</span>. <b>Can this economic actor put its assets beyond the ruler' + RSQ + 's reach?</b> That is <span class="par">E</span>. The outcome table holds the four answers; we are not solving the game again.</p>',
+    show:{}
+  },
+  {
+    label:'England: does the Crown need them?',
+    html:'<p>The English Crown had wars to fight and a revenue base that no longer covered them. It had to borrow, and the people with money to lend were the wool producers, merchants and financiers of the commercializing gentry.</p>' +
+         '<p>So the Crown depends on them: <span class="par">L &gt; 1</span>. That eliminates one column of the table and no more \u2014 dependence on its own settles nothing, as the next case will show.</p>',
+    show:{col:'d'}
+  },
+  {
+    label:'England: can they put their assets out of reach?',
+    html:'<p>A field cannot be hidden and a crop yield can be counted. But sheep can be moved, business profits are hard for a tax collector to trace, and money can be invested in the Netherlands instead of at home.</p>' +
+         '<p>So the gentry hold a credible exit threat: <span class="par">E &gt; 0</span>. Notice what exit means here. Nobody emigrates. The assets are held back, hidden, or sent elsewhere, and what the Crown loses is what it could have taxed.</p>',
+    show:{col:'d', row:'e'}
+  },
+  {
+    label:'England: what the model predicts',
+    html:'<p>Dependent ruler, credible exit threat: a <b>constrained state with a growing economy</b>. The Crown accepts limits on its own behavior \u2014 Parliament' + RSQ + 's veto over new taxation, courts it does not control \u2014 because the alternative is that the money stops.</p>' +
+         '<p>One caution. A constrained state is not yet a modern democracy. In 1688 the Crown was constrained by other economic elites, not by the masses, and universal suffrage was two centuries off. That is why the chapter calls parliamentary sovereignty a stage on the way rather than the destination, and why nothing in this tool labels a cell "democracy."</p>',
+    show:{col:'d', row:'e', mark:'ed'}
+  },
+  {
+    label:'France: same dependence, different assets',
+    html:'<p>The French Crown was every bit as dependent on its economic elites as the English one. Same column of the table: <span class="par">L &gt; 1</span>.</p>' +
+         '<p>But French agriculture had modernized far less, and the wealth of the elite still came from land worked by quasi-feudal arrangements \u2014 easy to observe, easy to count, easy to tax. No credible exit threat: <span class="par">E &lt; 0</span>.</p>',
+    show:{col:'d', row:'n'}
+  },
+  {
+    label:'France: what the model predicts',
+    html:'<p>An <b>unconstrained state with a growing economy</b>. The Crown rejects any demand for limits on its behavior, because it knows the elites will go on investing and paying whatever it does. Knowing that, the elites do not bother demanding.</p>' +
+         '<p>The Estates General did not meet between 1614 and 1789. For nearly two centuries French elites worked on the Crown through court politics, because a parliament would have given them nothing they could use.</p>',
+    show:{col:'d', row:'n', mark:'nd'}
+  },
+  {
+    label:'What the pair establishes',
+    html:'<p>Two Crowns, both dependent, opposite outcomes. Dependence alone settles nothing. The intuitive story about economic development is that rulers who need their people have to bargain with them, and that is only half of it.</p>' +
+         '<p>Look at the bottom row of the table. Where the economic actor has no credible exit threat, both cells carry the same prediction: the ruler is unconstrained and the economy grows, whether or not the ruler is dependent on that economic actor at all. So dependence only does any work when there is a threat behind it. In practice mode, one case never tells you whether the ruler is dependent, and you will find that you can still answer.</p>',
+    show:{col:'d', row:'n', mark:'nd', bottom:true}
+  }
+];
+
+/* ============================================================
+   Rendering: the outcome table
+   ============================================================ */
+function renderTable(variant, marks){
+  const t = TABLES[variant];
+  const tb = $('predTable');
+  $('gridNote').textContent = t.note;
+  let html = '<tr><th></th>';
+  t.colHeads.forEach(h => {
+    html += '<th class="colhead" scope="col">' + h.label + '<span class="par">' + h.par + '</span></th>';
+  });
+  html += '</tr>';
+  ['e','n'].forEach((r, ri) => {
+    const h = t.rowHeads[ri];
+    html += '<tr><th class="rowhead" scope="row">' + h.label + '<span class="par">' + h.par + '</span></th>';
+    ['a','d'].forEach(cc => {
+      const id = r + cc;
+      const cell = t.cells[id];
+      const st = marks[id] || '';
+      const tag = st === 'keep' ? 'Consistent' : (st === 'out' ? 'Ruled out' : '');
+      html += '<td><div class="cellbox ' + st + '">' +
+              '<div class="cell-pred">' + cell.pred + '</div>' +
+              '<div class="cell-gloss">' + cell.gloss + '</div>' +
+              (tag ? '<div class="cell-tag">' + tag + '</div>' : '') +
+              '</div></td>';
+    });
+    html += '</tr>';
+  });
+  tb.innerHTML = html;
+
+  const keeps = CELL_ORDER.filter(k => marks[k] === 'keep');
+  $('gridSummary').textContent = keeps.length
+    ? 'Consistent so far: ' + keeps.map(k => t.cells[k].pred).join('; ') + '.'
+    : '';
+}
+
+/* Marks from established parameters. Nothing is marked until at least one
+   parameter is in. */
+function marksFrom(E, L){
+  const m = {};
+  if(!E && !L) return m;
+  const keep = consistentCells(E, L);
+  CELL_ORDER.forEach(k => { m[k] = keep.includes(k) ? 'keep' : 'out'; });
+  return m;
+}
+
+/* ============================================================
+   Rendering: the case card
+   ============================================================ */
+function renderCase(c){
+  const card = $('caseCard');
+  card.style.display = '';
+  card.innerHTML =
+    '<div class="card-head">The case</div>' +
+    '<div class="field"><div class="field-label">The economy</div><div class="field-text">' + c.country + '</div></div>' +
+    '<div class="field"><div class="field-label actor">The economic actor</div><div class="field-text">' + c.actor + '</div></div>' +
+    (c.compare ? '<div class="card-compare">' + c.compare + '</div>' : '');
+}
+
+/* ============================================================
+   Panel plumbing
+   ============================================================ */
+function clearNote(){
+  const n = $('resultNote');
+  n.className = 'result-note';
+  n.textContent = '';
+}
+function showNote(kind, text){
+  const n = $('resultNote');
+  n.className = 'result-note show ' + kind;
+  n.textContent = text;
+}
+function btn(text, cls, fn){
+  const b = document.createElement('button');
+  b.className = 'btn ' + (cls || '');
+  b.type = 'button';
+  b.textContent = text;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+/* ============================================================
+   Practice mode
+   ============================================================ */
+function tasksFor(c){
+  const predOpts = predOptionsFor(c);
+  return [
+    {
+      key:'L',
+      prompt:'Is the ruler dependent on this economic actor?',
+      lead:'Ask what would happen to the ruler' + RSQ + 's revenue if this economic actor stopped supplying it.',
+      options:OPT_L,
+      correct:c.L
+    },
+    {
+      key:'E',
+      prompt:'Does this economic actor have a credible exit threat?',
+      lead:'Ask whether they can put what the ruler wants beyond the ruler' + RSQ + 's reach \u2014 by hiding it, idling it, or sending it elsewhere.',
+      options:OPT_E,
+      correct:c.E
+    },
+    {
+      key:'pred',
+      prompt:'What does the model predict?',
+      lead:'Read it off the outcome table.',
+      options:predOpts,
+      correct:predKeyOf(c)
+    }
+  ];
+}
+
+function startCase(id){
+  current = id;
+  taskIdx = 0; pick = null; awaitingNext = false; answers = {};
+  const c = byId(id);
+  renderCase(c);
+  renderTable(c.table, {});
+  $('findings').style.display = 'none';
+  $('findings').innerHTML = '';
+  clearNote();
+  document.querySelectorAll('.picker .chip').forEach(ch => {
+    ch.classList.toggle('active', ch.dataset.id === id);
+  });
+  renderTask();
+}
+
+function renderTask(){
+  const c = byId(current);
+  const tasks = tasksFor(c);
+  const t = tasks[taskIdx];
+
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  tasks.forEach((_, i) => {
+    const s = document.createElement('span');
+    s.className = i < taskIdx ? 'done' : (i === taskIdx ? 'current' : '');
+    dots.appendChild(s);
+  });
+
+  $('stepLabel').textContent = 'Task ' + (taskIdx + 1) + ' of ' + tasks.length;
+  $('stepText').innerHTML = '<p><b>' + t.prompt + '</b></p><p>' + t.lead + '</p>';
+
+  /* The case card never changes, so it is pointed at once -- on the first task,
+     where the student meets it -- and not again. The outcome table does change,
+     so it is pointed at on the task that reads from it. */
+  const look = [];
+  if(taskIdx === 0) look.push('caseCard');
+  if(t.key === 'pred') look.push('predTable');
+  renderLook(look);
+
+  const opts = $('opts');
+  opts.innerHTML = '';
+  t.options.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt' + (pick === o.key ? ' sel' : '');
+    b.type = 'button';
+    b.innerHTML = o.text + (o.par ? ' <span class="par">(' + o.par + ')</span>' : '');
+    b.disabled = awaitingNext;
+    b.addEventListener('click', () => { pick = o.key; renderTask(); });
+    opts.appendChild(b);
+  });
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if(awaitingNext){
+    const last = taskIdx === tasks.length - 1;
+    ctl.appendChild(btn(last ? 'Finish' : 'Next task', 'primary', () => {
+      if(last){ finishCase(); return; }
+      taskIdx++; pick = null; awaitingNext = false;
+      clearNote(); renderTask();
+    }));
+  } else {
+    const b = btn('Check answer', 'primary', checkAnswer);
+    b.disabled = pick === null;
+    ctl.appendChild(b);
+  }
+  syncBack();
+}
+
+function checkAnswer(){
+  const c = byId(current);
+  const tasks = tasksFor(c);
+  const t = tasks[taskIdx];
+  if(pick === null) return;
+
+  if(pick !== t.correct){
+    showNote('no', wrongMessage(c, t, pick));
+    pick = null;
+    renderTask();
+    return;
+  }
+
+  answers[t.key] = pick;
+  awaitingNext = true;
+
+  if(t.key === 'L' || t.key === 'E'){
+    const E = answers.E || null;
+    const L = answers.L || null;
+    renderTable(c.table, marksFrom(E, L));
+    /* Only the exit task is worth a scroll. Settling dependence narrows the
+       table to a column, but a case that leaves dependence open narrows
+       nothing, so the reader would sometimes be taken to an unchanged table --
+       and either way the cell they need is not determined until the exit
+       answer lands. */
+    if(t.key === 'E') bringIntoView('predTable', false);
+  }
+
+  showNote('ok', rightMessage(c, t));
+  addFinding(c, t);
+  renderTask();
+}
+
+function wrongMessage(c, t, chosen){
+  if(t.key === 'L'){
+    if(chosen === 'cant') return 'The case does say enough to settle this one. Look again at where the ruler' + RSQ + 's money comes from. Try the task again.';
+    return 'Not quite. The question is not whether this economic actor is important to the economy, but whether the ruler' + RSQ + 's own revenue would suffer without them. Try the task again.';
+  }
+  if(t.key === 'E'){
+    if(chosen === 'cant') return 'The case does say enough to settle this one. Ask what this economic actor holds, and whether any of it can be put beyond the ruler' + RSQ + 's reach. Try the task again.';
+    return 'Not quite. Ask whether this economic actor could withhold what the ruler wants \u2014 by holding assets back, idling them, or moving them elsewhere \u2014 and still be better off than continuing under a ruler that helps itself. Try the task again.';
+  }
+  return 'That is not the cell this case lands in. Take the two parameters you have established and find the cell where they meet. Try the task again.';
+}
+
+function rightMessage(c, t){
+  if(t.key === 'L'){
+    if(c.L === 'cant') return 'Right \u2014 and the case is built that way on purpose. Keep going; you will find you can still answer.';
+    if(c.L === 'dep') return 'Right. The ruler depends on what this economic actor supplies.';
+    return 'Right. The ruler' + RSQ + 's money comes from somewhere else.';
+  }
+  if(t.key === 'E'){
+    if(c.E === 'pos') return 'Right. There is something here the ruler wants that this economic actor could put beyond reach.';
+    return 'Right. There is nothing here the economic actor can hold back that would cost the ruler anything.';
+  }
+  return 'Right.';
+}
+
+function addFinding(c, t){
+  const box = $('findings');
+  box.style.display = '';
+  const row = document.createElement('div');
+  const T = TABLES[c.table];
+  let k = '', v = '';
+  if(t.key === 'L'){
+    k = 'Dependence';
+    v = c.L === 'dep' ? 'the ruler is dependent on this economic actor (L > 1)'
+      : c.L === 'auto' ? 'the ruler is autonomous from this economic actor (L < 1)'
+      : 'not settled by the case \u2014 and not needed';
+  } else if(t.key === 'E'){
+    k = 'Exit';
+    v = c.E === 'pos' ? 'a credible exit threat (E > 0)' : 'no credible exit threat (E < 0)';
+  } else {
+    k = 'Prediction';
+    v = T.cells[c.predict].pred;
+  }
+  row.innerHTML = '<span class="k">' + k + ':</span>' + v;
+  box.appendChild(row);
+}
+
+function finishCase(){
+  const c = byId(current);
+  $('stepLabel').textContent = 'Done';
+  $('stepText').innerHTML = '<p><b>' + c.label + '</b></p><p>' + c.note + '</p>';
+  renderLook(['predTable']);
+  $('opts').innerHTML = '';
+  clearNote();
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  ctl.appendChild(btn('Run this case again', '', () => startCase(current)));
+  const dots = $('progressDots');
+  dots.querySelectorAll('span').forEach(s => { s.className = 'done'; });
+  syncBack();
+}
+
+/* ============================================================
+   Guided mode
+   ============================================================ */
+function guidedMarks(show){
+  const m = {};
+  if(!show.row && !show.col) return m;
+  CELL_ORDER.forEach(k => {
+    const rowOK = !show.row || k[0] === show.row;
+    const colOK = !show.col || k[1] === show.col;
+    m[k] = (rowOK && colOK) ? 'keep' : 'out';
+  });
+  if(show.mark){
+    CELL_ORDER.forEach(k => { m[k] = (k === show.mark) ? 'keep' : 'out'; });
+  }
+  if(show.bottom){
+    m.na = 'keep'; m.nd = 'keep'; m.ea = 'out'; m.ed = 'out';
+  }
+  return m;
+}
+
+function renderGuided(){
+  const s = GUIDED[stepIdx];
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  GUIDED.forEach((_, i) => {
+    const el = document.createElement('span');
+    el.className = i < stepIdx ? 'done' : (i === stepIdx ? 'current' : '');
+    dots.appendChild(el);
+  });
+
+  $('stepLabel').textContent = s.label;
+  $('stepText').innerHTML = s.html;
+
+  const prev = stepIdx > 0 ? (GUIDED[stepIdx-1].show || {}) : {};
+  const cur = s.show || {};
+  const changed = prev.row !== cur.row || prev.col !== cur.col ||
+                  prev.mark !== cur.mark || prev.bottom !== cur.bottom;
+  renderTable('base', guidedMarks(cur));
+  if(stepIdx > 0) renderLook(['predTable']);
+  if(changed && stepIdx > 0) bringIntoView('predTable', false);
+
+  $('opts').innerHTML = '';
+  clearNote();
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if(stepIdx > 0){
+    ctl.appendChild(btn('Back', '', () => { stepIdx--; renderGuided(); }));
+  }
+  if(stepIdx < GUIDED.length - 1){
+    ctl.appendChild(btn('Next', 'primary', () => { stepIdx++; renderGuided(); }));
+  } else {
+    ctl.appendChild(btn('Go to practice mode', 'primary', () => setMode('practice')));
+  }
+  syncBack();
+}
+
+/* ============================================================
+   "Look at" pointers and the reveal rule
+   ============================================================ */
+const CARD_NAMES = {
+  caseCard:  'the case card',
+  predTable: 'the outcome table',
+  findings:  'the findings box'
+};
+
+function stacked(){
+  const cc = document.querySelector('.case-col'), pc = document.querySelector('.panel-col');
+  return !!(cc && pc) && cc.offsetTop !== pc.offsetTop;
+}
+
+function bringIntoView(id, forced){
+  const el = $(id);
+  if(!el || el.style.display === 'none') return;
+  if(!forced && !stacked()) return;
+  requestAnimationFrame(() => {
+    const box = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const seen = Math.min(box.bottom, vh) - Math.max(box.top, 0);
+    if(!forced && box.top >= 0 && (box.bottom <= vh || seen >= vh * 0.6)) return;
+    el.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+  });
+}
+
+function renderLook(targets){
+  if(!targets || !targets.length) return;
+  const host = $('stepText');
+  const row = document.createElement('div');
+  row.className = 'look';
+  const lead = document.createElement('span');
+  lead.className = 'look-lead';
+  lead.textContent = 'Look at';
+  row.appendChild(lead);
+  targets.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'look-btn'; b.type = 'button';
+    b.textContent = CARD_NAMES[id];
+    b.setAttribute('aria-label', 'Go to ' + CARD_NAMES[id]);
+    b.addEventListener('click', () => bringIntoView(id, true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+
+const backBtn = document.createElement('button');
+backBtn.className = 'back-to-step';
+backBtn.type = 'button';
+backBtn.hidden = true;
+backBtn.addEventListener('click', () => {
+  document.querySelector('.panel-col').scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'end'
+  });
+});
+document.body.appendChild(backBtn);
+
+function syncBack(){
+  const pc = $('panelControls');
+  if(!pc || pc.children.length === 0 || !stacked()){ backBtn.hidden = true; return; }
+  const box = pc.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top >= 0 && box.bottom <= vh;
+  backBtn.hidden = inSight;
+  if(!inSight){
+    backBtn.textContent = (mode === 'guided') ? 'Back to the step' : 'Back to the task';
+  }
+}
+let backTicking = false;
+function queueSyncBack(){
+  if(backTicking) return;
+  backTicking = true;
+  requestAnimationFrame(() => { backTicking = false; syncBack(); });
+}
+window.addEventListener('scroll', queueSyncBack, {passive:true});
+window.addEventListener('resize', queueSyncBack);
+
+/* ============================================================
+   Pickers and mode
+   ============================================================ */
+function buildPickers(){
+  const map = {A:'pickerA', B:'pickerB', C:'pickerC', D:'pickerD'};
+  Object.values(map).forEach(id => { $(id).innerHTML = ''; });
+  CASES.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.type = 'button';
+    b.dataset.id = c.id;
+    b.textContent = c.label;
+    b.addEventListener('click', () => startCase(c.id));
+    $(map[c.group]).appendChild(b);
+  });
+}
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.mode === m;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  $('pickerZone').style.display = (m === 'practice') ? '' : 'none';
+  if(m === 'guided'){
+    $('caseCard').style.display = 'none';
+    $('findings').style.display = 'none';
+    $('gridCap').textContent = 'What the model predicts';
+    stepIdx = 0;
+    renderGuided();
+  } else {
+    $('gridCap').textContent = 'What the model predicts';
+    if(current){ startCase(current); }
+    else {
+      $('stepLabel').textContent = 'Pick a case';
+      $('stepText').innerHTML = '<p>Choose a case to begin. Each one asks the same three questions: whether the ruler is dependent on the economic actor, whether that economic actor can put its assets beyond reach, and what the model predicts.</p>';
+      $('opts').innerHTML = '';
+      $('panelControls').innerHTML = '';
+      $('progressDots').innerHTML = '';
+      renderTable('base', {});
+      clearNote();
+    }
+  }
+  syncBack();
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => setMode(t.dataset.mode));
+});
+
+/* ---- theme ---- */
+const themeBtn = $('themeToggle');
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  $('themeIcon').innerHTML = dark ? '&#9728;' : '&#9789;';
+  $('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+themeBtn.addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+});
+applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+buildPickers();
+setMode('guided');
+</script>
+</body>
+</html>

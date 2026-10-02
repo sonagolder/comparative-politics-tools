@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solving extensive form games</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: player identity, in order of movement */
+    --p0:#009E73;   /* bluish green   — first mover */
+    --p1:#CC79A7;   /* reddish purple — second mover */
+    --p2:#B33E00;   /* text-safe vermillion — third mover */
+
+    /* semantic: correct / incorrect — messaging surfaces only, never on the tree */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state only — rings and strokes, never text */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --tree-line:#8A8A8A;
+    --node-ink:#141414;
+
+    /* ink sitting on a filled surface — matched to the fill, not the element */
+    --on-accent:#FFFFFF;
+
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --p0:#3FCFA0;
+    --p1:#E29FC4;
+    --p2:#F08A4B;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --tree-line:#7E7E7E;
+    --node-ink:#E8E8E8;
+
+    --on-accent:#0A1E28;
+
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:660px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 16px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .tree-col{flex:1 1 540px; min-width:320px;}
+  .tree-outer{background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:24px 16px;}
+
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--secondary); margin-bottom:8px; flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:4px;}
+  .swatch{width:11px; height:11px; border-radius:2px; display:inline-block;}
+  .legend-note{font-size:12px; color:var(--secondary); margin:0 0 16px; line-height:1.6;}
+  .game-note{font-size:12px; color:var(--secondary); margin:16px 0 0; line-height:1.7; font-family:var(--font-data);}
+  .game-note b{font-family:var(--font-body); font-weight:700; color:var(--ink);}
+
+  .tree-scroll{overflow-x:auto; padding-bottom:8px;}
+  /* "safe center" keeps the overflowing left edge reachable when a tree is wider than
+     the panel; plain "center" would make it unscrollable. */
+  .tree-block{display:flex; justify-content:center; justify-content:safe center;}
+  .tree-block > svg{flex:0 0 auto;}
+
+  svg.tree{display:block; margin:0 auto;}
+  svg.tree text{font-family:var(--font-data);}
+  .t-player{font-size:13px; font-weight:700;}
+  .t-action{font-size:12px; font-style:italic; fill:var(--secondary);}
+  .t-payoff{font-size:19px; font-weight:700;}
+  .t-outcome{font-size:11px; fill:var(--secondary);}
+  .fill-p0{fill:var(--p0);} .fill-p1{fill:var(--p1);} .fill-p2{fill:var(--p2);}
+  .fill-ink{fill:var(--ink);} .fill-dim{fill:var(--deemph); font-weight:400;}
+  .stroke-p0{stroke:var(--p0);} .stroke-p1{stroke:var(--p1);} .stroke-p2{stroke:var(--p2);}
+
+  .br{stroke:var(--tree-line); stroke-width:1.5; fill:none;}
+  .br.on{stroke-width:5; stroke-linecap:round;}
+  .br.on.stroke-p0{stroke:var(--p0);} .br.on.stroke-p1{stroke:var(--p1);} .br.on.stroke-p2{stroke:var(--p2);}
+  .br.gold{stroke:var(--gold-ui); stroke-width:5; stroke-linecap:round;}
+  .br.pending{stroke:var(--gold-ui); stroke-width:5; stroke-linecap:round;}
+
+  .node-dot{stroke:var(--node-ink); stroke-width:2;}
+  .node-dot.filled{fill:var(--node-ink);}
+  .node-dot.open{fill:var(--panel-bg);}
+  .node-ring{fill:none; stroke:var(--accent); stroke-width:2; stroke-dasharray:3 3;}
+
+  .subtree-wash{fill:var(--accent); opacity:.06;}
+
+  .node-pick{fill:none; stroke:var(--gold-ui); stroke-width:3;}
+  .term-ring{fill:none; stroke:var(--gold-ui); stroke-width:3; rx:5;}
+  .term-tag{font-size:10px; font-family:var(--font-body); font-weight:700; fill:var(--gold-text); letter-spacing:.04em;}
+
+  .hit-g{cursor:pointer;}
+  .hit-g .hitline{stroke:transparent; stroke-width:22;}
+  .hit-g .hitrect{fill:transparent;}
+  .hit-g .hitcircle{fill:transparent;}
+  .hit-g:hover .hitline{stroke:var(--secondary); stroke-opacity:.22;}
+  .hit-g:hover .hitrect{fill:var(--secondary); fill-opacity:.10;}
+  .hit-g:hover .hitcircle{fill:var(--secondary); fill-opacity:.14;}
+  .hit-g:focus{outline:none;}
+  .hit-g:focus-visible .hitline{stroke:var(--accent); stroke-opacity:.4;}
+  .hit-g:focus-visible .hitrect{fill:var(--accent); fill-opacity:.18;}
+  .hit-g:focus-visible .hitcircle{fill:var(--accent); fill-opacity:.22;}
+  .tick{font-size:12px; font-family:var(--font-body); fill:var(--correct);}
+
+  .skeleton{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--border); border-radius:8px;
+  }
+  .skeleton.complete{border-color:var(--gold-ui);}
+  .skel-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin-bottom:8px;}
+  .skeleton.complete .skel-label{color:var(--gold-text);}
+  .skel-body{font-family:var(--font-data); font-size:16px; font-weight:700; color:var(--ink); line-height:1.9;}
+  .skel-row + .skel-row{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);}
+  .skel-row-label{font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--secondary); margin-bottom:2px;}
+  .tree-cap{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px 4px;}
+  .tree-block + .tree-block{margin-top:16px; padding-top:16px; border-top:1px dashed var(--border);}
+  .skel-body .sep{color:var(--secondary); font-weight:400;}
+  .skel-body .blank{color:var(--hint); font-weight:400; letter-spacing:.08em;}
+  .c0{color:var(--p0);} .c1{color:var(--p1);} .c2{color:var(--p2);}
+
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:14px; color:var(--ink);
+  }
+  .findings div{margin:4px 0;}
+  .findings .k{font-weight:700; color:var(--gold-text); margin-right:4px;}
+
+  .panel-col{flex:1 1 300px; min-width:280px;}
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:300px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.65; flex:1; color:var(--ink);}
+  .panel .step-text .pay{font-family:var(--font-data); font-weight:700;}
+
+
+  /* ---- "look at" pointers ---- */
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{
+    font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--secondary);
+  }
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  /* ---- back to the panel ---- */
+  .back-to-step{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:var(--on-accent);
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  .back-to-step[hidden]{display:none;}
+
+  /* Breathing room above anything scrolled into view. */
+  #treeWrap, #skeleton, #findings{scroll-margin-top:16px;}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Solving extensive form games</h1>
+      <p class="lede">Extensive form games are solved by backward induction. Start at the end of the game tree: at each final choice node, work out which action gives the player making the choice the highest payoff, and make that branch bold. Then move backward to the choice node prior to it, where the player can look down the game tree and follow the bold lines to see what each of her actions leads to. Keep going until you reach the initial node, then read off the expected outcome, the payoffs, and the subgame perfect equilibrium.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <p class="group-label">Generic game trees</p>
+  <div class="picker" id="pickerGeneric"></div>
+  <p class="group-label">The exit, voice, and loyalty game</p>
+  <div class="picker" id="pickerEvl"></div>
+  <p class="group-label">Applied games</p>
+  <div class="picker" id="pickerApplied"></div>
+  <p class="group-label">Indifference and multiple equilibria</p>
+  <div class="picker" id="pickerAdvanced"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div class="layout">
+    <div class="tree-col">
+      <div class="tree-outer">
+        <div class="legend" id="legend"></div>
+        <p class="legend-note" id="legendNote"></p>
+        <div class="tree-scroll" id="treeScroll">
+          <div id="treeWrap"></div>
+        </div>
+        <p class="sr-only" id="treeSummary"></p>
+        <p class="game-note" id="gameNote"></p>
+        <div class="skeleton" id="skeleton" style="display:none;" aria-live="polite"></div>
+        <div class="findings" id="findings" style="display:none;" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const MINUS = "−";
+
+/* ---------------- data helpers ---------------- */
+// numeric payoff tuple
+function num(){ return [...arguments].map(v => [String(v).replace('-', MINUS), v]); }
+// terminal outcome. opts: {at:[gx,gy], side:'left'|'right'}
+function leaf(name, comps, opts){
+  return Object.assign({ name, payoffs: comps.map(([t,v]) => ({t,v})) }, opts || {});
+}
+// choice node. opts: {at:[gx,gy], lab:'right'}
+function nd(player, actions, hint, opts){
+  return Object.assign({ player, hint: hint || null,
+    actions: actions.map(([name, child]) => ({ name, child })) }, opts || {});
+}
+
+/* ---------------- the EVL tree, laid out as in Figures 3.1-3.8 ---------------- */
+// c = 0.2 throughout. S1: E=.5 L=1.5 | S2: E=-.3 L=1.5 | S3: E=.5 L=.5 | S4: E=-.3 L=.5
+function evlTree(E, L, c, h){
+  return nd(0, [
+    ['Exit',  leaf('O1', [['E', E], ['1', 1]], { at:[1.1, 0], side:'left' })],
+    ['Voice', nd(1, [
+        ['Respond', leaf('O3', [['1 ' + MINUS + ' c', 1 - c], ['L', L]], { at:[1.05, 2.1] })],
+        ['Ignore',  nd(0, [
+            ['Exit',    leaf('O4', [['E ' + MINUS + ' c', E - c], ['1', 1]], { at:[2.3, 3.2] })],
+            ['Loyalty', leaf('O5', [['0 ' + MINUS + ' c', 0 - c], ['1 + L', 1 + L]], { at:[3.7, 3.2] })]
+          ], h.citizen2, { at:[3.1, 2.1], lab:'right' })]
+      ], h.gov, { at:[2.0, 1.15], lab:'right' })],
+    ['Loyalty', leaf('O2', [['0', 0], ['1 + L', 1 + L]], { at:[2.9, 0], side:'right' })]
+  ], h.citizen1, { at:[2.0, 0] });
+}
+
+/* ---------------- games ---------------- */
+const GAMES = [
+  /* ============ generic trees ============ */
+  { id:'g1', group:'generic', title:'Game 1', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left',  leaf(null, num(2,0))],
+      ['Right', nd(1, [
+        ['Left',  leaf(null, num(2,-2))],
+        ['Right', leaf(null, num(3,-1))]
+      ])]
+    ]) },
+
+  { id:'g2', group:'generic', title:'Game 2', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left',  leaf(null, num(2,0))],
+      ['Right', nd(1, [
+        ['Left',  nd(0, [
+          ['Left',  leaf(null, num(4,-1))],
+          ['Right', leaf(null, num(1,0))]
+        ])],
+        ['Right', leaf(null, num(3,-2))]
+      ])]
+    ]) },
+
+  { id:'g3', group:'generic', title:'Game 3', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['South', nd(1, [
+        ['West', leaf(null, num(2,5))],
+        ['East', leaf(null, num(3,4))]
+      ])],
+      ['North', nd(1, [
+        ['West', leaf(null, num(4,1))],
+        ['East', leaf(null, num(3,2))]
+      ])]
+    ]) },
+
+  { id:'g4', group:'generic', title:'Game 4', players:['Player 1','Player 2','Player 3'],
+    root: nd(0, [
+      ['Left', nd(1, [
+        ['Left',  leaf(null, num(6,4,0))],
+        ['Right', leaf(null, num(3,-5,8))]
+      ])],
+      ['Right', nd(1, [
+        ['Left', nd(2, [
+          ['Down',  leaf(null, num(4,5,-1))],
+          ['Right', leaf(null, num(2,0,4))]
+        ])],
+        ['Right', leaf(null, num(1,-1,1))]
+      ])]
+    ]) },
+
+  { id:'g5', group:'generic', title:'Game 5', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left', nd(1, [
+        ['Up',   leaf(null, num(3,1))],
+        ['Down', leaf(null, num(1,4))]
+      ])],
+      ['Middle', nd(1, [
+        ['Up',   leaf(null, num(2,3))],
+        ['Down', leaf(null, num(4,2))]
+      ])],
+      ['Right', nd(1, [
+        ['Up',   leaf(null, num(5,0))],
+        ['Down', leaf(null, num(0,5))]
+      ])]
+    ]) },
+
+  { id:'g6', group:'generic', title:'Game 6', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Down',   leaf(null, num(1,1))],
+      ['Across', nd(1, [
+        ['Down',   leaf(null, num(5,4))],
+        ['Across', nd(0, [
+          ['Down',   leaf(null, num(2,6))],
+          ['Across', nd(1, [
+            ['Down',   leaf(null, num(3,0))],
+            ['Across', leaf(null, num(0,2))]
+          ])]
+        ])]
+      ])]
+    ]) },
+
+  { id:'g7', group:'generic', title:'Game 7', players:['Player 1','Player 2','Player 3'],
+    root: nd(0, [
+      ['Left', nd(1, [
+        ['Left',  leaf(null, num(5,2,1))],
+        ['Right', leaf(null, num(2,6,3))]
+      ])],
+      ['Right', nd(2, [
+        ['Up',   leaf(null, num(3,3,7))],
+        ['Down', nd(1, [
+          ['Left',  leaf(null, num(7,5,2))],
+          ['Right', leaf(null, num(1,4,5))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'g8', group:'generic', title:'Game 8', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left', nd(1, [
+        ['North',  leaf(null, num(4,2))],
+        ['Center', leaf(null, num(1,5))],
+        ['South',  leaf(null, num(3,3))]
+      ])],
+      ['Right', nd(1, [
+        ['North',  leaf(null, num(2,1))],
+        ['Center', leaf(null, num(5,0))],
+        ['South',  leaf(null, num(0,4))]
+      ])]
+    ]) },
+
+  /* ============ the EVL game ============ */
+  { id:'evl1', group:'evl', title:'Scenario 1', players:['Citizen','Government'],
+    note:'<b>Assumptions.</b> c, L &gt; 0; E &lt; 1 ' + MINUS + ' c; E &gt; 0 (the citizen has a credible exit threat); L &gt; 1 (the government is dependent).',
+    root: evlTree(0.5, 1.5, 0.2, {
+      citizen2:'Both branches carry the cost of voice, so the comparison is just E against 0. Since E &gt; 0, we know that E ' + MINUS + ' c &gt; 0 ' + MINUS + ' c, and the citizen exits.',
+      gov:'The decision whether to respond positively or ignore her depends on whether L is larger or smaller than 1. Since the government is dependent, L &gt; 1, and it responds positively.',
+      citizen1:'Exit gives E and loyalty gives 0, but voice leads to 1 ' + MINUS + ' c. Because E &lt; 1 ' + MINUS + ' c, the citizen uses voice.'
+    }) },
+
+  { id:'evl2', group:'evl', title:'Scenario 2', players:['Citizen','Government'],
+    note:'<b>Assumptions.</b> c, L &gt; 0; E &lt; 1 ' + MINUS + ' c; E &lt; 0 (no credible exit threat); L &gt; 1 (the government is dependent).',
+    root: evlTree(-0.3, 1.5, 0.2, {
+      citizen2:'Both branches carry the cost of voice, so the comparison is just E against 0. Because E &lt; 0, the citizen receives a higher payoff if she remains loyal.',
+      gov:'If it responds positively it receives L. If it ignores her, it can look down the game tree and see that the citizen remains loyal, so its payoff is 1 + L. No matter what the value of L, the government ignores her, because 1 + L &gt; L.',
+      citizen1:'Exit gives E, which is negative; voice leads to 0 ' + MINUS + ' c, also negative. She gets her highest payoff, 0, by remaining loyal.'
+    }) },
+
+  { id:'evl3', group:'evl', title:'Scenario 3', players:['Citizen','Government'],
+    note:'<b>Assumptions.</b> c, L &gt; 0; E &lt; 1 ' + MINUS + ' c; E &gt; 0 (the citizen has a credible exit threat); L &lt; 1 (the government is autonomous).',
+    root: evlTree(0.5, 0.5, 0.2, {
+      citizen2:'Both branches carry the cost of voice, so the comparison is just E against 0. Since the citizen has a credible exit threat, E &gt; 0, and E ' + MINUS + ' c &gt; 0 ' + MINUS + ' c.',
+      gov:'Responding positively is worth L; ignoring her leads to the citizen exiting, which is worth 1. Because the government is autonomous, L &lt; 1, it ignores her.',
+      citizen1:'Voice leads to E ' + MINUS + ' c, which is worse than simply exiting at E, and E &gt; 0 beats loyalty. She exits at the initial node without ever using voice.'
+    }) },
+
+  { id:'evl4', group:'evl', title:'Scenario 4', players:['Citizen','Government'],
+    note:'<b>Assumptions.</b> c, L &gt; 0; E &lt; 1 ' + MINUS + ' c; E &lt; 0 (no credible exit threat); L &lt; 1 (the government is autonomous).',
+    root: evlTree(-0.3, 0.5, 0.2, {
+      citizen2:'Because the citizen doesn’t have a credible exit threat, E &lt; 0, she receives a higher payoff if she remains loyal.',
+      gov:'If it responds positively its payoff is L. If it ignores her, it can look down the game tree and see that its payoff will be 1 + L. No matter what the value of L, the government ignores her.',
+      citizen1:'Exit gives a negative payoff, voice leads to 0 ' + MINUS + ' c, and loyalty gives 0. She receives her highest payoff by remaining loyal.'
+    }) },
+
+  { id:'evl5', group:'evl', title:'Scenario 5 — with the prehistory', players:['Government','Citizen'],
+    note:'<b>Assumptions.</b> c, c<sub>g</sub>, L &gt; 0; E &lt; 1 ' + MINUS + ' c; E &gt; 0; L &gt; 1. The government now moves first, deciding whether to take the benefit at all, and voice is costly for the government too (c<sub>g</sub>). <b>Because the government is now the first player to move, its payoffs are listed first.</b>',
+    root: nd(0, [
+      ['Don’t exploit', leaf(null, [['L', 1.5], ['1', 1]], { at:[1.85, 0.6] })],
+      ['Exploit', nd(1, [
+        ['Exit',  leaf(null, [['1', 1], ['E', 0.5]], { at:[2.05, 1.55] })],
+        ['Voice', nd(0, [
+          ['Respond', leaf(null, [['L ' + MINUS + ' c_g', 1.2], ['1 ' + MINUS + ' c', 0.8]], { at:[1.85, 3.05] })],
+          ['Ignore',  nd(1, [
+            ['Exit',    leaf(null, [['1 ' + MINUS + ' c_g', 0.7], ['E ' + MINUS + ' c', 0.3]], { at:[3.05, 4.15] })],
+            ['Loyalty', leaf(null, [['1 + L ' + MINUS + ' c_g', 2.2], ['0 ' + MINUS + ' c', -0.2]], { at:[4.85, 4.15] })]
+          ], 'Both branches carry the cost of voice, so the comparison is just E against 0. Since E &gt; 0, the citizen exits.', { at:[3.8, 3.05], lab:'right' })]
+        ], 'Responding positively costs the government c<sub>g</sub> but keeps a loyal citizen: L ' + MINUS + ' c<sub>g</sub>. Ignoring her leads to the citizen exiting: 1 ' + MINUS + ' c<sub>g</sub>. Since L &gt; 1, it responds positively.', { at:[2.8, 2.1], lab:'right' })],
+        ['Loyalty', leaf(null, [['1 + L', 2.5], ['0', 0]], { at:[3.6, 1.55] })]
+      ], 'Exit gives E and loyalty gives 0, but voice leads to 1 ' + MINUS + ' c. Because E &lt; 1 ' + MINUS + ' c, the citizen uses voice.', { at:[2.8, 0.95] })]
+    ], 'If it exploits her, the government can look down the game tree and see that it will end up handing the benefit back anyway, and paying c<sub>g</sub> for the protest on top. Not exploiting her keeps a loyal citizen at no cost.', { at:[2.5, 0] }) },
+
+  /* ============ applied games ============ */
+  { id:'a1', group:'applied', title:'Protest and repression — version A',
+    players:['Opposition','Incumbent'],
+    note:'<b>Setup.</b> An opposition movement decides whether to mobilize. If it does, the incumbent decides whether to concede or crack down. If the incumbent cracks down, the movement decides whether to escalate or back down.',
+    root: nd(0, [
+      ['Stay home', leaf('Status quo', num(2,4))],
+      ['Mobilize', nd(1, [
+        ['Concede',    leaf('Concession', num(4,2))],
+        ['Crack down', nd(0, [
+          ['Escalate',  leaf('Escalation', num(3,0))],
+          ['Back down', leaf('Repression', num(1,3))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'a2', group:'applied', title:'Protest and repression — version B',
+    players:['Opposition','Incumbent'],
+    note:'<b>Setup.</b> The same story as version A, but escalating after a crackdown is now far more costly for the opposition. Compare the two equilibria.',
+    root: nd(0, [
+      ['Stay home', leaf('Status quo', num(2,4))],
+      ['Mobilize', nd(1, [
+        ['Concede',    leaf('Concession', num(4,1))],
+        ['Crack down', nd(0, [
+          ['Escalate',  leaf('Escalation', num(0,0))],
+          ['Back down', leaf('Repression', num(1,3))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'a3', group:'applied', title:'Autonomy demand — version A',
+    players:['Region','Central government'],
+    note:'<b>Setup.</b> A regional government decides whether to demand more autonomy. If it does, the central government grants or refuses the demand. If the demand is refused, the region decides whether to secede or stay.',
+    root: nd(0, [
+      ['Accept status quo', leaf('Status quo', num(2,4))],
+      ['Demand autonomy', nd(1, [
+        ['Grant',  leaf('Autonomy granted', num(4,2))],
+        ['Refuse', nd(0, [
+          ['Secede', leaf('Secession', num(1,0))],
+          ['Stay',   leaf('Demand ignored', num(0,3))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'a4', group:'applied', title:'Autonomy demand — version B',
+    players:['Region','Central government'],
+    note:'<b>Setup.</b> The same story as version A, but seceding is now more costly for the region than staying. Compare the two equilibria.',
+    root: nd(0, [
+      ['Accept status quo', leaf('Status quo', num(2,4))],
+      ['Demand autonomy', nd(1, [
+        ['Grant',  leaf('Autonomy granted', num(4,2))],
+        ['Refuse', nd(0, [
+          ['Secede', leaf('Secession', num(0,1))],
+          ['Stay',   leaf('Demand ignored', num(1,3))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'a5', group:'applied', title:'Coalition bargaining', players:['Party A','Party B'],
+    note:'<b>Setup.</b> Party A, the formateur, can form a minority government on its own or offer Party B a place in a coalition. If an offer is made, Party B accepts or rejects it. If Party B rejects, Party A can improve the offer or give up and govern alone. An improved offer goes back to Party B, and a second rejection leaves Party A governing alone. A coalition forms only if Party B accepts an offer.',
+    root: nd(0, [
+      ['Govern alone', leaf('Minority government', num(2,0))],
+      ['Offer coalition', nd(1, [
+        ['Accept', leaf('Coalition on A’s terms', num(4,2))],
+        ['Reject', nd(0, [
+          ['Improve offer', nd(1, [
+            ['Accept', leaf('Coalition on B’s terms', num(3,3))],
+            ['Reject', leaf('Minority government', num(2,0))]
+          ])],
+          ['Govern alone', leaf('Minority government', num(2,0))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'a6', group:'applied', title:'Legislative agenda — version A',
+    players:['Committee','Chamber','Executive'],
+    note:'<b>Setup.</b> A committee decides whether to report a bill to the floor or shelve it. If it is reported, the chamber either passes it as written or amends it. Either way the bill then goes to the executive, who signs or vetoes it.',
+    root: nd(0, [
+      ['Report bill', nd(1, [
+        ['Pass as written', nd(2, [
+          ['Sign', leaf('Bill becomes law', num(5,3,5))],
+          ['Veto', leaf('Bill vetoed', num(1,2,2))]
+        ])],
+        ['Amend', nd(2, [
+          ['Sign', leaf('Amended bill becomes law', num(2,5,1))],
+          ['Veto', leaf('Amended bill vetoed', num(0,0,3))]
+        ])]
+      ])],
+      ['Shelve bill', leaf('No bill', num(3,1,4))]
+    ]) },
+
+  { id:'a7', group:'applied', title:'Legislative agenda — version B',
+    players:['Committee','Chamber','Executive'],
+    note:'<b>Setup.</b> The same story as version A, but this executive dislikes the committee’s version of the bill and likes the chamber’s. Compare the two equilibria, and note where the committee’s bill ends up.',
+    root: nd(0, [
+      ['Report bill', nd(1, [
+        ['Pass as written', nd(2, [
+          ['Sign', leaf('Bill becomes law', num(5,3,1))],
+          ['Veto', leaf('Bill vetoed', num(1,2,2))]
+        ])],
+        ['Amend', nd(2, [
+          ['Sign', leaf('Amended bill becomes law', num(2,5,5))],
+          ['Veto', leaf('Amended bill vetoed', num(0,0,3))]
+        ])]
+      ])],
+      ['Shelve bill', leaf('No bill', num(3,1,4))]
+    ]) },
+
+  /* ============ indifference: two equilibria ============ */
+  { id:'x1', group:'advanced', title:'Game 9', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left', nd(1, [
+        ['Up',   leaf(null, num(3,1))],
+        ['Down', leaf(null, num(2,4))]
+      ])],
+      ['Right', nd(1, [
+        ['Up',   leaf(null, num(2,5))],
+        ['Down', leaf(null, num(3,2))]
+      ])]
+    ]) },
+
+  { id:'x2', group:'advanced', title:'Game 10', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left',  leaf(null, num(2,3))],
+      ['Right', nd(1, [
+        ['Up',   leaf(null, num(1,4))],
+        ['Down', leaf(null, num(3,4))]
+      ])]
+    ]) },
+
+  { id:'x3', group:'advanced', title:'Game 11', players:['Player 1','Player 2'],
+    root: nd(0, [
+      ['Left',  leaf(null, num(3,1))],
+      ['Right', nd(1, [
+        ['Left',  leaf(null, num(2,5))],
+        ['Right', nd(0, [
+          ['Up',   leaf(null, num(4,2))],
+          ['Down', leaf(null, num(4,3))]
+        ])]
+      ])]
+    ]) },
+
+  { id:'x4', group:'advanced', title:'Protest and repression — version C',
+    players:['Opposition','Incumbent'],
+    note:'<b>Setup.</b> The same story as versions A and B: the opposition decides whether to mobilize, the incumbent concedes or cracks down, and after a crackdown the opposition escalates or backs down. Only the payoffs have changed — this incumbent would most like the movement to stay home, and would welcome facing down a movement that backs down under pressure.',
+    root: nd(0, [
+      ['Stay home', leaf('Status quo', num(2,5))],
+      ['Mobilize', nd(1, [
+        ['Concede',    leaf('Concession', num(4,2))],
+        ['Crack down', nd(0, [
+          ['Escalate',  leaf('Escalation', num(3,2))],
+          ['Back down', leaf('Repression', num(1,4))]
+        ])]
+      ])]
+    ]) }
+
+];
+
+/* ---------------- layout + solve ---------------- */
+const YGAP = 104, TOPPAD = 44;
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Payoff labels may carry a subscript, written "c_g" in the data: an underscore marks
+// the single character that follows as a subscript.
+function subParts(t){
+  const out = []; let buf = '';
+  for (let i = 0; i < t.length; i++){
+    if (t[i] === '_' && i + 1 < t.length){
+      if (buf){ out.push({ s:buf, sub:false }); buf = ''; }
+      out.push({ s:t[i+1], sub:true });
+      i++;
+    } else buf += t[i];
+  }
+  if (buf) out.push({ s:buf, sub:false });
+  return out;
+}
+function payoffPlain(t){ return t.replace(/_(.)/g, '$1'); }
+
+// Outcome names are the widest thing in some trees, and width is what forces scrolling.
+// Long ones wrap onto a second line, split as evenly as the words allow. Payoff tuples
+// never wrap: they are the data students compare, and a broken tuple is unreadable.
+const NAME_CH = 6.7, NAME_LINE_H = 13, NAME_WRAP_AT = 14;
+function nameLines(l){
+  if (l._lines) return l._lines;
+  const name = l.name || '';
+  let out = [name];
+  if (name.length > NAME_WRAP_AT){
+    const words = name.split(' ');
+    if (words.length > 1){
+      let best = null;
+      for (let i = 1; i < words.length; i++){
+        const a = words.slice(0,i).join(' '), b = words.slice(i).join(' ');
+        const score = Math.max(a.length, b.length);
+        // <= so that, among equally balanced splits, the later break wins: it fills the
+        // first line and reads better ("Coalition on / A's terms", not "Coalition / on A's terms")
+        if (!best || score <= best.score) best = { score, lines:[a,b] };
+      }
+      if (best.score < name.length) out = best.lines;
+    }
+  }
+  l._lines = out;
+  return out;
+}
+function nameWidth(l){
+  if (!l.name) return 0;
+  return Math.max.apply(null, nameLines(l).map(t => t.length * NAME_CH));
+}
+// vertical room a terminal's label block occupies below its node position
+function leafBlockH(l){ return l.name ? 30 + nameLines(l).length * NAME_LINE_H : 30; }
+function payoffHtml(t){ return subParts(t).map(p => p.sub ? `<sub>${esc(p.s)}</sub>` : esc(p.s)).join(''); }
+// One run of tspans for a whole payoff tuple. Baseline shifts are cumulative in SVG, so
+// the segments are emitted in one sequence and each carries the delta from the last.
+const SUB_DY = 4.5;
+function leafPayoffTspans(l, dimTo){
+  const segs = [];
+  l.payoffs.forEach((p, i) => {
+    if (i) segs.push({ s:', ', sub:false, cls:'fill-ink' });
+    const dim = (dimTo !== null && dimTo !== undefined && dimTo !== i);
+    const cls = dim ? 'fill-dim' : 'fill-p' + i;
+    subParts(p.t).forEach(part => segs.push({ s:part.s, sub:part.sub, cls }));
+  });
+  let cur = 0;
+  return segs.map(sg => {
+    const want = sg.sub ? 1 : 0;
+    const dy = (want - cur) * SUB_DY;
+    cur = want;
+    return `<tspan class="${sg.cls}" dy="${dy}"${sg.sub ? ' font-size="0.68em"' : ''}>${esc(sg.s)}</tspan>`;
+  }).join('');
+}
+
+// One bottom-up pass over the tree. `override` forces the choice at a given node, which
+// is how we explore each way of breaking a tie. The pass also reports every node where
+// the best payoff is achieved by more than one action.
+function solvePass(root, override){
+  const ch = new Map(), vl = new Map(), ties = [];
+  (function rec(n){
+    if (!n.actions){ vl.set(n._uid, n.payoffs.map(p => p.v)); return; }
+    n.actions.forEach(a => rec(a.child));
+    const vals = n.actions.map(a => vl.get(a.child._uid)[n.player]);
+    const mx = Math.max.apply(null, vals);
+    const best = [];
+    vals.forEach((v,i) => { if (v === mx) best.push(i); });
+    if (best.length > 1) ties.push({ node:n, best:best });
+    const pick = (override && override.has(n._uid)) ? override.get(n._uid) : best[0];
+    ch.set(n._uid, pick);
+    vl.set(n._uid, vl.get(n.actions[pick].child._uid));
+  })(root);
+  return { ch, vl, ties };
+}
+
+// Where a branch's action label sits, in pixels, given a column width. Shared by the
+// layout pass and the renderer so the two can't drift apart.
+const ACTION_CH = 6.5;
+function branchLabelBox(node, ai, xgap){
+  const a = node.actions[ai];
+  const x1 = node._x * xgap, y1 = node._gy, x2 = a.child._x * xgap, y2 = a.child._gy;
+  const t = (Math.abs(y2 - y1) < 0.01) ? 0.42 : 0.5;
+  const mx = x1 + (x2 - x1) * t;
+  const dir = Math.sign(x2 - x1);
+  const w = a.name.length * ACTION_CH;
+  const x = mx + (dir === 0 ? 8 : dir * 9);
+  return dir < 0 ? { x0:x - w, x1:x } : { x0:x, x1:x + w };
+}
+
+function prepare(g){
+  if (g._layout) return g._layout;
+  let uid = 0, leafCount = 0;   // running x position for auto-placed terminals
+  const nodes = [], leaves = [];
+
+  (function walk(n, depth){
+    n._uid = uid++;
+    n._depth = depth;
+    if (n.actions){
+      nodes.push(n);
+      n.actions.forEach(a => walk(a.child, depth + 1));
+      if (!n.at) n._x = (n.actions[0].child._x + n.actions[n.actions.length-1].child._x) / 2;
+    } else {
+      leaves.push(n);
+      // Terminals only need a full column from the neighbor they sit beside. One that
+      // ends the game earlier sits a row or more above its neighbor and never shares a
+      // vertical band with it, so it can tuck in closer instead of reserving a column
+      // it doesn't use. Actual spacing is still enforced later from the label bands.
+      if (!n.at){
+        const prev = leaves[leaves.length-2];
+        if (prev && !prev.at && prev._depth !== depth) leafCount += 0.6;
+        else if (prev) leafCount += 1;
+        n._x = leafCount;
+      }
+    }
+    if (n.at){ n._x = n.at[0]; n._gy = n.at[1]; } else { n._gy = depth; }
+  })(g.root, 0);
+
+  // badge order: down the tree, then left to right
+  const badgeOrder = nodes.slice().sort((a,b) => a._depth - b._depth || a._x - b._x);
+  badgeOrder.forEach((n,i) => { n._badge = i + 1; });
+  // solution order: the choice node with the longest history first, working back toward
+  // the initial node. Nodes whose histories are the same length are taken left to right.
+  const biOrder = nodes.slice().sort((a,b) => b._depth - a._depth || a._x - b._x);
+
+  // A game may leave one player indifferent at one choice node. That yields two subgame
+  // perfect equilibria, so we keep a complete solution for each way of breaking the tie.
+  const probe = solvePass(g.root, null);
+  const tie = probe.ties.length ? probe.ties[0] : null;
+  const picks = tie ? [tie.best[0], tie.best[1]] : [null];
+  const sol = picks.map(pick => {
+    const pass = solvePass(g.root, tie ? new Map([[tie.node._uid, pick]]) : null);
+    const pathBranches = new Set(), onPath = new Set();
+    let cur = g.root;
+    while (cur.actions){
+      onPath.add(cur._uid);
+      pathBranches.add(cur._uid + '-' + pass.ch.get(cur._uid));
+      cur = cur.actions[pass.ch.get(cur._uid)].child;
+    }
+    return { ch:pass.ch, vl:pass.vl, pathBranches, onPath, outcomeLeaf:cur };
+  });
+
+  // Horizontal spacing: just enough that no two labels sharing a row collide. Driving it
+  // from the single widest label in the game, applied to every gap, made trees far wider
+  // than they need to be and pushed the initial node off screen.
+  const PAD = 18, PAD_LABEL = 4;
+  const extent = n => {                       // how far a label reaches either side of its x
+    if (n.actions){
+      const w = (String(n._badge).length + 1 + g.players[n.player].length) * 7.9;
+      return n.lab === 'right' ? { a:10, b:12 + w } : { a:w/2, b:w/2 };
+    }
+    const w = Math.max(payoffText(n).length * 11.0, nameWidth(n));
+    if (n.side === 'left')  return { a:12 + w, b:0 };
+    if (n.side === 'right') return { a:0, b:12 + w };
+    return { a:w/2, b:w/2 };
+  };
+  // Two labels need horizontal separation only if they actually overlap vertically.
+  // A row tolerance is a guess at that; measuring the text band is exact, and it lets a
+  // terminal be lifted clear of a neighbor instead of being pushed sideways.
+  const vSpan = n => {
+    const y = TOPPAD + n._gy * YGAP;
+    if (n.actions){
+      const base = y - (n.lab === 'right' ? 8 : 15);
+      return { top:base - 10, bot:base + 3 };
+    }
+    const ty = (n.side === 'left' || n.side === 'right') ? y + 6 : y + 24;
+    return { top:ty - 15, bot:ty + 5 + (n.name ? nameLines(n).length * NAME_LINE_H : 0) };
+  };
+  // Everything that draws text competes for space: nodes, terminals, and the action
+  // labels on the branches. A branch label's column position is fixed even though its
+  // pixel position isn't, so it can join the same constraint pass.
+  const spaced = [];
+  nodes.concat(leaves).forEach(n => {
+    const e = extent(n);
+    spaced.push({ id:n._uid, x:n._x, span:vSpan(n), a:e.a, b:e.b });
+  });
+  nodes.forEach(n => n.actions.forEach(a => {
+    const t = (Math.abs(a.child._gy - n._gy) < 0.01) ? 0.42 : 0.5;
+    const x = n._x + (a.child._x - n._x) * t;
+    const base = TOPPAD + (n._gy + (a.child._gy - n._gy) * t) * YGAP - 6;
+    const w = a.name.length * ACTION_CH + 9;
+    const dir = Math.sign(a.child._x - n._x);
+    spaced.push({ x, span:{ top:base - 10, bot:base + 3 },
+                  a: dir < 0 ? w : 0, b: dir < 0 ? 0 : w,
+                  label:true, ends:[n._uid, a.child._uid] });
+  }));
+
+  // A few pixels of shared band is a label's ascender grazing the one above it, not a
+  // collision; demanding full clearance for that inflates the tree. Only a real overlap
+  // constrains the columns.
+  const V_TOL = 5;
+  let xgap = 104;
+  spaced.forEach((p, i) => {
+    spaced.forEach((q, j) => {
+      if (j <= i) return;
+      const share = Math.min(p.span.bot, q.span.bot) - Math.max(p.span.top, q.span.top);
+      if (share < V_TOL) return;
+      // A branch label and the node or terminal at either end of its own branch are
+      // placed relative to each other by construction; constraining them again would
+      // charge twice for a gap that is already set.
+      if (p.label && p.ends.indexOf(q.id) >= 0) return;
+      if (q.label && q.ends.indexOf(p.id) >= 0) return;
+      const left = p.x <= q.x ? p : q, right = p.x <= q.x ? q : p;
+      const dx = right.x - left.x;
+      if (dx <= 0) return;
+      // Action labels are small italic type; they read fine much closer together than
+      // two payoff tuples would, so they get a smaller gutter.
+      const pad = (p.label || q.label) ? PAD_LABEL : PAD;
+      xgap = Math.max(xgap, (left.b + right.a + pad) / dx);
+    });
+  });
+  xgap = Math.ceil(xgap);
+
+  g._layout = { nodes, leaves, badgeOrder, biOrder, xgap, offsetX:0, width:0, height:0,
+                sol, tieNode: tie ? tie.node : null, tieBest: tie ? tie.best : null,
+                tieIdx: tie ? biOrder.indexOf(tie.node) : -1, leafCount };
+
+  // measure, then shift everything into view
+  let minX = Infinity, maxX = -Infinity, maxY = 0;
+  nodes.forEach(n => {
+    const x = n._x * xgap, w = (String(n._badge).length + 1 + g.players[n.player].length) * 7.9;
+    if (n.lab === 'right'){ minX = Math.min(minX, x - 10); maxX = Math.max(maxX, x + 12 + w); }
+    else { minX = Math.min(minX, x - w/2); maxX = Math.max(maxX, x + w/2); }
+    maxY = Math.max(maxY, TOPPAD + n._gy * YGAP);
+  });
+  leaves.forEach(l => {
+    const x = l._x * xgap;
+    const w = Math.max(payoffText(l).length * 11.0, nameWidth(l));
+    if (l.side === 'left'){ minX = Math.min(minX, x - 12 - w); maxX = Math.max(maxX, x); }
+    else if (l.side === 'right'){ minX = Math.min(minX, x); maxX = Math.max(maxX, x + 12 + w); }
+    else { minX = Math.min(minX, x - w/2); maxX = Math.max(maxX, x + w/2); }
+    maxY = Math.max(maxY, TOPPAD + l._gy * YGAP + leafBlockH(l) + 16);
+  });
+  nodes.forEach(n => n.actions.forEach((a, ai) => {
+    const b = branchLabelBox(n, ai, xgap);
+    minX = Math.min(minX, b.x0); maxX = Math.max(maxX, b.x1);
+  }));
+  const offsetX = 18 - minX;
+  Object.assign(g._layout, { offsetX, width: Math.ceil(maxX + offsetX + 18), height: Math.ceil(maxY + 34) });
+  return g._layout;
+}
+
+/* ---------------- accessors ---------------- */
+function game(){ return GAMES[currentIdx]; }
+function LAY(){ return prepare(game()); }
+function NRES(){ return LAY().sol.length; }              // 1, or 2 when a player is indifferent
+function CH(n, r){ return LAY().sol[r].ch.get(n._uid); } // action chosen at n under resolution r
+function VAL(n, r){ return LAY().sol[r].vl.get(n._uid); }
+function bestActions(n, r){
+  const vals = n.actions.map(a => VAL(a.child, r)[n.player]);
+  const mx = Math.max.apply(null, vals);
+  const out = []; vals.forEach((v,i) => { if (v === mx) out.push(i); });
+  return out;
+}
+function X(n){ const L = LAY(); return n._x * L.xgap + L.offsetX; }
+function Y(n){ return TOPPAD + n._gy * YGAP; }
+function payoffText(l){ return l.payoffs.map(p => payoffPlain(p.t)).join(', '); }
+function badge(n){ return String.fromCharCode(0x2460 + n._badge - 1); }
+function isFinalNode(node){ return node.actions.every(a => !a.child.actions); }
+function isAdvanced(){ return game().group === 'advanced'; }
+function bKey(r, uid, ai){ return 'b-' + r + '-' + uid + '-' + ai; }
+function lKey(r, uid){ return 'l-' + r + '-' + uid; }
+function nKey(uid){ return 'n-' + uid; }
+function keyRes(k){ return Number(k.split('-')[1]); }
+
+function speGroups(){
+  const g = game(), L = LAY();
+  return g.players.map((_, p) => L.badgeOrder.filter(n => n.player === p));
+}
+function speString(r){
+  return '(' + speGroups().filter(grp => grp.length)
+    .map(grp => grp.map(n => n.actions[CH(n, r)].name).join(', ')).join('; ') + ')';
+}
+function skeletonOrder(){ return speGroups().reduce((a,grp) => a.concat(grp), []); }
+function joinAnd(items){
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return items[0] + ' and ' + items[1];
+  return items.slice(0,-1).join(', ') + ', and ' + items[items.length-1];
+}
+// the payoff the deciding player ends up with if this branch is taken
+function branchValue(node, ai, r){
+  let cur = node.actions[ai].child;
+  while (cur.actions) cur = cur.actions[CH(cur, r)].child;
+  return payoffHtml(cur.payoffs[node.player].t);
+}
+function pathLabel(r){
+  const names = [];
+  let cur = game().root;
+  while (cur.actions){ names.push(cur.actions[CH(cur, r)].name); cur = cur.actions[CH(cur, r)].child; }
+  return names.join(', then ');
+}
+
+/* ---------------- state ---------------- */
+let currentIdx = 0;
+let mode = 'guided';
+let guidedStep = 0;
+
+let taskIdx = 0;
+let selected = new Set();
+let checked = false;
+let lockedNodes = new Set();
+let justSolved = new Set();
+let solvedFindings = new Set();
+let skelPicks = [];
+let lastFocusKey = null;
+
+function resetAll(){
+  guidedStep = 0; taskIdx = 0; selected = new Set(); checked = false;
+  lockedNodes = new Set(); justSolved = new Set(); solvedFindings = new Set();
+  skelPicks = []; lastFocusKey = null;
+}
+
+/* ---------------- theme ---------------- */
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeIcon').textContent = dark ? '☀' : '☽';
+  document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeToggle').setAttribute('aria-pressed', String(dark));
+}
+let isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(isDark);
+document.getElementById('themeToggle').onclick = () => { isDark = !isDark; applyTheme(isDark); };
+
+/* ---------------- picker ---------------- */
+function renderPicker(){
+  const map = { generic:'pickerGeneric', evl:'pickerEvl', applied:'pickerApplied', advanced:'pickerAdvanced' };
+  Object.values(map).forEach(id => document.getElementById(id).innerHTML = '');
+  GAMES.forEach((g,i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (i === currentIdx ? ' active' : '');
+    b.type = 'button';
+    b.textContent = g.title;
+    b.setAttribute('aria-pressed', String(i === currentIdx));
+    b.onclick = () => { currentIdx = i; resetAll(); scrolledFor = null; renderAll(); };
+    document.getElementById(map[g.group]).appendChild(b);
+  });
+}
+
+/* ---------------- legend + notes ---------------- */
+function renderLegend(){
+  const g = game();
+  document.getElementById('legend').innerHTML = g.players.map((p,i) =>
+    `<span><span class="swatch" style="background:var(--p${i})"></span> ${p}${i===0?' (moves first)':''}</span>`).join('');
+  document.getElementById('legendNote').innerHTML =
+    `Payoffs at each outcome are listed <b>${g.players.join(', then ')}</b> — the player who moves first is written first, ` +
+    `and a comma separates the players’ payoffs. The initial node is the unfilled circle; the other choice nodes are filled. ` +
+    `The subgame perfect equilibrium is written <b>(${g.players[0]}’s choices; ${g.players[1]}’s choices${g.players[2] ? '; ' + g.players[2] + '’s choices' : ''})</b>, ` +
+    `with one choice for every numbered node.`;
+  const note = document.getElementById('gameNote');
+  note.innerHTML = g.note || '';
+  note.style.display = g.note ? 'block' : 'none';
+}
+
+/* ---------------- tree rendering ---------------- */
+function leafText(l){
+  const x = X(l), y = Y(l), txt = payoffText(l), w = txt.length * 11.0;
+  if (l.side === 'left')  return { tx:x - 12, ty:y + 6, anchor:'end',   w, x0:x - 12 - w, nameY:y + 24 };
+  if (l.side === 'right') return { tx:x + 12, ty:y + 6, anchor:'start', w, x0:x + 12,     nameY:y + 24 };
+  return { tx:x, ty:y + 24, anchor:'middle', w, x0:x - w/2, nameY:y + 42 };
+}
+
+// One SVG for one resolution. `st` carries: r, marked, activeNode, clickable, gold,
+// dimTo, placed, ringAll.
+function svgFor(st){
+  const g = game(), L = LAY(), r = st.r, s = [];
+  s.push(`<svg class="tree" width="${L.width}" height="${L.height}" viewBox="0 0 ${L.width} ${L.height}" role="group" aria-label="${esc(g.title)} game tree">`);
+
+  if (st.activeNode){
+    const xs = [], ys = [];
+    (function collect(n){
+      xs.push(X(n)); ys.push(Y(n));
+      if (n.actions) n.actions.forEach(ac => collect(ac.child));
+      else { const lt = leafText(n); xs.push(lt.x0, lt.x0 + lt.w); ys.push(lt.nameY + (n.name ? (nameLines(n).length - 1) * NAME_LINE_H : 0) + 6); }
+    })(st.activeNode);
+    s.push(`<rect class="subtree-wash" x="${Math.min.apply(null,xs)-22}" y="${Math.min.apply(null,ys)-30}" width="${Math.max.apply(null,xs)-Math.min.apply(null,xs)+44}" height="${Math.max.apply(null,ys)-Math.min.apply(null,ys)+38}" rx="8"></rect>`);
+  }
+
+  L.nodes.forEach(node => {
+    node.actions.forEach((a, ai) => {
+      const key = bKey(r, node._uid, ai);
+      const x1 = X(node), y1 = Y(node), x2 = X(a.child), y2 = Y(a.child);
+      const isChosen = st.marked.has(node._uid) && CH(node, r) === ai;
+      const isGold = st.gold && L.sol[r].pathBranches.has(node._uid + '-' + ai);
+      const isPending = selected.has(key);
+      let cls = 'br';
+      if (isGold) cls += ' gold';
+      else if (isPending) cls += ' pending';
+      else if (isChosen) cls += ' on stroke-p' + node.player;
+      s.push(`<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`);
+
+      const t = (Math.abs(y2 - y1) < 1) ? 0.42 : 0.5;
+      const my = y1 + (y2 - y1) * t;
+      const dir = Math.sign(x2 - x1);
+      const anchor = dir === 0 ? 'start' : (dir < 0 ? 'end' : 'start');
+      const box = branchLabelBox(node, ai, L.xgap);
+      const lx = (anchor === 'end' ? box.x1 : box.x0) + L.offsetX;
+      const tick = justSolved.has(key) ? ' ✓' : '';
+      s.push(`<text class="t-action" x="${lx}" y="${my - 6}" text-anchor="${anchor}">${esc(a.name)}<tspan class="tick">${tick}</tspan></text>`);
+    });
+  });
+
+  if (st.clickable === 'branch' && st.activeNode){
+    const node = st.activeNode;
+    node.actions.forEach((a, ai) => {
+      const label = `${g.players[node.player]} chooses ${a.name} at node ${node._badge}`;
+      s.push(`<g class="hit-g" role="button" tabindex="0" data-key="${bKey(r, node._uid, ai)}" aria-pressed="${selected.has(bKey(r,node._uid,ai))}" aria-label="${esc(label)}">` +
+             `<line class="hitline" x1="${X(node)}" y1="${Y(node)}" x2="${X(a.child)}" y2="${Y(a.child)}"></line></g>`);
+    });
+  }
+
+  L.nodes.forEach(node => {
+    const x = X(node), y = Y(node);
+    if (st.activeNode === node || st.ringAll) s.push(`<circle class="node-ring" cx="${x}" cy="${y}" r="12"></circle>`);
+    if (st.placed && st.placed.indexOf(node._uid) >= 0) s.push(`<circle class="node-pick" cx="${x}" cy="${y}" r="13"></circle>`);
+    s.push(`<circle class="node-dot ${node === g.root ? 'open' : 'filled'}" cx="${x}" cy="${y}" r="6"></circle>`);
+    const txt = `${badge(node)} ${esc(g.players[node.player])}`;
+    if (node.lab === 'right') s.push(`<text class="t-player fill-p${node.player}" x="${x + 12}" y="${y - 8}" text-anchor="start">${txt}</text>`);
+    else s.push(`<text class="t-player fill-p${node.player}" x="${x}" y="${y - 15}" text-anchor="middle">${txt}</text>`);
+  });
+
+  L.leaves.forEach(l => {
+    const lt = leafText(l), txt = payoffText(l);
+    const isOutcome = st.gold && l === L.sol[r].outcomeLeaf;
+    if (isOutcome || selected.has(lKey(r, l._uid)))
+      s.push(`<rect class="term-ring" x="${lt.x0 - 8}" y="${lt.ty - 18}" width="${lt.w + 16}" height="26"></rect>`);
+    if (isOutcome)
+      s.push(`<text class="term-tag" x="${lt.x0 + lt.w/2}" y="${lt.nameY + (l.name ? (nameLines(l).length - 1) * NAME_LINE_H + 16 : 2)}" text-anchor="middle">expected outcome</text>`);
+    const tsp = leafPayoffTspans(l, st.dimTo);
+    s.push(`<text class="t-payoff" x="${lt.tx}" y="${lt.ty}" text-anchor="${lt.anchor}">${tsp}</text>`);
+    if (l.name) nameLines(l).forEach((line, li) =>
+      s.push(`<text class="t-outcome" x="${lt.tx}" y="${lt.nameY + li * NAME_LINE_H}" text-anchor="${lt.anchor}">${esc(line)}</text>`));
+    if (st.clickable === 'leaf'){
+      s.push(`<g class="hit-g" role="button" tabindex="0" data-key="${lKey(r, l._uid)}" aria-pressed="${selected.has(lKey(r,l._uid))}" aria-label="${esc('Outcome ' + (l.name ? l.name + ', ' : '') + 'payoffs ' + txt)}">` +
+             `<rect class="hitrect" x="${lt.x0 - 12}" y="${lt.ty - 20}" width="${lt.w + 24}" height="${leafBlockH(l) + 16}" rx="5"></rect></g>`);
+    }
+  });
+
+  if (st.clickable === 'node'){
+    L.nodes.forEach(n => {
+      const picked = st.placed && st.placed.indexOf(n._uid) >= 0;
+      const label = `Node ${n._badge}, ${g.players[n.player]}${picked ? ' — listed; activate to remove' : ' — activate to add to the equilibrium'}`;
+      s.push(`<g class="hit-g" role="button" tabindex="0" data-key="${nKey(n._uid)}" aria-pressed="${picked}" aria-label="${esc(label)}">` +
+             `<circle class="hitcircle" cx="${X(n)}" cy="${Y(n)}" r="20"></circle></g>`);
+    });
+  }
+
+  s.push('</svg>');
+  return s.join('');
+}
+
+// Trees can be wider than the panel. What the student sees first must be the initial
+// node, not whatever sits at the far left, so scroll to center it. Keep whatever
+// position they have scrolled to while they stay on the same game.
+let scrolledFor = null;
+function restoreScroll(){
+  const box = document.getElementById('treeScroll');
+  if (!box) return;
+  const key = game().id;
+  if (scrolledFor === key) return;
+  const centerOn = X(game().root);
+  requestAnimationFrame(() => {
+    const max = box.scrollWidth - box.clientWidth;
+    if (max > 0) box.scrollLeft = Math.max(0, Math.min(max, centerOn - box.clientWidth / 2));
+    scrolledFor = key;
+  });
+}
+
+function renderTrees(states){
+  const g = game(), L = LAY();
+  const many = states.length > 1;
+  document.getElementById('treeWrap').innerHTML = states.map((st,i) =>
+    `<div class="tree-block">` +
+    (many ? `<div class="tree-cap">Equilibrium ${i+1}</div>` : '') +
+    svgFor(st) + `</div>`).join('');
+  restoreScroll();
+  document.getElementById('treeSummary').textContent =
+    `${g.title}. ${g.players.length} players. Payoffs listed in order: ${g.players.join(', ')}. ` +
+    (many ? 'Two game trees are shown, one for each subgame perfect equilibrium. ' : '') +
+    L.badgeOrder.map(n => `Node ${n._badge}: ${g.players[n.player]} chooses among ${n.actions.map(a => a.name).join(', ')}.`).join(' ');
+  attachHits();
+}
+
+function attachHits(){
+  document.querySelectorAll('.hit-g').forEach(el => {
+    const fire = () => onHit(el.dataset.key);
+    el.addEventListener('click', fire);
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){ e.preventDefault(); fire(); }
+    });
+  });
+  if (lastFocusKey){
+    const el = document.querySelector('.hit-g[data-key="' + lastFocusKey + '"]');
+    if (el) el.focus();
+  }
+}
+function onHit(key){
+  if (checked) return;
+  lastFocusKey = key;
+  if (key.charAt(0) === 'n'){
+    const uid = Number(key.slice(2));
+    const i = skelPicks.indexOf(uid);
+    if (i >= 0) skelPicks.splice(i, 1); else skelPicks.push(uid);
+  } else if (selected.has(key)){
+    selected.delete(key);
+  } else if (isAdvanced()){
+    selected.add(key);                       // more than one answer may be right
+  } else {
+    selected = new Set([key]);               // single choice
+  }
+  renderPracticePanel(true);
+}
+
+/* ---------------- skeleton + findings ---------------- */
+function renderSkeleton(picks, filled, show, resolutions){
+  const el = document.getElementById('skeleton');
+  if (!show){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const g = game(), L = LAY();
+  const byUid = new Map(L.nodes.map(n => [n._uid, n]));
+  const many = resolutions.length > 1;
+  let complete = true;
+  const rows = resolutions.map((r, ri) => {
+    const groups = [];
+    picks.forEach(uid => {
+      const n = byUid.get(uid);
+      if (!n) return;
+      if (!groups.length || groups[groups.length-1].player !== n.player) groups.push({ player:n.player, nodes:[] });
+      groups[groups.length-1].nodes.push(n);
+    });
+    const inner = groups.map(grp => grp.nodes.map(n => {
+      const done = filled.has(n._uid);
+      if (!done) complete = false;
+      const slot = done ? `<span class="c${n.player}">${esc(n.actions[CH(n, r)].name)}</span>`
+                        : `<span class="blank">____</span>`;
+      return `<span title="${esc(g.players[n.player])}, node ${n._badge}"><span class="c${n.player}">${badge(n)}</span>&nbsp;${slot}</span>`;
+    }).join('<span class="sep">, </span>')).join('<span class="sep">; </span>');
+    return `<div class="skel-row">` +
+      (many ? `<div class="skel-row-label">Equilibrium ${ri+1}</div>` : '') +
+      `<div class="skel-body">(${inner || '<span class="blank">…</span>'})</div></div>`;
+  }).join('');
+  if (picks.length !== L.nodes.length) complete = false;
+  el.className = 'skeleton' + (complete ? ' complete' : '');
+  el.innerHTML = `<div class="skel-label">Subgame perfect equilibri${many ? 'a' : 'um'}</div>` + rows;
+  el.style.display = 'block';
+}
+
+function renderFindings(resolutions){
+  const g = game(), L = LAY(), el = document.getElementById('findings');
+  const lines = [];
+  if (solvedFindings.has('outcome')){
+    const same = resolutions.length > 1 && L.sol[resolutions[0]].outcomeLeaf === L.sol[resolutions[1]].outcomeLeaf;
+    const rs = same ? [resolutions[0]] : resolutions;
+    rs.forEach((r, i) => {
+      const l = L.sol[r].outcomeLeaf;
+      const tag = (rs.length > 1) ? ` (equilibrium ${i+1})` : '';
+      lines.push(`<div><span class="k">Expected outcome${tag}:</span> ${l.name ? esc(l.name) + ' — ' : ''}${esc(pathLabel(r))}</div>`);
+      lines.push(`<div><span class="k">Payoffs${tag}:</span> ${g.players.map((p,j) => `${esc(p)}: ${payoffHtml(l.payoffs[j].t)}`).join(', ')}</div>`);
+    });
+    if (same) lines.push(`<div><span class="k">Note:</span> both equilibria reach the same outcome.</div>`);
+  }
+  if (!lines.length){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.innerHTML = lines.join('');
+  el.style.display = 'block';
+}
+
+/* ---------------- shared prose ---------------- */
+function branchClause(node, ai, r, pronoun){
+  const a = node.actions[ai], v = branchValue(node, ai, r);
+  return a.child.actions
+    ? `If ${pronoun} chooses <b>${esc(a.name)}</b>, ${pronoun} can look down the game tree (follow the bold lines) and see that the payoff will be <span class="pay">${v}</span>`
+    : `If ${pronoun} chooses <b>${esc(a.name)}</b>, the payoff is <span class="pay">${v}</span>`;
+}
+// Narrates the move from the previous step to this one. Deliberately says nothing about
+// why this node comes next: several sequences are valid backward induction, and the tool
+// simply walks the student through one of them.
+function stepOpening(node, prev, imperative){
+  if (!prev) return (imperative ? 'Start' : 'We start') + ' at the end of the game tree.';
+  if (node.actions.some(a => a.child === prev)){
+    const initial = node === game().root ? ', which in this game is the initial node' : '';
+    return (imperative ? 'Move' : 'Now we move') + ` backward to the choice node prior to this one${initial}.`;
+  }
+  return imperative ? 'Now move to the next choice node.' : 'Now we turn to the next choice node.';
+}
+// used at an indifferent node, where "chooses the action with the highest payoff" would
+// contradict the very thing the step is about
+function nodeLeadCompare(node, prev){
+  const who = esc(game().players[node.player]);
+  const body = isFinalNode(node)
+    ? `Node ${badge(node)} is a final choice node — nothing follows it — so <b>${who}</b> compares the payoff on each branch.`
+    : `At node ${badge(node)}, <b>${who}</b> must make a choice.`;
+  return stepOpening(node, prev, false) + ' ' + body;
+}
+function nodeLead(node, prev){
+  const who = esc(game().players[node.player]);
+  const body = isFinalNode(node)
+    ? `Node ${badge(node)} is a final choice node — nothing follows it — so <b>${who}</b> simply chooses the action with the highest payoff.`
+    : `At node ${badge(node)}, <b>${who}</b> must make a choice.`;
+  return stepOpening(node, prev, false) + ' ' + body;
+}
+// the comparison at a node, written out, under one resolution
+function inductionBody(node, r){
+  const who = esc(game().players[node.player]);
+  const clauses = node.actions.map((a,i) => branchClause(node, i, r, 'this player')).join('. ') + '.';
+  const why = node.hint ? node.hint
+    : `<span class="pay">${branchValue(node, CH(node, r), r)}</span> is the highest payoff available, so ${who} chooses <b>${esc(node.actions[CH(node, r)].name)}</b>.`;
+  return clauses + ' ' + why;
+}
+
+/* ---------------- guided ---------------- */
+function guidedTotal(){ return LAY().biOrder.length + 3; }  // intro, skeleton, K steps, outcome, equilibria
+// Two trees appear once the indifferent node has been reached.
+function visResGuided(step){
+  const L = LAY();
+  if (!L.tieNode) return [0];
+  return step >= 2 + L.tieIdx ? [0,1] : [0];
+}
+
+function guidedStates(){
+  const L = LAY(), K = L.biOrder.length;
+  return visResGuided(guidedStep).map(r => {
+    const st = { r, marked:new Set(), activeNode:null, clickable:null, gold:false, dimTo:null, placed:null, ringAll:false };
+    if (guidedStep === 1) st.ringAll = true;
+    else if (guidedStep >= 2 && guidedStep <= K + 1){
+      for (let i = 0; i < guidedStep - 1; i++) st.marked.add(L.biOrder[i]._uid);
+      st.activeNode = L.biOrder[guidedStep-2];
+      st.dimTo = st.activeNode.player;
+    } else if (guidedStep > K + 1){
+      L.biOrder.forEach(n => st.marked.add(n._uid));
+      st.gold = true;
+    }
+    return st;
+  });
+}
+
+/* ------------------------------------------------------------
+   Bringing a card into view, and getting back
+
+   See teaching-tools-house-style.md, the stacked-layout reveal rule and its
+   long-column extension. This column holds the legend, the tree, the skeleton
+   and the findings, so the thing a step is about can sit below the fold on a
+   laptop and above it on a phone. Guards, in order: nothing moves when the
+   columns sit side by side; nothing moves when the target is already wholly on
+   screen; and nothing moves when it is taller than the viewport with its top in
+   view and most of the screen given over to it -- which is the common case for
+   a game tree, so without that guard every settled node would nudge the view.
+   Focus is left alone; the step text carries the same content in prose.
+
+   Unlike the other tools here, the steps are generated per game rather than
+   declared in a table, so the targets are derived from the same step arithmetic
+   the renderer uses: step 1 puts up the skeleton, the K steps after it settle
+   one choice node each, and the last two fill the findings.
+   ------------------------------------------------------------ */
+const CARD_NAMES = {
+  treeWrap: 'the game tree',
+  skeleton: 'the equilibrium skeleton',
+  findings: 'the findings box'
+};
+
+function stacked(){
+  const tc = document.querySelector('.tree-col'), pc = document.querySelector('.panel-col');
+  return !!(tc && pc) && tc.offsetTop !== pc.offsetTop;
+}
+
+function bringIntoView(id, forced){
+  const el = document.getElementById(id);
+  if(!el || el.style.display === 'none') return;
+  if(!forced && !stacked()) return;
+  requestAnimationFrame(() => {
+    const box = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const seen = Math.min(box.bottom, vh) - Math.max(box.top, 0);
+    if(!forced && box.top >= 0 && (box.bottom <= vh || seen >= vh * 0.6)) return;
+    el.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+  });
+}
+
+function guidedCards(step, K){
+  const look = [], fresh = [];
+  if(step === 0){
+    look.push('treeWrap');                       // opening render; nothing has changed yet
+  } else if(step === 1){
+    look.push('treeWrap', 'skeleton');
+    fresh.push('skeleton');                      // the skeleton appears here
+  } else if(step <= K + 1){
+    look.push('treeWrap', 'skeleton');
+    fresh.push('treeWrap');                      // a choice node is settled on the tree
+  } else {
+    look.push('findings');
+    fresh.push('findings');                      // outcome, then the equilibria
+  }
+  return { look, fresh };
+}
+
+/* Rendered into the step text rather than beside it, so the live region
+   announces the pointer along with the step. */
+function renderLook(targets){
+  if(!targets || !targets.length) return;
+  const host = document.getElementById('stepText');
+  const row = document.createElement('div');
+  row.className = 'look';
+  const lead = document.createElement('span');
+  lead.className = 'look-lead'; lead.textContent = 'Look at';
+  row.appendChild(lead);
+  targets.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'look-btn'; b.type = 'button';
+    b.textContent = CARD_NAMES[id];
+    b.setAttribute('aria-label', 'Go to ' + CARD_NAMES[id]);
+    b.addEventListener('click', () => bringIntoView(id, true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+
+/* Following a pointer can leave the step text and the Next control off screen.
+   Shown only while the layout is stacked and the panel's controls are actually
+   out of sight, so it never appears beside a pinned panel. */
+const backBtn = document.createElement('button');
+backBtn.className = 'back-to-step'; backBtn.type = 'button'; backBtn.hidden = true;
+backBtn.addEventListener('click', () => {
+  document.querySelector('.panel-col').scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'end'
+  });
+});
+document.body.appendChild(backBtn);
+
+function syncBack(){
+  const pc = document.getElementById('panelControls');
+  if(!pc || pc.children.length === 0 || !stacked()){ backBtn.hidden = true; return; }
+  const box = pc.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top >= 0 && box.bottom <= vh;
+  backBtn.hidden = inSight;
+  if(!inSight) backBtn.textContent = (mode === 'guided') ? 'Back to step ' + (guidedStep + 1) : 'Back to the task';
+}
+let backTicking = false;
+function queueSyncBack(){
+  if(backTicking) return;
+  backTicking = true;
+  requestAnimationFrame(() => { backTicking = false; syncBack(); });
+}
+window.addEventListener('scroll', queueSyncBack, {passive:true});
+window.addEventListener('resize', queueSyncBack);
+
+function guidedInfo(){
+  const g = game(), L = LAY(), K = L.biOrder.length, rs = visResGuided(guidedStep);
+
+  if (guidedStep === 0){
+    return { label:'Start here', text:
+      `This game tree has <b>${K}</b> choice node${K>1?'s':''}, numbered ${L.badgeOrder.map(n => badge(n)).join(' ')} going down the tree. ` +
+      `The payoffs at each outcome are written <b>${g.players.join(', then ')}</b>, because that is the order in which the players move. ` +
+      `We solve the game by <b>backward induction</b>: we start at the end of the game tree and work backward, ` +
+      `settling one choice node at a time until we reach the initial node.` +
+      (isAdvanced() ? ` Watch for a choice node where the branches leave the player making the choice with exactly the same payoff.` : '') };
+  }
+
+  if (guidedStep === 1){
+    const owns = g.players.map((p,i) => {
+      const mine = L.badgeOrder.filter(n => n.player === i);
+      return mine.length ? `<b>${esc(p)}</b> chooses at node${mine.length>1?'s':''} ${joinAnd(mine.map(n => badge(n)))}` : null;
+    }).filter(Boolean);
+    return { label:'The equilibrium skeleton', text:
+      `Before solving anything, we can write down the <b>shape</b> of the equilibrium from the tree alone. ` +
+      `A subgame perfect equilibrium lists one choice for <b>every</b> choice node in the game, and there ${K>1?'are':'is'} ${K}. ` +
+      `By convention we list all of ${esc(g.players[0])}’s choices first, in the order those nodes appear going down the tree, ` +
+      `then all of ${esc(g.players[1])}’s` + (g.players[2] ? `, then all of ${esc(g.players[2])}’s` : '') +
+      `, separating the players with a semicolon and placing everything within parentheses. Here ${joinAnd(owns)}. ` +
+      `That gives the skeleton shown below the tree, and we’ll fill in one blank each time we settle a choice node. ` +
+      `Notice that every choice node gets a blank even though we don’t yet know which nodes the game will actually reach.` };
+  }
+
+  if (guidedStep <= K + 1){
+    const node = L.biOrder[guidedStep-2];
+    const prev = guidedStep >= 3 ? L.biOrder[guidedStep-3] : null;
+    const who = esc(g.players[node.player]);
+    const lead = nodeLead(node, prev);
+
+    if (node === L.tieNode){
+      const names = L.tieBest.map(i => `<b>${esc(node.actions[i].name)}</b>`);
+      const clauses = node.actions.map((a,i) => branchClause(node, i, 0, 'this player')).join('. ') + '.';
+      return { label:`Step ${guidedStep-1} of ${K} — node ${badge(node)}`, text:
+        `${nodeLeadCompare(node, prev)} ${clauses} These payoffs are <b>the same</b>: ${who} is <b>indifferent</b> between ${joinAnd(names)}. ` +
+        `Nothing in the game tells us which one ${who} takes, and each is consistent with every player doing as well as possible, ` +
+        `so we cannot settle this node the way we settled the others — we have to carry both possibilities forward. ` +
+        `From here there are <b>two</b> game trees and <b>two</b> subgame perfect equilibria, and the skeleton splits in two to match.` };
+    }
+
+    if (rs.length === 1){
+      return { label:`Step ${guidedStep-1} of ${K} — node ${badge(node)}`, text:
+        `${lead} ${inductionBody(node, 0)} We make the <b>${esc(node.actions[CH(node,0)].name)}</b> branch at this choice node bold, and node ${badge(node)}’s blank in the skeleton is now filled.` };
+    }
+    const b0 = inductionBody(node, 0), b1 = inductionBody(node, 1);
+    return { label:`Step ${guidedStep-1} of ${K} — node ${badge(node)}`, text:
+      b0 === b1
+        ? `${lead} The comparison comes out the same in both trees. ${b0} We make that branch bold in each.`
+        : `${lead} The two trees now diverge. <b>In equilibrium 1:</b> ${b0} <b>In equilibrium 2:</b> ${b1}` };
+  }
+
+  if (guidedStep === K + 2){
+    const describe = r => {
+      const l = L.sol[r].outcomeLeaf;
+      return `<b>${esc(pathLabel(r))}</b>, ending at ${l.name ? '<b>' + esc(l.name) + '</b>' : 'the outcome there'} with payoffs of ` +
+        g.players.map((p,i) => `<span class="pay">${payoffHtml(l.payoffs[i].t)}</span> for ${esc(p)}`).join(' and ');
+    };
+    if (rs.length === 1){
+      return { label:'Expected outcome and payoffs', text:
+        `We’ve now solved the game by backward induction. To find the expected outcome we start at the beginning of the game and follow the bold lines ` +
+        `until we reach one of the game’s possible outcomes. The path we travel along is the <b>equilibrium path</b>: ${describe(0)}.` };
+    }
+    const same = L.sol[0].outcomeLeaf === L.sol[1].outcomeLeaf;
+    return { label:'Expected outcomes and payoffs', text:
+      `We follow the bold lines from the beginning of the game in each tree. <b>Equilibrium 1:</b> ${describe(0)}. <b>Equilibrium 2:</b> ${describe(1)}. ` +
+      (same
+        ? `The two equilibrium paths reach the <b>same</b> outcome — the tie changes only a choice at a node the game never reaches.`
+        : `The two equilibria reach <b>different</b> outcomes, so the tie at node ${badge(L.tieNode)} decides what actually happens.`) };
+  }
+
+  if (rs.length > 1){
+    const tie = L.tieNode, who = esc(g.players[tie.player]);
+    const same = L.sol[0].outcomeLeaf === L.sol[1].outcomeLeaf;
+    // does anything other than the tied node itself come out differently?
+    const elsewhere = L.badgeOrder.some(n => n !== tie && CH(n, 0) !== CH(n, 1));
+    let close;
+    if (same){
+      close = `Both reach the same expected outcome. Two equilibria need not mean two outcomes — here the difference sits at a choice node the game never reaches, and it is invisible in anything we could observe.`;
+    } else {
+      close = `They lead to different outcomes, so the model predicts a <b>set</b> of possible outcomes rather than a single one.`;
+      // Only add more when there is something to add. With the tie at the initial node
+      // the two equilibria above already show everything, and a gloss just restates them.
+      if (tie !== g.root)
+        close += ` The payoffs simply do not settle what ${who} does at node ${badge(tie)}, ` + (elsewhere
+          ? `and the players who move before ${who} have to anticipate it — their own choices are not the same in the two equilibria.`
+          : `and every other choice in the game is the same in both equilibria: the whole difference in outcome comes from that one node.`);
+    }
+    return { label:'Subgame perfect equilibria', text:
+      `There are two subgame perfect equilibria, one for each way ${who} could break the tie at node ${badge(tie)}:<br>` +
+      `<span class="pay">${esc(speString(0))}</span><br><span class="pay">${esc(speString(1))}</span><br><br>` + close };
+  }
+
+  const off = L.badgeOrder.filter(n => !L.sol[0].onPath.has(n._uid));
+  let text = `Every blank in the skeleton is now filled, one for each of the ${K} choice node${K>1?'s':''}, and each taken from a bold branch:<br>` +
+    `<span class="pay">${esc(speString(0))}</span>`;
+  if (off.length){
+    text += `<br><br>Node${off.length>1?'s':''} ${joinAnd(off.map(n => badge(n)))} ${off.length>1?'are':'is'} never actually reached when the game is played. ` +
+      `We list the choice there anyway: a subgame perfect equilibrium always includes the choices of each actor at all the choice nodes, even ones that are never reached. ` +
+      `${esc(g.players[g.root.player])} chooses <b>${esc(g.root.actions[CH(g.root,0)].name)}</b> at the initial node precisely because of what would happen at node ${badge(off[0])} otherwise. ` +
+      `Choices that aren’t taken are often as important to understanding the outcome as the choices we actually observe.`;
+  }
+  return { label:'Subgame perfect equilibrium', text };
+}
+
+function renderGuidedPanel(){
+  const L = LAY(), K = L.biOrder.length, total = guidedTotal();
+  renderTrees(guidedStates());
+  const info = guidedInfo();
+  document.getElementById('stepLabel').innerHTML = info.label;
+  document.getElementById('stepText').innerHTML = info.text;
+  document.getElementById('resultNote').className = 'result-note';
+  document.getElementById('resultNote').innerHTML = '';
+
+  const filled = new Set(L.biOrder.slice(0, Math.max(0, Math.min(K, guidedStep - 1))).map(n => n._uid));
+  renderSkeleton(skeletonOrder().map(n => n._uid), filled, guidedStep >= 1, visResGuided(guidedStep));
+
+  solvedFindings = new Set();
+  if (guidedStep >= K + 2) solvedFindings.add('outcome');
+  renderFindings(visResGuided(guidedStep));
+
+  const cards = guidedCards(guidedStep, K);
+  renderLook(cards.look);
+  if (cards.fresh.length) bringIntoView(cards.fresh[0], false);
+  syncBack();
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  for (let i = 0; i <= total; i++){
+    const d = document.createElement('span');
+    if (i < guidedStep) d.classList.add('done');
+    if (i === guidedStep) d.classList.add('current');
+    dots.appendChild(d);
+  }
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+  const back = document.createElement('button');
+  back.className = 'btn'; back.type = 'button'; back.textContent = 'Back';
+  back.disabled = guidedStep === 0;
+  back.onclick = () => { guidedStep = Math.max(0, guidedStep-1); renderGuidedPanel(); };
+  const next = document.createElement('button');
+  next.className = 'btn primary'; next.type = 'button';
+  next.textContent = guidedStep === total ? 'Restart' : (guidedStep === 0 ? 'Begin' : 'Next');
+  next.onclick = () => { guidedStep = guidedStep === total ? 0 : Math.min(total, guidedStep+1); renderGuidedPanel(); };
+  controls.appendChild(back); controls.appendChild(next);
+}
+
+/* ---------------- practice ---------------- */
+function visResPractice(){
+  const L = LAY();
+  if (!L.tieNode) return [0];
+  const tieTask = 1 + L.tieIdx;
+  if (taskIdx > tieTask) return [0,1];
+  if (taskIdx === tieTask && checked) return [0,1];
+  return [0];
+}
+
+function tasks(){
+  const g = game(), L = LAY(), out = [], rs = visResPractice();
+  out.push({ type:'skeleton',
+    prompt:`Start by building the <b>shape</b> of the equilibrium from the tree alone. It lists one choice for every choice node, ` +
+      `with all of <b>${esc(g.players[0])}</b>’s choices first, in the order those nodes appear going down the tree, then <b>${esc(g.players[1])}</b>’s` +
+      (g.players[2] ? `, then <b>${esc(g.players[2])}</b>’s` : '') +
+      `. Click the choice nodes on the tree in that order. Click a node again to take it back out.` });
+
+  L.biOrder.forEach((node, i) => {
+    const who = esc(g.players[node.player]);
+    const body = isFinalNode(node)
+      ? `Node ${badge(node)} is a final choice node — nothing follows it.`
+      : `At node ${badge(node)}, look down the game tree and follow the bold lines to see where each branch leads.`;
+    const lead = stepOpening(node, i > 0 ? L.biOrder[i-1] : null, true) + ' ' + body;
+    const ask = isAdvanced()
+      ? `${rs.length > 1 ? 'In each tree, click' : 'Click'} <b>every</b> branch that gives <b>${who}</b> the highest payoff here, then check your answer.`
+      : `Click the branch that <b>${who}</b> will choose, then check your answer.`;
+    const correct = new Set();
+    rs.forEach(r => bestActions(node, r).forEach(ai => correct.add(bKey(r, node._uid, ai))));
+    out.push({ type:'branch', node, prompt:`${lead} ${ask}`, correct });
+  });
+
+  const outCorrect = new Set();
+  rs.forEach(r => outCorrect.add(lKey(r, L.sol[r].outcomeLeaf._uid)));
+  out.push({ type:'outcome', correct:outCorrect,
+    prompt:`Start at the beginning of the game and follow the bold lines until you reach one of the game’s possible outcomes. ` +
+      (rs.length > 1 ? `Click that outcome in <b>each</b> tree.` : `Click that outcome.`) });
+  return out;
+}
+
+function practiceState(){
+  const L = LAY(), t = tasks()[taskIdx];
+  return visResPractice().map(r => {
+    const st = { r, marked:new Set(lockedNodes), activeNode:null, clickable:null, gold:false, dimTo:null, placed:null, ringAll:false };
+    if (t.type === 'skeleton'){
+      st.placed = skelPicks;
+      if (!checked){ st.clickable = 'node'; st.ringAll = true; }
+    } else if (t.type === 'branch'){
+      st.activeNode = t.node;
+      st.dimTo = t.node.player;
+      if (checked) st.marked.add(t.node._uid); else st.clickable = 'branch';
+    } else {
+      L.biOrder.forEach(n => st.marked.add(n._uid));
+      if (checked) st.gold = true; else st.clickable = 'leaf';
+    }
+    return st;
+  });
+}
+
+function sameSet(a, b){
+  if (a.size !== b.size) return false;
+  for (const k of a) if (!b.has(k)) return false;
+  return true;
+}
+
+function renderPracticePanel(keepNote){
+  const ts = tasks(), t = ts[taskIdx], rs = visResPractice();
+  renderTrees(practiceState());
+  renderSkeleton(taskIdx === 0 ? skelPicks : skeletonOrder().map(n => n._uid), new Set(lockedNodes), true, rs);
+  renderFindings(rs);
+
+  document.getElementById('stepLabel').innerHTML = `Practice &middot; Task ${taskIdx+1} of ${ts.length}`;
+  document.getElementById('stepText').innerHTML = t.prompt;
+
+  if (!keepNote){
+    const note = document.getElementById('resultNote');
+    note.className = 'result-note'; note.innerHTML = '';
+  }
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  ts.forEach((_,i) => {
+    const d = document.createElement('span');
+    if (i < taskIdx) d.classList.add('done');
+    if (i === taskIdx) d.classList.add('current');
+    dots.appendChild(d);
+  });
+
+  renderPracticeControls();
+}
+
+function renderPracticeControls(){
+  const ts = tasks(), t = ts[taskIdx];
+  const note = document.getElementById('resultNote');
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+
+  const ready = t.type === 'skeleton' ? skelPicks.length === LAY().nodes.length : selected.size > 0;
+
+  const check = document.createElement('button');
+  check.className = 'btn primary'; check.type = 'button'; check.textContent = 'Check answer';
+  check.disabled = checked || !ready;
+  check.onclick = () => {
+    const g = game(), L = LAY();
+
+    if (t.type === 'skeleton'){
+      const want = skeletonOrder().map(n => n._uid);
+      if (want.length === skelPicks.length && want.every((u,i) => u === skelPicks[i])){
+        checked = true;
+        note.className = 'result-note show ok';
+        note.innerHTML = 'Correct. Every choice node has a blank waiting for it. Now we fill them in.';
+      } else {
+        note.className = 'result-note show no';
+        note.innerHTML = `That’s not the order the equilibrium lists them in — all of ${esc(g.players[0])}’s choices come first, ` +
+          `in the order those nodes appear going down the tree, then ${esc(g.players[1])}’s. Try the task again.`;
+        skelPicks = [];
+      }
+      renderPracticePanel(true);
+      return;
+    }
+
+    if (sameSet(selected, t.correct)){
+      checked = true;
+      note.className = 'result-note show ok';
+      if (t.type === 'branch'){
+        lockedNodes.add(t.node._uid);
+        justSolved = new Set(t.correct);
+        note.innerHTML = (t.node === L.tieNode)
+          ? `Correct — the payoffs are equal, so ${esc(g.players[t.node.player])} is <b>indifferent</b> here. Both choices are consistent with rational play, ` +
+            `so the game has two subgame perfect equilibria and we carry both forward from here.`
+          : 'Correct.';
+      } else {
+        solvedFindings.add('outcome');
+        const rs = visResPractice();
+        if (rs.length > 1){
+          const same = L.sol[0].outcomeLeaf === L.sol[1].outcomeLeaf;
+          note.innerHTML = 'Correct. Both skeletons below the tree are now complete — those are the two subgame perfect equilibria. ' +
+            (same ? 'They reach the same outcome; the difference sits at a choice node the game never reaches.'
+                  : 'They reach different outcomes, so the model predicts a set of possible outcomes rather than one.');
+        } else {
+          const off = L.badgeOrder.filter(n => !L.sol[0].onPath.has(n._uid));
+          note.innerHTML = 'Correct. The skeleton below the tree is now complete — that is the subgame perfect equilibrium.' +
+            (off.length ? ` Notice that node${off.length>1?'s':''} ${joinAnd(off.map(n => badge(n)))} ${off.length>1?'are':'is'} never actually reached, ` +
+               `but the equilibrium still lists a choice there — and that choice is why ${esc(g.players[g.root.player])} chooses ` +
+               `<b>${esc(g.root.actions[CH(g.root,0)].name)}</b> at the initial node.` : '');
+        }
+      }
+    } else {
+      note.className = 'result-note show no';
+      if (t.type === 'branch'){
+        const who = esc(g.players[t.node.player]);
+        note.innerHTML = isAdvanced()
+          ? `Not quite — compare ${who}’s payoff at the end of every branch and select each branch that reaches the highest one. Try the task again.`
+          : (isFinalNode(t.node)
+              ? `That’s not the branch ${who} would choose — nothing follows this node, so compare ${who}’s payoff on each branch and take the highest. Try the task again.`
+              : `That’s not the branch ${who} would choose — look down the game tree, follow the bold lines, and compare the payoff ${who} ends up with on each branch. Try the task again.`);
+      } else {
+        note.innerHTML = 'That’s not where the game ends up — start at the beginning of the game and follow only the bold lines' +
+          (visResPractice().length > 1 ? ', in each tree' : '') + '. Try the task again.';
+      }
+    }
+    selected = new Set();
+    lastFocusKey = null;
+    renderPracticePanel(true);
+  };
+
+  const next = document.createElement('button');
+  next.className = 'btn'; next.type = 'button';
+  next.textContent = taskIdx === ts.length - 1 ? 'Restart' : 'Next task';
+  next.disabled = !checked;
+  next.onclick = () => {
+    taskIdx = taskIdx === ts.length - 1 ? 0 : taskIdx + 1;
+    selected = new Set(); checked = false; justSolved = new Set(); lastFocusKey = null;
+    if (taskIdx === 0){ lockedNodes = new Set(); solvedFindings = new Set(); skelPicks = []; }
+    renderPracticePanel();
+  };
+
+  controls.appendChild(check); controls.appendChild(next);
+}
+
+/* ---------------- boot ---------------- */
+function renderAll(){
+  renderPicker();
+  renderLegend();
+  if (mode === 'guided') renderGuidedPanel();
+  else renderPracticePanel();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+    tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+    mode = tab.dataset.mode;
+    resetAll();
+    renderAll();
+  };
+});
+
+renderAll();
+
+</script>
+</body>
+</html>

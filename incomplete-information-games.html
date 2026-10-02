@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solving incomplete information games</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: player identity, in order of movement after Nature */
+    --p0:#009E73;   /* bluish green   — the player who doesn't know the world */
+    --p1:#CC79A7;   /* reddish purple — the player whose type Nature picks */
+
+    /* semantic: correct / incorrect — messaging surfaces only, never on the tree */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state only */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --tree-line:#8A8A8A;
+    --node-ink:#141414;
+
+    /* ink sitting on a filled surface — matched to the fill, not the element */
+    --on-accent:#FFFFFF;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --p0:#3FCFA0;
+    --p1:#E29FC4;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --tree-line:#7E7E7E;
+    --node-ink:#E8E8E8;
+
+    --on-accent:#0A1E28;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1280px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker-note{font-size:12px; color:var(--secondary); margin:0 0 24px; line-height:1.6;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 16px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .tree-col{flex:1 1 560px; min-width:320px;}
+  .card{background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:24px 16px;}
+  .card + .card{margin-top:16px;}
+  .card-head{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--secondary); margin-bottom:8px; flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:4px;}
+  .swatch{width:11px; height:11px; border-radius:2px; display:inline-block;}
+  .swatch.nature{background:var(--panel-bg); border:2px solid var(--node-ink); border-radius:50%;}
+  .legend-note{font-size:12px; color:var(--secondary); margin:0 0 16px; line-height:1.6;}
+  .game-note{font-size:12.5px; color:var(--secondary); margin:16px 0 0; line-height:1.7;}
+  .game-note b{font-weight:700; color:var(--ink);}
+
+  .tree-scroll{overflow-x:auto; padding-bottom:8px;}
+  /* "safe center" keeps the overflowing left edge reachable when a tree is wider than
+     the panel; plain "center" would make it unscrollable. */
+  .tree-block{display:flex; flex-direction:column; align-items:center; align-items:safe center;}
+  .tree-block > svg{flex:0 0 auto;}
+  #treeWrap.sep{display:flex; flex-wrap:wrap; justify-content:space-around; gap:24px;}
+  #treeWrap.sep .tree-block{flex:0 0 auto;}
+  .tree-cap{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px; align-self:flex-start;}
+
+  svg.tree{display:block;}
+  svg.tree text{font-family:var(--font-data);}
+  .t-player{font-size:13px; font-weight:700;}
+  .t-nature{font-size:13px; font-weight:700; fill:var(--secondary);}
+  .t-action{font-size:12px; font-style:italic; fill:var(--secondary);}
+  .t-payoff{font-size:19px; font-weight:700;}
+  .t-outcome{font-size:11px; fill:var(--secondary);}
+  .fill-p0{fill:var(--p0);} .fill-p1{fill:var(--p1);}
+  .fill-ink{fill:var(--ink);} .fill-dim{fill:var(--deemph); font-weight:400;}
+
+  .br{stroke:var(--tree-line); stroke-width:1.5; fill:none;}
+  .br.on{stroke-width:5; stroke-linecap:round;}
+  .br.on.stroke-p0{stroke:var(--p0);} .br.on.stroke-p1{stroke:var(--p1);}
+  .br.nat{stroke:var(--node-ink); stroke-width:5; stroke-linecap:round;}
+  .br.gold, .br.pending{stroke:var(--gold-ui); stroke-width:5; stroke-linecap:round;}
+  .infoset{stroke:var(--tree-line); stroke-width:1.5; stroke-dasharray:6 5; fill:none;}
+
+  .node-dot{stroke:var(--node-ink); stroke-width:2;}
+  .node-dot.filled{fill:var(--node-ink);}
+  .node-dot.open{fill:var(--panel-bg);}
+  .node-ring{fill:none; stroke:var(--accent); stroke-width:2; stroke-dasharray:3 3;}
+  .node-pick{fill:none; stroke:var(--gold-ui); stroke-width:3;}
+  .term-ring{fill:none; stroke:var(--gold-ui); stroke-width:3;}
+  .term-tag{font-size:10px; font-family:var(--font-body); font-weight:700; fill:var(--gold-text); letter-spacing:.04em;}
+
+  .hit-g{cursor:pointer;}
+  .hit-g .hitline{stroke:transparent; stroke-width:22;}
+  .hit-g .hitrect{fill:transparent;}
+  .hit-g .hitcircle{fill:transparent;}
+  .hit-g:hover .hitline{stroke:var(--secondary); stroke-opacity:.22;}
+  .hit-g:hover .hitrect{fill:var(--secondary); fill-opacity:.10;}
+  .hit-g:hover .hitcircle{fill:var(--secondary); fill-opacity:.14;}
+  .hit-g:focus{outline:none;}
+  .hit-g:focus-visible .hitline{stroke:var(--accent); stroke-opacity:.4;}
+  .hit-g:focus-visible .hitrect{fill:var(--accent); fill-opacity:.18;}
+  .hit-g:focus-visible .hitcircle{fill:var(--accent); fill-opacity:.22;}
+  .tick{font-size:12px; font-family:var(--font-body); fill:var(--correct);}
+
+  /* ---- expected-payoff worksheet ---- */
+  .ws-row{font-family:var(--font-data); font-size:14px; line-height:1.9; padding:8px 0; border-top:1px solid var(--border);}
+  .ws-row:first-of-type{border-top:none;}
+  .ws-name{font-family:var(--font-body); font-weight:700;}
+  .ws-row .blank{color:var(--hint); letter-spacing:.08em;}
+  .ws-row .v{color:var(--p0); font-weight:700;}
+  .ws-row .res{font-weight:700;}
+  .ws-crit{margin-top:8px; padding:8px 16px; border:1px solid var(--gold-ui); border-radius:8px; font-size:14px; line-height:1.9;}
+  .ws-crit .k{font-weight:700; color:var(--gold-text); margin-right:4px;}
+  .ws-crit .alg{font-family:var(--font-data); font-weight:700;}
+
+  /* ---- decision rule ---- */
+  .rule-scale{position:relative; height:40px; margin:0 8px;}
+  .rule-tick{position:absolute; bottom:0; transform:translateX(-50%); font-family:var(--font-data); font-size:12px; color:var(--secondary); white-space:nowrap;}
+  .rule-tick.cut{font-weight:700; color:var(--ink); font-size:13px;}
+  .rule-belief{position:absolute; top:0; transform:translateX(-50%); font-size:11px; font-weight:700; color:var(--gold-text); white-space:nowrap;}
+  .rule-bar{display:flex; margin:4px 8px 0; border:2px solid var(--node-ink); border-radius:4px; min-height:48px; position:relative;}
+  .seg{display:flex; align-items:center; justify-content:center; text-align:center; padding:8px 4px; font-size:12.5px; font-weight:700; line-height:1.3; color:var(--ink);}
+  .seg + .seg{border-left:2px solid var(--node-ink);}
+  .seg.alt{background:repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--border) 70%, transparent) 8px 10px);}
+  .rule-mark{position:absolute; top:-8px; bottom:-8px; width:0; border-left:3px solid var(--gold-ui); transform:translateX(-1px);}
+  .rule-cap{font-size:13px; line-height:1.6; margin:16px 0 0; color:var(--ink);}
+
+  .findings{font-size:14px; color:var(--ink);}
+  .findings div{margin:4px 0; line-height:1.6;}
+  .findings .k{font-weight:700; color:var(--gold-text); margin-right:4px;}
+  .findings .pay{font-family:var(--font-data); font-weight:700;}
+
+  .panel-col{flex:0 1 336px; min-width:280px;}
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:300px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.65; flex:1; color:var(--ink);}
+  .panel .step-text .pay{font-family:var(--font-data); font-weight:700;}
+  .panel .step-text .alg{display:block; font-family:var(--font-data); font-weight:700; margin:8px 0; line-height:1.8;}
+
+  .opts{display:flex; flex-direction:column; gap:8px; margin-top:16px;}
+  .opt{
+    font-family:var(--font-body); font-size:14px; text-align:left;
+    padding:8px 16px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer; line-height:1.5;
+  }
+  .opt.num{font-family:var(--font-data); font-weight:700;}
+  .opt:hover{border-color:var(--accent);}
+  .opt[aria-pressed="true"]{border-width:2px; border-color:var(--gold-ui); padding:7px 15px;}
+  .opt:disabled{cursor:default;}
+
+  /* ---- "look at" pointers ---- */
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--secondary);}
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  /* ---- back to the panel ---- */
+  .back-to-step{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:var(--on-accent);
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  .back-to-step[hidden]{display:none;}
+
+  /* Breathing room above anything scrolled into view. */
+  #treeCard, #worksheet, #ruleCard, #findingsCard{scroll-margin-top:8px;}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:4px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:4px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  /* Side by side, the panel stays in view while the cards scroll beside it, so the
+     step text can always be read alongside whatever the step changed. */
+  @media (min-width: 960px){
+    .panel-col{position:sticky; top:16px; align-self:flex-start;}
+    .panel{max-height:calc(100vh - 32px); overflow-y:auto;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Solving incomplete information games</h1>
+      <p class="lede">In a game of incomplete information, one player doesn&rsquo;t know which of two worlds Nature has chosen. We solve it in four steps: write out a separate game for each world, solve each one by backward induction, connect them with a dashed line to show the uncertainty, and compare the uncertain player&rsquo;s expected payoffs to find the critical probability.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div id="pickers"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div class="layout">
+    <div class="tree-col">
+      <div class="card" id="treeCard">
+        <div class="legend" id="legend"></div>
+        <p class="legend-note" id="legendNote"></p>
+        <div class="tree-scroll" id="treeScroll">
+          <div id="treeWrap"></div>
+        </div>
+        <p class="sr-only" id="treeSummary"></p>
+        <p class="game-note" id="gameNote"></p>
+      </div>
+      <div class="card" id="worksheet" style="display:none;"></div>
+      <div class="card" id="ruleCard" style="display:none;"></div>
+      <div class="card" id="findingsCard" style="display:none;">
+        <div class="card-head">Findings</div>
+        <div class="findings" id="findings"></div>
+      </div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div id="optsHost"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   Game data and pure solver. No DOM here, so the audit script can
+   load this file in node and check every game before it ships.
+   ================================================================ */
+"use strict";
+const MINUS = "−";
+
+// terminal outcome; payoffs listed in order of movement after Nature:
+// the uncertain player first, the informed player second
+function leaf(name, pay){ return { name, payoffs: pay.slice() }; }
+// choice node for player 0 (uncertain) or 1 (informed)
+function nd(player, actions){
+  return { player, actions: actions.map(([name, child]) => ({ name, child })) };
+}
+
+/* ---------------------------------------------------------------
+   Games. worlds[0] is always the world Nature picks with
+   probability p, and it is drawn on the left, as in the chapter.
+   --------------------------------------------------------------- */
+const GAMES = [
+
+  /* ============ the chapter's games ============ */
+  { id:'transition', group:'chapter', title:'Transition Game',
+    refs:['the soft-liners','the opposition'], plural:[true,false],
+    players:['Soft-liners','Opposition'],
+    worlds:[ { label:'Opposition is weak', phrase:'the opposition is weak', short:'weak' },
+             { label:'Opposition is strong', phrase:'the opposition is strong', short:'strong' } ],
+    note:'<b>Box 8.5.</b> The soft-liners decide whether to do nothing or open up. If they open up, the opposition enters a broadened dictatorship or continues to organize. If it organizes, the soft-liners repress or democratize. Repression succeeds against a weak opposition and produces an insurgency against a strong one.',
+    intro:'This is the Incomplete Information Transition Game from Box 8.5. Under complete information, soft-liners facing a weak opposition open up and get a broadened dictatorship, and soft-liners facing a strong opposition do nothing. A democratic transition is never the expected outcome. Here the soft-liners don’t know whether the opposition is weak or strong.',
+    completeNote:'Either way, a democratic transition is never the expected outcome.',
+    laterNote:'The chapter assumes that the opposition’s response reveals its type: a weak opposition enters a broadened dictatorship and a strong one continues to organize. So when the soft-liners choose whether to repress or democratize, they know which world they are in, and the chapter draws no dashed line there.',
+    belief:0.8, beliefText:'Suppose the regime’s opinion polls lead the soft-liners to believe that the opposition is weak with probability 0.8.',
+    actual:1,
+    close:'The soft-liners opened up because they were confident the opposition was weak, and they were wrong. As soon as the opposition organized, they knew for sure it was strong, and democratizing beat an insurgency. The democratic transition happened only because the soft-liners made a mistake about the opposition they faced. Top-down transitions can occur under incomplete information, but never under complete information.',
+    trees:[
+      nd(0, [
+        ['Do nothing', leaf('Status quo', [4,3])],
+        ['Open', nd(1, [
+          ['Enter', leaf('Broadened dictatorship', [5,4])],
+          ['Organize', nd(0, [
+            ['Repress', leaf('Narrow dictatorship', [3,1])],
+            ['Democratize', leaf('Democratic transition', [2,5])]
+          ])]
+        ])]
+      ]),
+      nd(0, [
+        ['Do nothing', leaf('Status quo', [4,3])],
+        ['Open', nd(1, [
+          ['Enter', leaf('Broadened dictatorship', [5,4])],
+          ['Organize', nd(0, [
+            ['Repress', leaf('Insurgency', [1,2])],
+            ['Democratize', leaf('Democratic transition', [2,5])]
+          ])]
+        ])]
+      ])
+    ] },
+
+  { id:'terrorism', group:'chapter', title:'Terrorism Game', guidedOnly:true,
+    refs:['the Reluctant Terrorists','the government'], plural:[true,false],
+    players:['Reluctant Terrorists','Government'],
+    worlds:[ { label:'Government is responsive', phrase:'the government is responsive', short:'responsive' },
+             { label:'Government is repressive', phrase:'the government is repressive', short:'repressive' } ],
+    note:'<b>The chapter’s worked example.</b> The Reluctant Terrorists decide whether to use violence or request a policy concession. If they request one, the government represses them or enters good faith negotiations. A responsive government prefers to negotiate; a repressive one prefers to repress.',
+    intro:'This is the Terrorism Game that the chapter works through step by step. The Reluctant Terrorists don’t know whether the government they face is responsive or repressive.',
+    compareFirst:0,
+    belief:0.2, beliefText:'As in the chapter, suppose the Reluctant Terrorists believe the government is responsive with probability 0.2.',
+    actual:0,
+    close:'A terrorist act has occurred between reluctant terrorists and a responsive government. Under complete information that can’t happen: a responsive government negotiates, and the Reluctant Terrorists, knowing this, would negotiate too. It happened here only because they believed they were probably facing a repressive government.',
+    trees:[
+      nd(0, [
+        ['Violence', leaf('Terrorist act', [2,1])],
+        ['Negotiate', nd(1, [
+          ['Repress', leaf('Repression', [1,2])],
+          ['Negotiate', leaf('Good faith negotiations', [3,3])]
+        ])]
+      ]),
+      nd(0, [
+        ['Violence', leaf('Terrorist act', [2,1])],
+        ['Negotiate', nd(1, [
+          ['Repress', leaf('Repression', [1,3])],
+          ['Negotiate', leaf('Good faith negotiations', [3,2])]
+        ])]
+      ])
+    ] },
+
+  /* ============ two-move games ============ */
+  { id:'boycott', group:'short', title:'Election boycott',
+    refs:['the opposition','the incumbent'],
+    dirAsk:'below', distract:[[1,5],[3,5],[2,3]],
+    players:['Opposition','Incumbent'],
+    worlds:[ { label:'Incumbent is clean', phrase:'the incumbent is clean', short:'clean' },
+             { label:'Incumbent is fraudulent', phrase:'the incumbent is fraudulent', short:'fraudulent' } ],
+    note:'<b>Setup.</b> An opposition party decides whether to boycott an election or contest it. If it contests, the incumbent either counts the votes honestly or rigs the count. A clean incumbent prefers an honest count; a fraudulent one prefers to rig.',
+    belief:0.3, beliefText:'Remembering past elections, the opposition believes the incumbent is clean with probability 0.3.',
+    actual:0,
+    trees:[
+      nd(0, [
+        ['Boycott', leaf('Boycotted election', [2,2])],
+        ['Contest', nd(1, [
+          ['Count honestly', leaf('Competitive election', [5,3])],
+          ['Rig', leaf('Stolen election', [0,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Boycott', leaf('Boycotted election', [2,2])],
+        ['Contest', nd(1, [
+          ['Count honestly', leaf('Competitive election', [5,1])],
+          ['Rig', leaf('Stolen election', [0,3])]
+        ])]
+      ])
+    ] },
+
+  { id:'budget', group:'short', title:'Military budget',
+    refs:['the ruler','the military'],
+    players:['Ruler','Military'],
+    worlds:[ { label:'Military is loyal', phrase:'the military is loyal', short:'loyal' },
+             { label:'Military is coup-prone', phrase:'the military is coup-prone', short:'coup-prone' } ],
+    note:'<b>Setup.</b> A ruler short of money decides whether to keep the military’s budget or cut it. If the budget is cut, the military either accepts the cut or stages a coup. A loyal military would rather accept a cut than overthrow the ruler; a coup-prone one would rather strike.',
+    belief:0.9, beliefText:'The ruler’s advisers believe the military is loyal with probability 0.9.',
+    actual:0,
+    trees:[
+      nd(0, [
+        ['Keep budget', leaf('Status quo', [3,3])],
+        ['Cut budget', nd(1, [
+          ['Accept', leaf('Budget cut', [4,2])],
+          ['Stage coup', leaf('Coup', [0,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Keep budget', leaf('Status quo', [3,3])],
+        ['Cut budget', nd(1, [
+          ['Accept', leaf('Budget cut', [4,1])],
+          ['Stage coup', leaf('Coup', [0,2])]
+        ])]
+      ])
+    ] },
+
+  { id:'funds', group:'short', title:'Provincial funds',
+    refs:['the central government','the governor'],
+    players:['Central government','Governor'],
+    worlds:[ { label:'Governor is honest', phrase:'the governor is honest', short:'honest' },
+             { label:'Governor is corrupt', phrase:'the governor is corrupt', short:'corrupt' } ],
+    note:'<b>Setup.</b> A central government decides whether to withhold development funds from a province or transfer them to its governor. If the funds are transferred, the governor either spends them on services or diverts them. An honest governor spends them; a corrupt one diverts them.',
+    belief:0.3, beliefText:'Audit reports lead the central government to believe the governor is honest with probability 0.3.',
+    actual:1,
+    trees:[
+      nd(0, [
+        ['Withhold funds', leaf('No transfer', [2,2])],
+        ['Transfer funds', nd(1, [
+          ['Spend on services', leaf('Services provided', [6,3])],
+          ['Divert funds', leaf('Funds diverted', [3,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Withhold funds', leaf('No transfer', [2,2])],
+        ['Transfer funds', nd(1, [
+          ['Spend on services', leaf('Services provided', [6,1])],
+          ['Divert funds', leaf('Funds diverted', [3,3])]
+        ])]
+      ])
+    ] },
+
+  { id:'court', group:'short', title:'Court review',
+    refs:['the government','the court'],
+    players:['Government','Court'],
+    worlds:[ { label:'Court is independent', phrase:'the court is independent', short:'independent' },
+             { label:'Court is deferential', phrase:'the court is deferential', short:'deferential' } ],
+    note:'<b>Setup.</b> A government decides whether to drop a law it expects to be challenged or pass it. If it passes the law, the constitutional court either upholds it or strikes it down. An independent court would strike it down; a deferential one would uphold it. Notice which world has probability p here.',
+    belief:0.4, beliefText:'The government’s lawyers believe the court is independent with probability 0.4.',
+    actual:0,
+    trees:[
+      nd(0, [
+        ['Drop the law', leaf('No law', [2,2])],
+        ['Pass the law', nd(1, [
+          ['Uphold', leaf('Law upheld', [5,1])],
+          ['Strike down', leaf('Law struck down', [0,3])]
+        ])]
+      ]),
+      nd(0, [
+        ['Drop the law', leaf('No law', [2,2])],
+        ['Pass the law', nd(1, [
+          ['Uphold', leaf('Law upheld', [5,3])],
+          ['Strike down', leaf('Law struck down', [0,1])]
+        ])]
+      ])
+    ] },
+
+  { id:'strike', group:'short', title:'Strike or slowdown',
+    refs:['the union','the employer'],
+    distract:[[1,3],[2,5],[3,5]],
+    players:['Union','Employer'],
+    worlds:[ { label:'Employer is profitable', phrase:'the employer is profitable', short:'profitable' },
+             { label:'Employer is struggling', phrase:'the employer is struggling', short:'struggling' } ],
+    note:'<b>Setup.</b> A union decides between a slowdown and a full strike. After either one, the employer concedes or holds out. A profitable employer can ride out a slowdown but not a strike. A struggling employer can meet a slowdown’s smaller demands but can’t afford to meet a strike’s.',
+    belief:0.6, beliefText:'Reading the employer’s latest accounts, the union believes it is profitable with probability 0.6.',
+    actual:0,
+    trees:[
+      nd(0, [
+        ['Slow down', nd(1, [
+          ['Concede', leaf('Deal after slowdown', [3,3])],
+          ['Hold out', leaf('Failed slowdown', [1,4])]
+        ])],
+        ['Strike', nd(1, [
+          ['Concede', leaf('Deal after strike', [5,2])],
+          ['Hold out', leaf('Failed strike', [0,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Slow down', nd(1, [
+          ['Concede', leaf('Deal after slowdown', [3,3])],
+          ['Hold out', leaf('Failed slowdown', [1,2])]
+        ])],
+        ['Strike', nd(1, [
+          ['Concede', leaf('Deal after strike', [5,0])],
+          ['Hold out', leaf('Failed strike', [0,1])]
+        ])]
+      ])
+    ] },
+
+  { id:'successor', group:'short', title:'Naming a successor',
+    refs:['the ruler','the heir'],
+    players:['Ruler','Heir'],
+    worlds:[ { label:'Heir is patient', phrase:'the heir is patient', short:'patient' },
+             { label:'Heir is impatient', phrase:'the heir is impatient', short:'impatient' } ],
+    note:'<b>Setup.</b> An aging ruler decides whether to leave the post of successor empty or name an heir. A named heir either waits for the ruler to step down or plots to take power early. A patient heir waits; an impatient one plots.',
+    belief:0.8, beliefText:'The ruler believes the likely heir is patient with probability 0.8.',
+    actual:1,
+    trees:[
+      nd(0, [
+        ['Leave post empty', leaf('No successor', [3,1])],
+        ['Name an heir', nd(1, [
+          ['Wait', leaf('Orderly succession', [2,3])],
+          ['Plot', leaf('Palace plot', [0,2])]
+        ])]
+      ]),
+      nd(0, [
+        ['Leave post empty', leaf('No successor', [3,1])],
+        ['Name an heir', nd(1, [
+          ['Wait', leaf('Orderly succession', [2,2])],
+          ['Plot', leaf('Palace plot', [0,3])]
+        ])]
+      ])
+    ] },
+
+  /* ============ same ranking, different payoffs ============ */
+  { id:'shareA', group:'paired', title:'Power sharing — version A',
+    refs:['the ruler','the faction'],
+    players:['Ruler','Faction'],
+    worlds:[ { label:'Faction is loyal', phrase:'the faction is loyal', short:'loyal' },
+             { label:'Faction is ambitious', phrase:'the faction is ambitious', short:'ambitious' } ],
+    note:'<b>Setup.</b> A ruler decides whether to rule alone or share cabinet posts with a rival faction. A faction that joins the cabinet either cooperates or uses its new posts to challenge the ruler’s leadership. A loyal faction cooperates; an ambitious one challenges.',
+    belief:0.5, beliefText:'The ruler believes the faction is loyal with probability 0.5.',
+    actual:0,
+    trees:[
+      nd(0, [
+        ['Rule alone', leaf('Narrow rule', [2,2])],
+        ['Share power', nd(1, [
+          ['Cooperate', leaf('Broad coalition', [3,3])],
+          ['Challenge', leaf('Leadership challenge', [0,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Rule alone', leaf('Narrow rule', [2,1])],
+        ['Share power', nd(1, [
+          ['Cooperate', leaf('Broad coalition', [3,2])],
+          ['Challenge', leaf('Leadership challenge', [0,3])]
+        ])]
+      ])
+    ] },
+
+  { id:'shareB', group:'paired', title:'Power sharing — version B',
+    refs:['the ruler','the faction'],
+    dirAsk:'below',
+    players:['Ruler','Faction'],
+    worlds:[ { label:'Faction is loyal', phrase:'the faction is loyal', short:'loyal' },
+             { label:'Faction is ambitious', phrase:'the faction is ambitious', short:'ambitious' } ],
+    note:'<b>Setup.</b> The same story as version A, with the same belief. The ruler ranks the three outcomes in the same order as before; only how much more it values one outcome than another has changed. Compare the two critical probabilities.',
+    belief:0.5, beliefText:'As in version A, the ruler believes the faction is loyal with probability 0.5.',
+    actual:0,
+    trees:[
+      nd(0, [
+        ['Rule alone', leaf('Narrow rule', [2,2])],
+        ['Share power', nd(1, [
+          ['Cooperate', leaf('Broad coalition', [5,3])],
+          ['Challenge', leaf('Leadership challenge', [1,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Rule alone', leaf('Narrow rule', [2,1])],
+        ['Share power', nd(1, [
+          ['Cooperate', leaf('Broad coalition', [5,2])],
+          ['Challenge', leaf('Leadership challenge', [1,3])]
+        ])]
+      ])
+    ] },
+
+  { id:'taxA', group:'paired', title:'Taxing business — version A',
+    refs:['the government','business'],
+    dirAsk:'below',
+    players:['Government','Business'],
+    worlds:[ { label:'Business can’t leave', phrase:'business can’t leave', short:'tied down' },
+             { label:'Business can leave', phrase:'business can leave', short:'mobile' } ],
+    note:'<b>Setup.</b> A government decides whether to leave taxes on business alone or raise them. If it raises them, business either pays or moves its capital abroad. Business that can’t leave pays; business that can leave moves abroad.',
+    belief:0.4, beliefText:'The finance ministry believes business can’t leave with probability 0.4.',
+    actual:1,
+    trees:[
+      nd(0, [
+        ['Leave taxes alone', leaf('Status quo', [1,3])],
+        ['Raise taxes', nd(1, [
+          ['Pay', leaf('Higher revenue', [5,2])],
+          ['Move abroad', leaf('Capital flight', [0,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Leave taxes alone', leaf('Status quo', [1,3])],
+        ['Raise taxes', nd(1, [
+          ['Pay', leaf('Higher revenue', [5,1])],
+          ['Move abroad', leaf('Capital flight', [0,2])]
+        ])]
+      ])
+    ] },
+
+  { id:'taxB', group:'paired', title:'Taxing business — version B',
+    refs:['the government','business'],
+    players:['Government','Business'],
+    worlds:[ { label:'Business can’t leave', phrase:'business can’t leave', short:'tied down' },
+             { label:'Business can leave', phrase:'business can leave', short:'mobile' } ],
+    note:'<b>Setup.</b> The same story as version A, with the same belief. The government ranks the three outcomes in the same order as before; only how much more it values one outcome than another has changed. Compare the two critical probabilities.',
+    belief:0.4, beliefText:'As in version A, the finance ministry believes business can’t leave with probability 0.4.',
+    actual:1,
+    trees:[
+      nd(0, [
+        ['Leave taxes alone', leaf('Status quo', [4,3])],
+        ['Raise taxes', nd(1, [
+          ['Pay', leaf('Higher revenue', [7,2])],
+          ['Move abroad', leaf('Capital flight', [1,1])]
+        ])]
+      ]),
+      nd(0, [
+        ['Leave taxes alone', leaf('Status quo', [4,3])],
+        ['Raise taxes', nd(1, [
+          ['Pay', leaf('Higher revenue', [7,1])],
+          ['Move abroad', leaf('Capital flight', [1,2])]
+        ])]
+      ])
+    ] },
+
+  /* ============ longer games ============ */
+  { id:'autonomy', group:'long', title:'Autonomy offer',
+    refs:['the central government','the region'],
+    players:['Central government','Region'],
+    worlds:[ { label:'Region is divided', phrase:'the region is divided', short:'divided' },
+             { label:'Region is united', phrase:'the region is united', short:'united' } ],
+    note:'<b>Setup.</b> A central government decides whether to keep central rule or offer a restive region autonomy. The region either accepts or uses its new institutions to push for independence. If it pushes, the center either cracks down or negotiates independence. A crackdown works against a divided region but turns into civil conflict against a united one.',
+    laterNote:'As in the chapter’s Transition Game, the region’s response reveals its type: a divided region accepts autonomy and only a united one pushes for independence. So when the center chooses whether to crack down, it knows which world it is in, and no dashed line joins those nodes.',
+    belief:0.7, beliefText:'Intelligence reports lead the central government to believe the region is divided with probability 0.7.',
+    actual:1,
+    trees:[
+      nd(0, [
+        ['Keep central rule', leaf('Central rule', [3,2])],
+        ['Offer autonomy', nd(1, [
+          ['Accept', leaf('Autonomy', [5,3])],
+          ['Push for independence', nd(0, [
+            ['Crack down', leaf('Autonomy revoked', [2,0])],
+            ['Negotiate', leaf('Independence', [1,5])]
+          ])]
+        ])]
+      ]),
+      nd(0, [
+        ['Keep central rule', leaf('Central rule', [3,2])],
+        ['Offer autonomy', nd(1, [
+          ['Accept', leaf('Autonomy', [5,3])],
+          ['Push for independence', nd(0, [
+            ['Crack down', leaf('Civil conflict', [0,1])],
+            ['Negotiate', leaf('Independence', [1,5])]
+          ])]
+        ])]
+      ])
+    ] },
+
+  { id:'early', group:'long', title:'Early election',
+    refs:['the incumbent','the opposition'],
+    dirAsk:'below',
+    players:['Incumbent','Opposition'],
+    worlds:[ { label:'Opposition is fragmented', phrase:'the opposition is fragmented', short:'fragmented' },
+             { label:'Opposition is coordinated', phrase:'the opposition is coordinated', short:'coordinated' } ],
+    note:'<b>Setup.</b> An incumbent decides whether to wait or call an early election. The opposition either stays out or contests it. If it contests, the incumbent either accepts the result or annuls it. A fragmented opposition would lose the election; a coordinated one would win it.',
+    laterNote:'As in the chapter’s Transition Game, the opposition’s response reveals its type: a fragmented opposition stays out and only a coordinated one contests. So when the incumbent chooses whether to accept the result, it knows which world it is in, and no dashed line joins those nodes.',
+    belief:0.2, beliefText:'Party strategists believe the opposition is fragmented with probability 0.2.',
+    actual:1,
+    trees:[
+      nd(0, [
+        ['Wait', leaf('Status quo', [2,3])],
+        ['Call early election', nd(1, [
+          ['Stay out', leaf('Unopposed election', [4,1])],
+          ['Contest', nd(0, [
+            ['Accept result', leaf('Incumbent re-elected', [5,0])],
+            ['Annul result', leaf('Annulled election', [0,2])]
+          ])]
+        ])]
+      ]),
+      nd(0, [
+        ['Wait', leaf('Status quo', [2,3])],
+        ['Call early election', nd(1, [
+          ['Stay out', leaf('Unopposed election', [4,1])],
+          ['Contest', nd(0, [
+            ['Accept result', leaf('Opposition wins', [1,5])],
+            ['Annul result', leaf('Annulled election', [0,2])]
+          ])]
+        ])]
+      ])
+    ] }
+];
+
+/* ---------------------------------------------------------------
+   Fractions
+   --------------------------------------------------------------- */
+function gcd(a, b){ a = Math.abs(a); b = Math.abs(b); while (b){ [a, b] = [b, a % b]; } return a || 1; }
+function frac(n, d){
+  if (d < 0){ n = -n; d = -d; }
+  const g = gcd(n, d);
+  return { n: n / g, d: d / g, v: n / d };
+}
+function fracStr(f){
+  const sign = f.n < 0 ? MINUS : '';
+  const n = Math.abs(f.n);
+  return f.d === 1 ? sign + n : sign + n + '/' + f.d;
+}
+function fracEq(a, b){ return a.n === b.n && a.d === b.d; }
+
+/* ---------------------------------------------------------------
+   Preparation and solving
+   --------------------------------------------------------------- */
+function assignPids(n, pid){
+  n.pid = pid;
+  if (n.actions) n.actions.forEach((a, i) => assignPids(a.child, pid + '.' + i));
+}
+function clone(n){
+  const c = Object.assign({}, n);
+  Object.keys(c).forEach(k => { if (k.charAt(0) === '_') delete c[k]; });
+  if (n.actions) c.actions = n.actions.map(a => ({ name: a.name, child: clone(a.child) }));
+  else c.payoffs = n.payoffs.slice();
+  return c;
+}
+function walk(n, fn){ fn(n); if (n.actions) n.actions.forEach(a => walk(a.child, fn)); }
+
+// backward induction in one world; reports any tie
+function solveTree(root){
+  const ch = new Map(), val = new Map(), ties = [];
+  (function rec(n){
+    if (!n.actions){ val.set(n.pid, n.payoffs); return; }
+    n.actions.forEach(a => rec(a.child));
+    const vs = n.actions.map(a => val.get(a.child.pid)[n.player]);
+    const mx = Math.max.apply(null, vs);
+    if (vs.filter(v => v === mx).length > 1) ties.push(n.pid);
+    const pick = vs.indexOf(mx);
+    ch.set(n.pid, pick);
+    val.set(n.pid, val.get(n.actions[pick].child.pid));
+  })(root);
+  return { ch, val, ties };
+}
+// follow the chosen branches from a node to the terminal they reach
+function followFrom(n, ch){
+  while (n.actions) n = n.actions[ch.get(n.pid)].child;
+  return n;
+}
+
+// linear expected payoff c + s p, from the payoffs in the p world and the 1 - p world
+function linOf(a0, a1){ return { c: a1, s: a0 - a1, a0, a1 }; }
+
+// Critical probability for comparing action i against action j.
+// Returns null when the same action is best at both p = 0 and p = 1.
+function crossing(L){
+  // L[k] = {c, s} for the two actions; solve c0 + s0 p = c1 + s1 p
+  const ds = L[0].s - L[1].s, dc = L[1].c - L[0].c;
+  if (ds === 0) return null;
+  return frac(dc, ds);
+}
+
+function prepareGame(g){
+  if (g._prep) return g._prep;
+  g.trees.forEach((t, w) => assignPids(t, 'w' + w));
+  const U = 0;
+  const sol = g.trees.map(t => solveTree(t));
+  const roots = g.trees;
+  const nActs = roots[0].actions.length;
+
+  // what each root action leads to in each world, following the bold lines
+  const epLeaf = [], v = [];
+  for (let a = 0; a < nActs; a++){
+    epLeaf[a] = roots.map((r, w) => followFrom(r.actions[a].child, sol[w].ch));
+    v[a] = epLeaf[a].map(l => l.payoffs[U]);
+  }
+  const lin = v.map(p => linOf(p[0], p[1]));
+  // payoff difference between action 0 and action 1 at p = 0 and at p = 1
+  const d0 = lin[0].c - lin[1].c;                 // at p = 0
+  const d1 = (lin[0].c + lin[0].s) - (lin[1].c + lin[1].s);  // at p = 1
+  let cutoff = null, above = null, below = null, always = null;
+  if (d0 * d1 < 0){
+    cutoff = crossing(lin);
+    above = d1 > 0 ? 0 : 1;           // best just below p = 1
+    below = 1 - above;
+  } else {
+    always = (d0 > 0 || d1 > 0) ? 0 : 1;
+  }
+  const choiceAt = p => cutoff ? (p > cutoff.v ? above : below) : always;
+  const beliefChoice = choiceAt(g.belief);
+  const A = g.actual;
+  const outcomeLeaf = followFrom(roots[A].actions[beliefChoice].child, sol[A].ch);
+  const ciChoice = sol[A].ch.get(roots[A].pid);
+  const ciLeaf = followFrom(roots[A], sol[A].ch);
+
+  // the uncertain player's later nodes (not joined by the dashed line)
+  const later = [];
+  roots.forEach(r => walk(r, n => { if (n.actions && n !== r && n.player === U) later.push(n.pid); }));
+
+  g._prep = { sol, roots, nActs, epLeaf, v, lin, cutoff, above, below, always,
+              beliefChoice, outcomeLeaf, ciChoice, ciLeaf,
+              mistake: beliefChoice !== ciChoice, later };
+  g._prep.options = cutoffOptions(g, g._prep);
+  return g._prep;
+}
+
+/* ---------------------------------------------------------------
+   Critical-probability options: the answer plus distractors built
+   from real mistakes, listed smallest first.
+   --------------------------------------------------------------- */
+const NOWHERE = 'nowhere';
+function cutoffOptions(g, P){
+  const cands = [];
+  const push = (f, why) => { if (f && f.v > 0 && f.v < 1) cands.push({ f, why }); };
+  const [A, B] = P.v;       // A = [p-world payoff, (1-p)-world payoff] for action 0; B for action 1
+  if (P.cutoff){
+    // mixing up which world p refers to
+    push(frac(P.cutoff.d - P.cutoff.n, P.cutoff.d), 'one minus the answer');
+  }
+  // forgetting to multiply the second term by (1 - p)
+  if (A[0] !== B[0]) push(frac(B[1] - A[1], A[0] - B[0]), 'dropped the (1 - p)');
+  // reading the other player's payoffs off the tree
+  const w = P.epLeaf.map(ls => ls.map(l => l.payoffs[1]));
+  const lw = w.map(p => linOf(p[0], p[1]));
+  push(crossing(lw), 'other player’s payoffs');
+  // p multiplied into the wrong world: A[1] p + A[0] (1 - p)
+  const sw = [linOf(A[1], A[0]), linOf(B[1], B[0])];
+  push(crossing(sw), 'swapped the worlds');
+  // treating the comparison as a simple ratio of payoffs
+  const hi = Math.max(A[0], A[1], B[0], B[1]);
+  const lowSafe = Math.min(Math.max(A[0], A[1]), Math.max(B[0], B[1]));
+  if (hi > 0) push(frac(lowSafe, hi), 'ratio of payoffs');
+
+  const out = [];
+  if (g.distract) g.distract.forEach(([n, d]) => cands.unshift({ f: frac(n, d), why: 'set by hand' }));
+  const seen = f => out.some(o => fracEq(o, f)) || (P.cutoff && fracEq(P.cutoff, f));
+  cands.forEach(c => { if (!seen(c.f) && out.length < 3) out.push(c.f); });
+  // pad from simple fractions, if the mistakes did not supply three
+  const pad = g.pad || [[1,2],[1,3],[2,3],[1,4],[3,4],[2,5],[3,5]];
+  pad.forEach(([n, d]) => { const f = frac(n, d); if (!seen(f) && out.length < 3) out.push(f); });
+  if (P.cutoff) out.push(P.cutoff);
+  out.sort((x, y) => x.v - y.v);
+  return out;
+}
+
+if (typeof module !== 'undefined') module.exports = { GAMES, prepareGame, fracStr, frac, clone, walk, NOWHERE };
+
+/* ================================================================
+   Application: layout, rendering, guided walkthrough, practice.
+   ================================================================ */
+
+/* ---------------- small helpers ---------------- */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function num(v){ return v < 0 ? MINUS + Math.abs(v) : String(v); }
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+const BADGES = '①②③④⑤⑥⑦⑧⑨⑩';
+function joinAnd(items){
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return items[0] + ' and ' + items[1];
+  return items.slice(0,-1).join(', ') + ', and ' + items[items.length-1];
+}
+function fmtBelief(b){ return String(b); }
+
+/* ---------------- current game ---------------- */
+let currentIdx = 0;
+let mode = 'guided';
+function game(){ return GAMES[currentIdx]; }
+function P(){ return prepareGame(game()); }
+function U(){ return game().refs[0]; }            // prose reference, e.g. "the soft-liners"
+function I(){ return game().refs[1]; }
+function plural(i){ return !!(game().plural && game().plural[i]); }
+// verb agreement for a player: vb(0, 'chooses', 'choose')
+function vb(i, sing, plu){ return plural(i) ? plu : sing; }
+function actName(a){ return game().trees[0].actions[a].name; }
+function worldPhrase(w){ return game().worlds[w].phrase; }
+
+/* ---------------------------------------------------------------
+   Views. Each view is its own copy of the tree(s), laid out once.
+   'w0' and 'w1' are the separate games; 'combined' adds Nature.
+   Node identity across views is the pid, so every piece of state
+   is keyed by pid and survives the switch between views.
+   --------------------------------------------------------------- */
+const YGAP = 100, TOPPAD = 44;
+const NAME_CH = 6.7, NAME_LINE_H = 13, NAME_WRAP_AT = 14;
+const ACTION_CH = 7.3;
+
+function nameLines(l){
+  if (l._lines) return l._lines;
+  const name = l.name || '';
+  let out = [name];
+  if (name.length > NAME_WRAP_AT){
+    const words = name.split(' ');
+    if (words.length > 1){
+      let best = null;
+      for (let i = 1; i < words.length; i++){
+        const a = words.slice(0,i).join(' '), b = words.slice(i).join(' ');
+        const score = Math.max(a.length, b.length);
+        if (!best || score <= best.score) best = { score, lines:[a,b] };
+      }
+      if (best.score < name.length) out = best.lines;
+    }
+  }
+  l._lines = out;
+  return out;
+}
+function nameWidth(l){ return l.name ? Math.max.apply(null, nameLines(l).map(t => t.length * NAME_CH)) : 0; }
+function leafBlockH(l){ return l.name ? 30 + nameLines(l).length * NAME_LINE_H : 30; }
+function payoffText(l){ return l.payoffs.map(num).join(', '); }
+
+function nodeLabel(g, n){
+  if (n.nature) return 'Nature';
+  return BADGES.charAt(badgeOf(g, n.pid) - 1) + ' ' + g.players[n.player];
+}
+function badgeOf(g, pid){ return viewOf(g, 'combined').badge.get(pid); }
+function badge(pid){ return BADGES.charAt(badgeOf(game(), pid) - 1); }
+
+function branchLabelBox(node, ai, xgap){
+  const a = node.actions[ai];
+  const x1 = node._x * xgap, x2 = a.child._x * xgap;
+  const mx = x1 + (x2 - x1) * 0.5;
+  const dir = Math.sign(x2 - x1);
+  const w = a.name.length * ACTION_CH;
+  const x = mx + (dir === 0 ? 8 : dir * 9);
+  return dir < 0 ? { x0:x - w, x1:x } : { x0:x, x1:x + w };
+}
+
+function viewOf(g, key){
+  g._views = g._views || {};
+  if (g._views[key]) return g._views[key];
+  prepareGame(g);
+  let root;
+  if (key === 'combined'){
+    root = { nature:true, pid:'N', player:-1, actions: g.trees.map((t, w) => ({
+      name: g.worlds[w].label + (w === 0 ? ' (p)' : ' (1 ' + MINUS + ' p)'), child: clone(t) })) };
+  } else {
+    root = clone(g.trees[Number(key.charAt(1))]);
+  }
+  const v = layout(g, root);
+  v.key = key;
+  if (key === 'combined'){
+    // badges: every player's choice node, down the tree, then left to right
+    v.badge = new Map();
+    v.nodes.filter(n => !n.nature).sort((a,b) => a._depth - b._depth || a._x - b._x)
+      .forEach((n, i) => v.badge.set(n.pid, i + 1));
+  }
+  g._views[key] = v;
+  // widths depend on badge labels, which need the combined view; lay out again if needed
+  return v;
+}
+
+function layout(g, root){
+  let leafCount = 0;
+  const nodes = [], leaves = [], byPid = new Map();
+  (function walkL(n, depth){
+    n._depth = depth; n._gy = depth;
+    byPid.set(n.pid, n);
+    if (n.actions){
+      nodes.push(n);
+      n.actions.forEach(a => walkL(a.child, depth + 1));
+      n._x = (n.actions[0].child._x + n.actions[n.actions.length-1].child._x) / 2;
+      n.actions.forEach(a => { if (a.child.actions) a.child._side = Math.sign(a.child._x - n._x) >= 0 ? 'right' : 'left'; });
+    } else {
+      leaves.push(n);
+      const prev = leaves[leaves.length-2];
+      if (prev && prev._depth !== depth) leafCount += 0.6;
+      else if (prev) leafCount += 1;
+      n._x = leafCount;
+    }
+  })(root, 0);
+
+  const labelW = n => (n.nature ? 6 : 2 + g.players[n.player].length) * 7.9;
+  const PAD = 18, PAD_LABEL = 8, V_TOL = 5;
+  const extent = n => {
+    if (n.actions){ const w = labelW(n);
+      if (n._side === 'right') return { a:10, b:12 + w };
+      if (n._side === 'left') return { a:12 + w, b:10 };
+      return { a:w/2, b:w/2 }; }
+    const w = Math.max(payoffText(n).length * 11.0, nameWidth(n));
+    return { a:w/2, b:w/2 };
+  };
+  const vSpan = n => {
+    const y = TOPPAD + n._gy * YGAP;
+    if (n.actions){ const base = y - (n._side ? 8 : 15); return { top:base - 10, bot:base + 3 }; }
+    const ty = y + 24;
+    return { top:ty - 15, bot:ty + 5 + (n.name ? nameLines(n).length * NAME_LINE_H : 0) };
+  };
+  const spaced = [];
+  nodes.concat(leaves).forEach(n => { const e = extent(n); spaced.push({ id:n.pid, x:n._x, span:vSpan(n), a:e.a, b:e.b }); });
+  nodes.forEach(n => n.actions.forEach(a => {
+    const x = n._x + (a.child._x - n._x) * 0.5;
+    const base = TOPPAD + (n._gy + 0.5) * YGAP - 6;
+    const w = a.name.length * ACTION_CH + 9;
+    const dir = Math.sign(a.child._x - n._x);
+    spaced.push({ x, span:{ top:base - 10, bot:base + 3 }, a: dir < 0 ? w : 0, b: dir < 0 ? 0 : w, label:true, ends:[n.pid, a.child.pid] });
+  }));
+  let xgap = 96;
+  spaced.forEach((p, i) => spaced.forEach((q, j) => {
+    if (j <= i) return;
+    const share = Math.min(p.span.bot, q.span.bot) - Math.max(p.span.top, q.span.top);
+    if (share < V_TOL) return;
+    if (p.label && p.ends.indexOf(q.id) >= 0) return;
+    if (q.label && q.ends.indexOf(p.id) >= 0) return;
+    const left = p.x <= q.x ? p : q, right = p.x <= q.x ? q : p;
+    const dx = right.x - left.x;
+    if (dx <= 0) return;
+    const pad = (p.label || q.label) ? PAD_LABEL : PAD;
+    xgap = Math.max(xgap, (left.b + right.a + pad) / dx);
+  }));
+  xgap = Math.ceil(xgap);
+
+  let minX = Infinity, maxX = -Infinity, maxY = 0;
+  nodes.forEach(n => { const x = n._x * xgap, e = extent(n); minX = Math.min(minX, x - e.a); maxX = Math.max(maxX, x + e.b); maxY = Math.max(maxY, TOPPAD + n._gy * YGAP); });
+  leaves.forEach(l => { const x = l._x * xgap, w = Math.max(payoffText(l).length * 11.0, nameWidth(l));
+    minX = Math.min(minX, x - w/2); maxX = Math.max(maxX, x + w/2); maxY = Math.max(maxY, TOPPAD + l._gy * YGAP + leafBlockH(l) + 16); });
+  nodes.forEach(n => n.actions.forEach((a, ai) => { const b = branchLabelBox(n, ai, xgap); minX = Math.min(minX, b.x0); maxX = Math.max(maxX, b.x1); }));
+  const offsetX = 18 - minX;
+  return { root, nodes, leaves, byPid, xgap, offsetX,
+           width: Math.ceil(maxX + offsetX + 18), height: Math.ceil(maxY + 34) };
+}
+
+/* ---------------- tree rendering ---------------- */
+function bKey(pid, ai){ return 'B|' + pid + '|' + ai; }
+function lKey(pid){ return 'L|' + pid; }
+function nKey(pid){ return 'N|' + pid; }
+
+function svgFor(v, st){
+  const g = game(), s = [];
+  const X = n => n._x * v.xgap + v.offsetX, Y = n => TOPPAD + n._gy * YGAP;
+  const leafText = l => { const x = X(l), y = Y(l), w = payoffText(l).length * 11.0;
+    return { tx:x, ty:y + 24, w, x0:x - w/2, nameY:y + 42 }; };
+  s.push(`<svg class="tree" width="${v.width}" height="${v.height}" viewBox="0 0 ${v.width} ${v.height}" role="group" aria-label="${esc(st.aria)}">`);
+
+  // branches
+  v.nodes.forEach(node => node.actions.forEach((a, ai) => {
+    const key = bKey(node.pid, ai);
+    let cls = 'br';
+    if (st.gold && st.gold.has(key)) cls += ' gold';
+    else if (st.pending && st.pending.has(key)) cls += ' pending';
+    else if (node.nature && st.natureBold === ai) cls += ' nat';
+    else if (!node.nature && st.marked && st.marked.has(node.pid) && st.marked.get(node.pid) === ai) cls += ' on stroke-p' + node.player;
+    s.push(`<line class="${cls}" x1="${X(node)}" y1="${Y(node)}" x2="${X(a.child)}" y2="${Y(a.child)}"></line>`);
+    const my = Y(node) + (Y(a.child) - Y(node)) * 0.5;
+    const dir = Math.sign(X(a.child) - X(node));
+    const anchor = dir < 0 ? 'end' : 'start';
+    const box = branchLabelBox(node, ai, v.xgap);
+    const lx = (anchor === 'end' ? box.x1 : box.x0) + v.offsetX;
+    const tick = st.ticks && st.ticks.has(key) ? ' ✓' : '';
+    s.push(`<text class="t-action" x="${lx}" y="${my - 6}" text-anchor="${anchor}">${esc(a.name)}<tspan class="tick">${tick}</tspan></text>`);
+  }));
+
+  // the dashed line joining the uncertain player's first choice nodes
+  if (st.dashed && v.key === 'combined'){
+    const [r0, r1] = v.root.actions.map(a => a.child);
+    s.push(`<line class="infoset" x1="${X(r0) + 10}" y1="${Y(r0)}" x2="${X(r1) - 10}" y2="${Y(r1)}"></line>`);
+  }
+
+  // clickable branches
+  if (st.clickBranches) v.nodes.forEach(node => {
+    if (!st.clickBranches.has(node.pid)) return;
+    node.actions.forEach((a, ai) => {
+      const key = bKey(node.pid, ai);
+      const label = `${g.players[node.player]} chooses ${a.name} at node ${badgeOf(g, node.pid)}`;
+      s.push(`<g class="hit-g" role="button" tabindex="0" data-key="${key}" aria-pressed="${!!(st.pending && st.pending.has(key))}" aria-label="${esc(label)}">` +
+             `<line class="hitline" x1="${X(node)}" y1="${Y(node)}" x2="${X(a.child)}" y2="${Y(a.child)}"></line></g>`);
+    });
+  });
+
+  // nodes
+  v.nodes.forEach(node => {
+    const x = X(node), y = Y(node);
+    if (st.rings && st.rings.has(node.pid)) s.push(`<circle class="node-ring" cx="${x}" cy="${y}" r="12"></circle>`);
+    if (st.pending && st.pending.has(nKey(node.pid))) s.push(`<circle class="node-pick" cx="${x}" cy="${y}" r="13"></circle>`);
+    const initial = node === v.root;
+    s.push(`<circle class="node-dot ${initial ? 'open' : 'filled'}" cx="${x}" cy="${y}" r="6"></circle>`);
+    const cls = node.nature ? 't-nature' : 't-player fill-p' + node.player;
+    // a player's name sits on the side away from the branch that leads in
+    if (node._side === 'right') s.push(`<text class="${cls}" x="${x + 12}" y="${y - 8}" text-anchor="start">${esc(nodeLabel(g, node))}</text>`);
+    else if (node._side === 'left') s.push(`<text class="${cls}" x="${x - 12}" y="${y - 8}" text-anchor="end">${esc(nodeLabel(g, node))}</text>`);
+    else s.push(`<text class="${cls}" x="${x}" y="${y - 15}" text-anchor="middle">${esc(nodeLabel(g, node))}</text>`);
+  });
+
+  // terminals
+  v.leaves.forEach(l => {
+    const lt = leafText(l), key = lKey(l.pid);
+    const isOutcome = st.goldLeaf === l.pid;
+    if (isOutcome || (st.pending && st.pending.has(key)))
+      s.push(`<rect class="term-ring" x="${lt.x0 - 8}" y="${lt.ty - 18}" width="${lt.w + 16}" height="26" rx="4"></rect>`);
+    if (isOutcome)
+      s.push(`<text class="term-tag" x="${lt.tx}" y="${lt.nameY + (nameLines(l).length - 1) * NAME_LINE_H + 16}" text-anchor="middle">outcome</text>`);
+    const tsp = l.payoffs.map((p, i) => {
+      const dim = (st.dimTo !== null && st.dimTo !== undefined && st.dimTo !== i);
+      return (i ? '<tspan class="fill-ink">, </tspan>' : '') + `<tspan class="${dim ? 'fill-dim' : 'fill-p' + i}">${num(p)}</tspan>`;
+    }).join('');
+    s.push(`<text class="t-payoff" x="${lt.tx}" y="${lt.ty}" text-anchor="middle">${tsp}</text>`);
+    nameLines(l).forEach((line, li) =>
+      s.push(`<text class="t-outcome" x="${lt.tx}" y="${lt.nameY + li * NAME_LINE_H}" text-anchor="middle">${esc(line)}</text>`));
+    if (st.clickLeaves){
+      s.push(`<g class="hit-g" role="button" tabindex="0" data-key="${key}" aria-pressed="${!!(st.pending && st.pending.has(key))}" aria-label="${esc('Outcome ' + l.name + ', payoffs ' + payoffText(l))}">` +
+             `<rect class="hitrect" x="${lt.x0 - 12}" y="${lt.ty - 20}" width="${lt.w + 24}" height="${leafBlockH(l) + 16}" rx="4"></rect></g>`);
+    }
+  });
+
+  // clickable choice nodes
+  if (st.clickNodes) v.nodes.forEach(n => {
+    if (n.nature) return;
+    const picked = st.pending && st.pending.has(nKey(n.pid));
+    const label = `Node ${badgeOf(g, n.pid)}, ${g.players[n.player]}${picked ? ' — selected; activate to remove' : ' — activate to select'}`;
+    s.push(`<g class="hit-g" role="button" tabindex="0" data-key="${nKey(n.pid)}" aria-pressed="${!!picked}" aria-label="${esc(label)}">` +
+           `<circle class="hitcircle" cx="${X(n)}" cy="${Y(n)}" r="20"></circle></g>`);
+  });
+
+  s.push('</svg>');
+  return s.join('');
+}
+
+/* ---------------- solution accessors ---------------- */
+function CH(w, pid){ return P().sol[w].ch.get(pid); }
+function worldOf(pid){ return Number(pid.charAt(1)); }
+function nodesOfWorld(w){ const out = []; walk(game().trees[w], n => { if (n.actions) out.push(n); }); return out; }
+function isRoot(pid){ return pid === 'w0' || pid === 'w1'; }
+function parentPid(pid){ return pid.slice(0, pid.lastIndexOf('.')); }
+// backward-induction order within one world: the choice node furthest from the start
+// first, then left to right among nodes equally far
+function biOrder(w){
+  const v = viewOf(game(), 'w' + w);
+  return v.nodes.slice().sort((a,b) => b._depth - a._depth || a._x - b._x).map(n => n.pid);
+}
+function speString(w){
+  const g = game();
+  const groups = [0,1].map(p => nodesOfWorld(w).filter(n => n.player === p)
+    .sort((a,b) => badgeOf(g, a.pid) - badgeOf(g, b.pid)).map(n => n.actions[CH(w, n.pid)].name));
+  return '(' + groups.filter(x => x.length).map(x => x.join(', ')).join('; ') + ')';
+}
+function ciLeaf(w){ return followFrom(game().trees[w], P().sol[w].ch); }
+
+/* ---------------- expected payoff arithmetic ---------------- */
+function coef(n){ return n === 1 ? '' : (n === -1 ? MINUS : num(n)); }
+// c + s p, written the way the chapter writes it: "3p + 2", "2", "6 − 5p"
+function linStr(c, s){
+  if (s === 0) return num(c);
+  const pt = coef(s) + 'p';
+  if (s > 0) return c === 0 ? pt : (c > 0 ? `${pt} + ${c}` : `${pt} ${MINUS} ${-c}`);
+  const ps = coef(-s) + 'p';
+  return c === 0 ? MINUS + ps : `${num(c)} ${MINUS} ${ps}`;
+}
+function epFormula(a, filled){
+  const [v0, v1] = P().v[a];
+  if (!filled) return `(p × <span class="blank">__</span>) + [(1 ${MINUS} p) × <span class="blank">__</span>]`;
+  const head = `(p × <span class="v">${num(v0)}</span>) + [(1 ${MINUS} p) × <span class="v">${num(v1)}</span>]`;
+  const parts = [];
+  if (v0) parts.push(coef(v0) + 'p');
+  if (v1){ parts.push((parts.length ? '+ ' : '') + num(v1)); parts.push(MINUS + ' ' + coef(v1) + 'p'); }
+  const exp = parts.join(' ') || '0';
+  const res = linStr(v1, v0 - v1);
+  return head + (exp !== res ? ` = ${exp}` : '') + ` = <span class="res">${res}</span>`;
+}
+function compareOrder(){
+  const g = game(), p = P();
+  const first = (g.compareFirst !== undefined) ? g.compareFirst : (p.cutoff ? p.above : p.always);
+  return [first, 1 - first];
+}
+// The inequality for "first is chosen over second", solved for p as the chapter does.
+function algebraLines(){
+  const p = P(), [i, j] = compareOrder();
+  const L = p.lin[i], R = p.lin[j];
+  const lines = [`${linStr(L.c, L.s)} > ${linStr(R.c, R.s)}`];
+  let last;
+  if (L.s > R.s){
+    lines.push(`${coef(L.s - R.s)}p > ${num(R.c - L.c)}`);
+    last = { dir:'>', f: frac(R.c - L.c, L.s - R.s) };
+    lines.push(`p > ${fracStr(last.f)}`);
+  } else if (L.s < R.s){
+    lines.push(`${num(L.c - R.c)} > ${coef(R.s - L.s)}p`);
+    last = { dir:'<', f: frac(L.c - R.c, R.s - L.s) };
+    lines.push(`${fracStr(last.f)} > p`);
+  }
+  const out = lines.filter((l, k) => k === 0 || l !== lines[k-1]);
+  return { lines: out, first:i, second:j, last };
+}
+function algebraHtml(){
+  const a = algebraLines();
+  return `Expected payoff (${esc(actName(a.first))}) &gt; Expected payoff (${esc(actName(a.second))})<br>` +
+    a.lines.map((l, k) => (k ? '⇒ ' : '') + esc(l)).join('<br>');
+}
+function ruleSentence(){
+  const p = P(), c = p.cutoff;
+  if (!c) return `${cap(U())} ${vb(0,'chooses','choose')} <b>${esc(actName(p.always))}</b> whatever ${vb(0,'it believes','they believe')}.`;
+  return `${cap(U())} ${vb(0,'chooses','choose')} <b>${esc(actName(p.above))}</b> if ${vb(0,'it believes','they believe')} that ${esc(worldPhrase(0))} with a probability greater than <span class="pay">${fracStr(c)}</span>, ` +
+    `and <b>${esc(actName(p.below))}</b> if the probability is less than <span class="pay">${fracStr(c)}</span>.`;
+}
+
+/* ---------------------------------------------------------------
+   Progress. Both modes describe where the student is as a set of
+   flags, and one renderer draws every card from those flags.
+   --------------------------------------------------------------- */
+const GUIDED = ['intro','sep','solve0','solve1','complete','combine','ep0','ep1','cut','belief','nature'];
+const TASKS = ['solve0','solve1','infoset','ep0','ep1','cutoff','direction','belief','outcome','complete'];
+
+function guidedSteps(){ return game().close ? GUIDED.concat(['close']) : GUIDED; }
+
+let guidedStep = 0;
+let taskIdx = 0, checked = false;
+let pending = new Set();          // branch, node or terminal keys picked but not checked
+let optPick = null;               // index of the chosen option in an option task
+let ticks = new Set();
+let lastFocusKey = null;
+
+function resetAll(){
+  guidedStep = 0; taskIdx = 0; checked = false; pending = new Set(); optPick = null;
+  ticks = new Set(); lastFocusKey = null;
+}
+
+function progressGuided(){
+  const id = guidedSteps()[guidedStep], at = s => guidedSteps().indexOf(s) <= guidedStep;
+  return { step:id,
+    solved:[at('solve0'), at('solve1')], combined:at('combine'), dashed:at('combine'),
+    ep:[at('ep0'), at('ep1')], cutoff:at('cut'), direction:at('cut'), belief:at('belief'),
+    revealed:at('nature'), outcome:at('nature'), complete:at('nature') };
+}
+function progressPractice(){
+  const done = t => { const k = TASKS.indexOf(t); return k < taskIdx || (k === taskIdx && checked); };
+  const reached = t => TASKS.indexOf(t) <= taskIdx;
+  return { step:TASKS[taskIdx],
+    solved:[done('solve0'), done('solve1')], combined:reached('infoset'), dashed:done('infoset'),
+    ep:[done('ep0'), done('ep1')], cutoff:done('cutoff'), direction:done('direction'), belief:done('belief'),
+    revealed:reached('outcome'), outcome:done('outcome'), complete:done('complete') };
+}
+function progress(){ return mode === 'guided' ? progressGuided() : progressPractice(); }
+
+/* ---------------- tree state from progress ---------------- */
+function treeStates(pr){
+  const g = game(), p = P();
+  const interactive = mode === 'practice' && !checked;
+  const step = pr.step;
+  if (!pr.combined){
+    return [0,1].map(w => {
+      const v = viewOf(g, 'w' + w);
+      const marked = new Map();
+      if (pr.solved[w]) nodesOfWorld(w).forEach(n => marked.set(n.pid, CH(w, n.pid)));
+      const st = { aria:`Separate game: ${g.worlds[w].label.toLowerCase()}`, marked, pending, ticks, dimTo:null };
+      if (interactive && step === 'solve' + w) st.clickBranches = new Set(nodesOfWorld(w).map(n => n.pid));
+      return { v, st, cap: `Separate game — ${g.worlds[w].label.toLowerCase()} (probability ${w ? '1 ' + MINUS + ' p' : 'p'})` };
+    });
+  }
+  const v = viewOf(g, 'combined');
+  const marked = new Map();
+  [0,1].forEach(w => nodesOfWorld(w).forEach(n => { if (!isRoot(n.pid)) marked.set(n.pid, CH(w, n.pid)); }));
+  if (pr.belief){ marked.set('w0', p.beliefChoice); marked.set('w1', p.beliefChoice); }
+  const st = { aria:`Combined game with Nature`, marked, pending, ticks, dashed:pr.dashed, dimTo:null, rings:new Set() };
+  if (step === 'ep0' || step === 'ep1'){ st.dimTo = 0; st.rings = new Set(['w0','w1']); }
+  if (step === 'combine' || step === 'belief'){ st.rings = new Set(['w0','w1']); }
+  if (pr.revealed) st.natureBold = g.actual;
+  if (pr.outcome){
+    const gold = new Set([bKey('N', g.actual)]);
+    let n = game().trees[g.actual], ai = p.beliefChoice;
+    while (n.actions){ gold.add(bKey(n.pid, ai)); n = n.actions[ai].child; if (n.actions) ai = CH(g.actual, n.pid); }
+    st.gold = gold; st.goldLeaf = p.outcomeLeaf.pid;
+  }
+  if (interactive){
+    if (step === 'infoset') st.clickNodes = true;
+    if (step === 'ep0' || step === 'ep1' || step === 'outcome') st.clickLeaves = true;
+  }
+  return [{ v, st, cap:null }];
+}
+
+let scrolledFor = null;
+function renderTrees(pr){
+  const g = game(), blocks = treeStates(pr);
+  const wrap = document.getElementById('treeWrap');
+  wrap.className = blocks.length > 1 ? 'sep' : '';
+  // the two separate games sit side by side where they fit, and stack where they don't
+  wrap.innerHTML = blocks.map(b =>
+    `<div class="tree-block"${blocks.length > 1 ? ` style="width:${b.v.width}px"` : ''}>${b.cap ? `<div class="tree-cap">${esc(b.cap)}</div>` : ''}${svgFor(b.v, b.st)}</div>`).join('');
+  // Open centered on the initial node; keep the student's scroll while they stay on one view.
+  // Once Nature's choice is revealed, center on that world instead, so the outcome is in view.
+  const key = g.id + '|' + (pr.combined ? 'c' : 's') + (pr.revealed ? 'r' : '');
+  const box = document.getElementById('treeScroll');
+  if (scrolledFor !== key){
+    const v = blocks[0].v;
+    const focus = pr.revealed ? v.byPid.get('w' + g.actual) : v.root;
+    const centerOn = focus._x * v.xgap + v.offsetX;
+    requestAnimationFrame(() => {
+      const max = box.scrollWidth - box.clientWidth;
+      box.scrollLeft = max > 0 ? Math.max(0, Math.min(max, centerOn - box.clientWidth / 2)) : 0;
+      scrolledFor = key;
+    });
+  }
+  const v = viewOf(g, 'combined');
+  document.getElementById('treeSummary').textContent = pr.combined
+    ? `Combined game. Nature chooses ${g.worlds[0].label.toLowerCase()} with probability p or ${g.worlds[1].label.toLowerCase()} with probability 1 minus p. ` +
+      (pr.dashed ? `A dashed line joins nodes ${badgeOf(g,'w0')} and ${badgeOf(g,'w1')}, where ${U()} ${vb(0,'does','do')} not know which world Nature chose. ` : '') +
+      v.nodes.filter(n => !n.nature).sort((a,b) => badgeOf(g,a.pid) - badgeOf(g,b.pid))
+        .map(n => `Node ${badgeOf(g, n.pid)}: ${g.players[n.player]} chooses among ${n.actions.map(a => a.name).join(', ')}.`).join(' ')
+    : `Two separate games, one for each world. Payoffs listed ${g.players.join(', then ')}.`;
+  attachHits();
+}
+
+function attachHits(){
+  document.querySelectorAll('.hit-g').forEach(el => {
+    const fire = () => onHit(el.dataset.key);
+    el.addEventListener('click', fire);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){ e.preventDefault(); fire(); } });
+  });
+  if (lastFocusKey){
+    const el = document.querySelector('.hit-g[data-key="' + lastFocusKey + '"]');
+    if (el) el.focus();
+  }
+}
+
+function onHit(key){
+  if (checked) return;
+  lastFocusKey = key;
+  const kind = key.charAt(0), pid = key.split('|')[1];
+  if (pending.has(key)){ pending.delete(key); renderPractice(true); return; }
+  if (kind === 'B'){
+    // one branch per choice node: a new pick at the same node replaces the old one
+    [...pending].forEach(k => { if (k.split('|')[1] === pid) pending.delete(k); });
+  } else if (kind === 'L'){
+    const step = TASKS[taskIdx];
+    if (step === 'outcome') pending = new Set();
+    // one outcome per world: a new pick in the same world replaces the old one
+    else [...pending].forEach(k => { if (worldOf(k.split('|')[1]) === worldOf(pid)) pending.delete(k); });
+  }
+  pending.add(key);
+  renderPractice(true);
+}
+
+/* ---------------- worksheet, rule, findings ---------------- */
+function renderWorksheet(pr){
+  const el = document.getElementById('worksheet');
+  const show = pr.combined && (pr.step === 'ep0' || pr.ep[0] || pr.ep[1]);
+  if (!show){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const p = P(), g = game();
+  let h = `<div class="card-head">Expected payoffs for ${esc(g.players[0])}</div>`;
+  for (let a = 0; a < p.nActs; a++){
+    h += `<div class="ws-row"><span class="ws-name">Expected payoff (${esc(actName(a))})</span> = ${epFormula(a, pr.ep[a])}</div>`;
+  }
+  if (pr.cutoff){
+    h += `<div class="ws-crit">`;
+    if (p.cutoff) h += `<div><span class="k">Critical probability:</span> <span class="alg">p = ${fracStr(p.cutoff)}</span></div>`;
+    else h += `<div><span class="k">Critical probability:</span> none — the expected payoffs don’t cross between 0 and 1.</div>`;
+    if (pr.direction) h += `<div class="alg">${algebraHtml()}</div>` +
+      (p.cutoff ? '' : `<div>Every probability between 0 and 1 satisfies this, so ${esc(actName(p.always))} is always the better choice.</div>`);
+    h += `</div>`;
+  }
+  el.innerHTML = h;
+  el.style.display = 'block';
+}
+
+function renderRule(pr){
+  const el = document.getElementById('ruleCard');
+  if (!pr.direction){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const p = P(), g = game();
+  const segs = p.cutoff
+    ? [{ w:p.cutoff.v, a:p.below }, { w:1 - p.cutoff.v, a:p.above }]
+    : [{ w:1, a:p.always }];
+  let scale = `<div class="rule-scale"><span class="rule-tick" style="left:0%">0</span><span class="rule-tick" style="left:100%">1</span>`;
+  if (p.cutoff) scale += `<span class="rule-tick cut" style="left:${(p.cutoff.v*100).toFixed(2)}%">${fracStr(p.cutoff)}</span>`;
+  if (pr.belief) scale += `<span class="rule-belief" style="left:${(g.belief*100).toFixed(2)}%">belief ${fmtBelief(g.belief)} ▾</span>`;
+  scale += `</div>`;
+  const bar = `<div class="rule-bar">` + segs.map((s, k) =>
+      `<div class="seg${k ? ' alt' : ''}" style="flex:0 0 ${(s.w*100).toFixed(2)}%">${esc(actName(s.a))}</div>`).join('') +
+    (pr.belief ? `<div class="rule-mark" style="left:${(g.belief*100).toFixed(2)}%"></div>` : '') + `</div>`;
+  el.innerHTML = `<div class="card-head">Decision rule: probability that ${esc(worldPhrase(0))} (p)</div>` +
+    `<div aria-hidden="true">${scale}${bar}</div>` +
+    `<p class="rule-cap">${ruleSentence()}` +
+    (pr.belief ? ` With a belief of <span class="pay">${fmtBelief(g.belief)}</span>, ${U()} ${vb(0,'chooses','choose')} <b>${esc(actName(p.beliefChoice))}</b>.` : '') + `</p>`;
+  el.style.display = 'block';
+}
+
+function renderFindings(pr){
+  const g = game(), p = P(), lines = [];
+  [0,1].forEach(w => {
+    if (!pr.solved[w]) return;
+    const l = ciLeaf(w);
+    lines.push(`<div><span class="k">If ${esc(U())} knew that ${esc(worldPhrase(w))}:</span> ` +
+      `<span class="pay">${esc(speString(w))}</span>; expected outcome ${esc(l.name)}</div>`);
+  });
+  if (pr.belief) lines.push(`<div><span class="k">With a belief of ${fmtBelief(g.belief)}:</span> ${esc(U())} ${vb(0,'chooses','choose')} ${esc(actName(p.beliefChoice))}</div>`);
+  if (pr.outcome){
+    const l = p.outcomeLeaf;
+    lines.push(`<div><span class="k">Nature chose:</span> ${esc(worldPhrase(g.actual))}. Outcome: ${esc(l.name)}. ` +
+      `Payoffs: ${g.players.map((pl, i) => `${esc(pl)}: <span class="pay">${num(l.payoffs[i])}</span>`).join(', ')}</div>`);
+  }
+  if (pr.complete){
+    lines.push(`<div><span class="k">Under complete information:</span> ${esc(p.ciLeaf.name)}` +
+      (p.mistake ? ` — a different outcome` : ` — the same outcome`) + `</div>`);
+  }
+  const card = document.getElementById('findingsCard');
+  card.style.display = lines.length ? 'block' : 'none';
+  document.getElementById('findings').innerHTML = lines.join('');
+}
+
+/* ---------------- legend ---------------- */
+function renderLegend(pr){
+  const g = game();
+  document.getElementById('legend').innerHTML =
+    `<span><span class="swatch nature"></span> Nature</span>` +
+    g.players.map((p,i) => `<span><span class="swatch" style="background:var(--p${i})"></span> ${esc(p)}${i === 0 ? ' (doesn’t know the world)' : ''}</span>`).join('');
+  document.getElementById('legendNote').innerHTML =
+    `Payoffs are listed <b>${esc(g.players.join(', then '))}</b>, and they are <b>cardinal</b>: they tell us how much more a player values one outcome than another. ` +
+    `Nature chooses the world where ${esc(worldPhrase(0))} with probability <b>p</b> and the world where ${esc(worldPhrase(1))} with probability <b>1 ${MINUS} p</b>. ` +
+    `Choice nodes carry the numbers they have in the combined game.`;
+  document.getElementById('gameNote').innerHTML = g.note || '';
+}
+
+/* ---------------------------------------------------------------
+   Guided walkthrough text
+   --------------------------------------------------------------- */
+function narrateWorld(w){
+  const g = game(), order = biOrder(w), out = [];
+  const val = pid => P().sol[w].val.get(pid);
+  order.forEach((pid, k) => {
+    const n = nodeByPid(w, pid), who = g.refs[n.player], badgeS = badge(pid);
+    let open;
+    if (k === 0) open = 'We start at the end of the game tree.';
+    else if (parentPid(order[k-1]) === pid) open = 'Now we move backward to the choice node prior to this one' + (isRoot(pid) ? ', which is the initial node of this game.' : '.');
+    else open = 'Now we turn to the next choice node.';
+    const final = n.actions.every(a => !a.child.actions);
+    const vals = n.actions.map(a => `<b>${esc(a.name)}</b> gives <span class="pay">${num(val(a.child.pid)[n.player])}</span>`);
+    const pick = n.actions[CH(w, pid)].name;
+    const body = final
+      ? `Node ${badgeS} is a final choice node, so ${who} simply ${vb(n.player,'compares','compare')} the payoffs: ${joinAnd(vals)}. ${cap(who)} ${vb(n.player,'chooses','choose')} <b>${esc(pick)}</b>.`
+      : `At node ${badgeS}, ${who} can look down the game tree (follow the bold lines) and see that ${joinAnd(vals)}. ${cap(who)} ${vb(n.player,'chooses','choose')} <b>${esc(pick)}</b>.`;
+    out.push(open + ' ' + body);
+  });
+  return out.join(' ');
+}
+function nodeByPid(w, pid){ let f = null; walk(game().trees[w], n => { if (n.pid === pid) f = n; }); return f; }
+
+function guidedInfo(){
+  const g = game(), p = P(), id = guidedSteps()[guidedStep];
+  const u = U(), uc = cap(U());
+  if (id === 'intro') return { label:'Start here', text:
+    (g.intro ? g.intro + ' ' : '') +
+    `${uc} ${vb(0,'doesn’t','don’t')} know whether ${esc(worldPhrase(0))} or ${esc(worldPhrase(1))}. ` +
+    `We follow the chapter’s four steps: write out the separate games, solve them, connect them with a dashed line that shows the uncertainty, and compare expected payoffs.` };
+  if (id === 'sep') return { label:'Step 1 — write out the separate games', text:
+    `There are two possible worlds, so we write two games: one where ${esc(worldPhrase(0))} and one where ${esc(worldPhrase(1))}. ` +
+    `Each is a game of complete information, in which every player knows which world it is in. ` +
+    `The two trees have the same choices; compare their payoffs and outcomes to see what differs.` };
+  if (id === 'solve0' || id === 'solve1'){
+    const w = Number(id.charAt(5)), l = ciLeaf(w);
+    return { label:`Step 2 — solve the separate games (${w + 1} of 2)`, text:
+      `Take the world where ${esc(worldPhrase(w))}. ${narrateWorld(w)} ` +
+      `The subgame perfect equilibrium is <span class="pay">${esc(speString(w))}</span>, and the expected outcome is <b>${esc(l.name)}</b>.` };
+  }
+  if (id === 'complete') return { label:'What complete information predicts', text:
+    `If ${u} knew that ${esc(worldPhrase(0))}, the expected outcome would be <b>${esc(ciLeaf(0).name)}</b>. ` +
+    `If ${vb(0,'it','they')} knew that ${esc(worldPhrase(1))}, it would be <b>${esc(ciLeaf(1).name)}</b>. ` +
+    (g.completeNote ? g.completeNote + ' ' : '') +
+    `The problem is that ${u} ${vb(0,'doesn’t','don’t')} know which world ${vb(0,'it is','they are')} in, and hence which game ${vb(0,'it is','they are')} actually playing.` };
+  if (id === 'combine'){
+    return { label:'Step 3 — connect the games', text:
+      `Now we put the two games together. Nature moves first, choosing the world where ${esc(worldPhrase(0))} with probability <b>p</b> and the world where ${esc(worldPhrase(1))} with probability <b>1 ${MINUS} p</b>. ` +
+      `The dashed line joining nodes ${badge('w0')} and ${badge('w1')} shows that when ${u} ${vb(0,'chooses','choose')}, ${vb(0,'it doesn’t','they don’t')} know which of the two ${vb(0,'it is','they are')} at. ` +
+      `We can’t use backward induction at a choice node connected to another by a dashed line, so the bold lines at nodes ${badge('w0')} and ${badge('w1')} are gone. ` };
+  }
+  if (id === 'ep0' || id === 'ep1'){
+    const a = Number(id.charAt(2)), [l0, l1] = p.epLeaf[a], [v0, v1] = p.v[a];
+    const same = v0 === v1 && l0.name === l1.name;
+    return { label:'Step 4 — expected payoffs', text:
+      `What is ${u}’${plural(0) ? '' : 's'} expected payoff from <b>${esc(actName(a))}</b>? ` +
+      (same
+        ? `In either world, ${vb(0,'it','they')} can look down the game tree and see that the outcome is ${esc(l0.name)}, with a payoff of <span class="pay">${num(v0)}</span>. `
+        : `With probability p, ${vb(0,'it is','they are')} in the world where ${esc(worldPhrase(0))}, and following the bold lines leads to ${esc(l0.name)}, with a payoff of <span class="pay">${num(v0)}</span>. ` +
+          `With probability 1 ${MINUS} p, ${vb(0,'it is','they are')} in the world where ${esc(worldPhrase(1))}, and the bold lines lead to ${esc(l1.name)}, with a payoff of <span class="pay">${num(v1)}</span>. `) +
+      `Multiplying each payoff by its probability and adding them up gives the expected payoff shown in the worksheet.` };
+  }
+  if (id === 'cut'){
+    const al = algebraLines();
+    let text = `${uc} ${vb(0,'chooses','choose')} ${esc(actName(al.first))} when ${vb(0,'its','their')} expected payoff is greater than the expected payoff from ${esc(actName(al.second))}:` +
+      `<span class="alg">${algebraHtml()}</span>`;
+    if (p.cutoff){
+      text += `This is the <b>critical probability</b>. ${ruleSentence()} At exactly <span class="pay">${fracStr(p.cutoff)}</span>, ${vb(0,'it is','they are')} indifferent.`;
+    } else {
+      text += `This holds for every probability between 0 and 1, so there is <b>no critical probability</b>. ${ruleSentence()} ` +
+        `${esc(actName(p.always))} is the better choice in both separate games, and uncertainty about which world ${vb(0,'it is','they are')} in doesn’t change what ${vb(0,'it does','they do')}.`;
+    }
+    return { label:'Step 4 — the critical probability', text };
+  }
+  if (id === 'belief'){
+    const cmp = p.cutoff ? ` Since ${fmtBelief(g.belief)} is ${g.belief > p.cutoff.v ? 'greater' : 'less'} than ${fracStr(p.cutoff)}, ${u} ${vb(0,'chooses','choose')} <b>${esc(actName(p.beliefChoice))}</b>.`
+                         : ` Whatever the belief, ${u} ${vb(0,'chooses','choose')} <b>${esc(actName(p.beliefChoice))}</b>.`;
+    return { label:'Applying the decision rule', text:
+      `${esc(g.beliefText)}${cmp} Because ${vb(0,'it can’t','they can’t')} tell nodes ${badge('w0')} and ${badge('w1')} apart, the same branch is bold at both.` };
+  }
+  if (id === 'nature'){
+    const l = p.outcomeLeaf, ci = p.ciLeaf;
+    let text = `In fact, ${esc(worldPhrase(g.actual))}. Follow Nature’s branch into that world, then the bold lines: the game ends at <b>${esc(l.name)}</b>, ` +
+      `with payoffs of ` + g.refs.map((r, i) => `<span class="pay">${num(l.payoffs[i])}</span> for ${esc(r)}`).join(' and ') + `. `;
+    text += p.mistake
+      ? `If ${u} had known that ${esc(worldPhrase(g.actual))}, ${vb(0,'it','they')} would have chosen ${esc(actName(p.ciChoice))}, and the expected outcome would have been <b>${esc(ci.name)}</b>. ` +
+        `${esc(l.name)} happened here only because ${u} ${vb(0,'was','were')} wrong about the world ${vb(0,'it was','they were')} in; under complete information it can’t happen in this world.`
+      : `This is also what would have happened if ${u} had known that ${esc(worldPhrase(g.actual))}: ${vb(0,'its','their')} belief led to the same choice complete information would have.`;
+    return { label:'What Nature chose', text };
+  }
+  if (id === 'close') return { label:'What we learn', text: game().close };
+  return { label:'', text:'' };
+}
+
+/* guided: which cards a step concerns, and which it changes */
+function guidedCards(id){
+  const map = {
+    intro:  { look:['treeCard'], fresh:[] },
+    sep:    { look:['treeCard'], fresh:['treeCard'] },
+    solve0: { look:['treeCard','findingsCard'], fresh:['treeCard'] },
+    solve1: { look:['treeCard','findingsCard'], fresh:['treeCard'] },
+    complete:{ look:['findingsCard'], fresh:['findingsCard'] },
+    combine:{ look:['treeCard'], fresh:['treeCard'] },
+    ep0:    { look:['treeCard','worksheet'], fresh:['worksheet'] },
+    ep1:    { look:['treeCard','worksheet'], fresh:['worksheet'] },
+    cut:    { look:['worksheet','ruleCard'], fresh:['ruleCard'] },
+    belief: { look:['ruleCard','treeCard'], fresh:['ruleCard'] },
+    nature: { look:['treeCard','findingsCard'], fresh:['treeCard'] },
+    close:  { look:['findingsCard'], fresh:[] }
+  };
+  return map[id] || { look:[], fresh:[] };
+}
+
+/* ---------------------------------------------------------------
+   Practice tasks
+   --------------------------------------------------------------- */
+function taskInfo(){
+  const g = game(), p = P(), id = TASKS[taskIdx], u = U(), uc = cap(U());
+  if (id === 'solve0' || id === 'solve1'){
+    const w = Number(id.charAt(5));
+    return { id, kind:'tree', text:
+      `Step 2: solve the separate game in which ${esc(worldPhrase(w))}. Start at the end of the game tree and work backward. ` +
+      `At each choice node in this game, click the branch the player making the choice will take; picking another branch at the same node replaces your pick. Then check your answer.` };
+  }
+  if (id === 'infoset') return { id, kind:'tree', text:
+    `Step 3: the two games are now joined under Nature. A dashed line joins the choice nodes at which a player doesn’t know which world Nature has chosen. ` +
+    `Click every choice node the dashed line should join, then check your answer.` };
+  if (id === 'ep0' || id === 'ep1'){
+    const a = Number(id.charAt(2));
+    return { id, kind:'tree', text:
+      `Step 4: what is ${u}’${plural(0) ? '' : 's'} expected payoff from <b>${esc(actName(a))}</b>? ` +
+      `Suppose ${u} ${vb(0,'chooses','choose')} ${esc(actName(a))}. In each world, look down the game tree (follow the bold lines) and click the outcome the game reaches — ` +
+      `one outcome where ${esc(worldPhrase(0))}, and one where ${esc(worldPhrase(1))}. The worksheet fills in once both are right.` };
+  }
+  if (id === 'cutoff'){
+    const opts = p.options.map(f => ({ label:fracStr(f), num:true, ok: !!p.cutoff && f.n === p.cutoff.n && f.d === p.cutoff.d }));
+    opts.push({ label:'Nowhere between 0 and 1: the same choice is best whatever p is', ok: !p.cutoff });
+    return { id, kind:'opts', opts, text:
+      `Using the two expected payoffs in the worksheet, find the <b>critical probability</b>: the value of p at which ${u} ${vb(0,'is','are')} indifferent between ${esc(actName(0))} and ${esc(actName(1))}.` };
+  }
+  if (id === 'direction'){
+    const opts = [0,1].map(a => ({ label:actName(a) }));
+    if (!p.cutoff){
+      opts.forEach((o, a) => o.ok = a === p.always);
+      return { id, kind:'opts', opts, text:`The expected payoffs never cross between 0 and 1. Whatever the value of p, which does ${u} choose?` };
+    }
+    const askBelow = g.dirAsk === 'below';
+    opts.forEach((o, a) => o.ok = a === (askBelow ? p.below : p.above));
+    return { id, kind:'opts', opts, text:
+      `When p is ${askBelow ? 'less' : 'greater'} than <span class="pay">${fracStr(p.cutoff)}</span>, which does ${u} choose?` };
+  }
+  if (id === 'belief'){
+    const opts = [0,1].map(a => ({ label:actName(a), ok: a === p.beliefChoice }));
+    return { id, kind:'opts', opts, text:`${esc(g.beliefText)} Which does ${u} choose?` };
+  }
+  if (id === 'outcome') return { id, kind:'tree', text:
+    `${uc} ${vb(0,'has','have')} chosen ${esc(actName(p.beliefChoice))}. Nature’s choice is now revealed: in fact, <b>${esc(worldPhrase(g.actual))}</b>. ` +
+    `Follow Nature’s bold branch into that world and then the bold lines, and click the outcome the game reaches.` };
+  if (id === 'complete'){
+    const opts = [{ label:'Yes', ok: !p.mistake }, { label:'No', ok: p.mistake }];
+    return { id, kind:'opts', opts, text:
+      `If ${u} had known that ${esc(worldPhrase(g.actual))}, would the game still have ended in ${esc(p.outcomeLeaf.name)}?` };
+  }
+}
+
+function taskCorrect(t){
+  const g = game(), p = P();
+  if (t.kind === 'opts') return optPick !== null && t.opts[optPick].ok;
+  if (t.id === 'solve0' || t.id === 'solve1'){
+    const w = Number(t.id.charAt(5));
+    const want = new Set(nodesOfWorld(w).map(n => bKey(n.pid, CH(w, n.pid))));
+    return sameSet(pending, want);
+  }
+  if (t.id === 'infoset') return sameSet(pending, new Set([nKey('w0'), nKey('w1')]));
+  if (t.id === 'ep0' || t.id === 'ep1'){
+    const a = Number(t.id.charAt(2));
+    return sameSet(pending, new Set(p.epLeaf[a].map(l => lKey(l.pid))));
+  }
+  if (t.id === 'outcome') return sameSet(pending, new Set([lKey(p.outcomeLeaf.pid)]));
+  return false;
+}
+function taskReady(t){
+  if (t.kind === 'opts') return optPick !== null;
+  if (t.id === 'solve0' || t.id === 'solve1') return pending.size === nodesOfWorld(Number(t.id.charAt(5))).length;
+  if (t.id === 'ep0' || t.id === 'ep1') return pending.size === 2;
+  return pending.size > 0;
+}
+function sameSet(a, b){ if (a.size !== b.size) return false; for (const k of a) if (!b.has(k)) return false; return true; }
+
+function wrongMessage(t){
+  const g = game(), p = P(), u = U();
+  switch (t.id){
+    case 'solve0': case 'solve1':
+      return `At least one of those isn’t the branch that player would choose. Start at the end of the game tree and work backward: at each choice node, follow the branches you picked further down and compare the payoffs of the player making the choice. Try the task again.`;
+    case 'infoset': {
+      const extra = [...pending].some(k => p.later.indexOf(k.split('|')[1]) >= 0);
+      return extra
+        ? `Not quite. By the time ${u} ${vb(0,'moves','move')} again, the other player’s response has revealed which world Nature chose, so no dashed line is needed there. Try the task again.`
+        : `Not quite. The dashed line joins the nodes where the player who doesn’t know the world has to choose without knowing it — one node in each world. Try the task again.`;
+    }
+    case 'ep0': case 'ep1':
+      return `Not quite. In each world, start at ${u}’${plural(0) ? '' : 's'} choice of ${esc(actName(Number(t.id.charAt(2))))} and follow the bold lines until you reach an outcome. Try the task again.`;
+    case 'cutoff':
+      return p.cutoff || optPick === t.opts.length - 1
+        ? `Not quite. Write the inequality the chapter uses — one expected payoff greater than the other — and solve it for p. Check that p is the probability that ${esc(worldPhrase(0))}. Try the task again.`
+        : `Not quite. Check whether the two expected payoffs actually cross: compare them at p = 0 and at p = 1. Try the task again.`;
+    case 'direction':
+      return p.cutoff
+        ? `Not quite. Pick a value of p on that side of the critical probability — ${g.dirAsk === 'below' ? '0' : '1'} is the easiest — and compare the two expected payoffs there. Try the task again.`
+        : `Not quite. Compare the two expected payoffs at any value of p, such as 0 or 1. Try the task again.`;
+    case 'belief':
+      return p.cutoff
+        ? `Not quite. Compare the belief, ${fmtBelief(g.belief)}, with the critical probability, ${fracStr(p.cutoff)}, and use the decision rule. Try the task again.`
+        : `Not quite. The decision rule gives the same choice whatever the belief. Try the task again.`;
+    case 'outcome':
+      return `That’s not where the game ends up. Start with Nature’s bold branch, then follow only the bold lines. Try the task again.`;
+    case 'complete':
+      return `Not quite. Look at the findings: what would ${u} have chosen in the separate game for this world? Try the task again.`;
+  }
+  return 'Try the task again.';
+}
+function rightMessage(t){
+  const g = game(), p = P(), u = U();
+  switch (t.id){
+    case 'solve0': case 'solve1': {
+      const w = Number(t.id.charAt(5));
+      return `Correct. If ${u} knew that ${esc(worldPhrase(w))}, the subgame perfect equilibrium would be <span class="pay">${esc(speString(w))}</span> and the expected outcome ${esc(ciLeaf(w).name)}.`;
+    }
+    case 'infoset':
+      return `Correct. When ${u} ${vb(0,'chooses','choose')} at nodes ${badge('w0')} and ${badge('w1')}, ${vb(0,'it doesn’t','they don’t')} know which of the two ${vb(0,'it is','they are')} at, so backward induction can’t settle those choices and their bold lines are gone.` +
+        (p.later.length ? ` Later nodes need no dashed line: by then the other player’s response has revealed the world.` : '');
+    case 'ep0': case 'ep1':
+      return `Correct. The worksheet now shows the expected payoff from ${esc(actName(Number(t.id.charAt(2))))}.`;
+    case 'cutoff':
+      return p.cutoff ? `Correct: the critical probability is ${fracStr(p.cutoff)}.` : `Correct: the expected payoffs don’t cross between 0 and 1, so there is no critical probability.`;
+    case 'direction':
+      return `Correct. ${ruleSentence()}`;
+    case 'belief':
+      return `Correct. The same branch is now bold at both of the nodes joined by the dashed line, since ${u} can’t tell them apart.`;
+    case 'outcome':
+      return `Correct. The game ends at ${esc(p.outcomeLeaf.name)}.`;
+    case 'complete':
+      return p.mistake
+        ? `Correct. Knowing that ${esc(worldPhrase(g.actual))}, ${u} would have chosen ${esc(actName(p.ciChoice))}, and the expected outcome would have been ${esc(p.ciLeaf.name)}. ` +
+          `${esc(p.outcomeLeaf.name)} happened only because ${u} ${vb(0,'was','were')} wrong about the world; under complete information it can’t happen here.`
+        : `Correct. ${cap(u)}’${plural(0) ? '' : 's'} belief led to the same choice complete information would have, so the outcome is the same.`;
+  }
+  return 'Correct.';
+}
+// which card a task concerns, and which card a correct answer changes
+function taskCards(id){
+  const map = {
+    solve0:{ look:['treeCard'], done:'findingsCard' }, solve1:{ look:['treeCard'], done:'findingsCard' },
+    infoset:{ look:['treeCard'], done:'treeCard' },
+    ep0:{ look:['treeCard','worksheet'], done:'worksheet' }, ep1:{ look:['treeCard','worksheet'], done:'worksheet' },
+    cutoff:{ look:['worksheet'], done:'worksheet' }, direction:{ look:['worksheet'], done:'ruleCard' },
+    belief:{ look:['ruleCard'], done:'ruleCard' }, outcome:{ look:['treeCard'], done:'findingsCard' },
+    complete:{ look:['findingsCard'], done:'findingsCard' }
+  };
+  return map[id];
+}
+
+/* ---------------------------------------------------------------
+   Bringing a card into view, and getting back.
+   See teaching-tools-house-style.md. The left column holds four cards,
+   so the one a step changes can be off screen on a laptop as well as
+   on a phone: this tool uses the visibility gate.
+   --------------------------------------------------------------- */
+const CARD_NAMES = { treeCard:'the game tree', worksheet:'the worksheet', ruleCard:'the decision rule', findingsCard:'the findings' };
+let movedAway = false, panelSeen = false;
+function stacked(){
+  const tc = document.querySelector('.tree-col'), pc = document.querySelector('.panel-col');
+  return !!(tc && pc) && tc.offsetTop !== pc.offsetTop;
+}
+function bringIntoView(id, forced){
+  const el = document.getElementById(id);
+  if (!el || el.style.display === 'none') return;
+  requestAnimationFrame(() => {
+    const box = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const seen = Math.min(box.bottom, vh) - Math.max(box.top, 0);
+    if (!forced && box.top >= 0 && (box.bottom <= vh || seen >= vh * 0.6)) return;
+    movedAway = true;
+    // A card that fits on screen moves only as far as needed, so the cards above it
+    // stay in view where they can; a taller one is aligned by its top.
+    const fits = box.height <= vh - 16;
+    el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: (fits && !forced) ? 'nearest' : 'start' });
+  });
+}
+function renderLook(targets){
+  const shown = (targets || []).filter(id => document.getElementById(id).style.display !== 'none');
+  if (!shown.length) return;
+  const host = document.getElementById('stepText');
+  const row = document.createElement('div');
+  row.className = 'look';
+  row.innerHTML = '<span class="look-lead">Look at</span>';
+  shown.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'look-btn'; b.type = 'button'; b.textContent = CARD_NAMES[id];
+    b.setAttribute('aria-label', 'Go to ' + CARD_NAMES[id]);
+    b.addEventListener('click', () => bringIntoView(id, true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+const backBtn = document.createElement('button');
+backBtn.className = 'back-to-step'; backBtn.type = 'button'; backBtn.hidden = true;
+backBtn.addEventListener('click', () => {
+  document.querySelector('.panel').scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' });
+});
+document.body.appendChild(backBtn);
+function syncBack(){
+  const pc = document.getElementById('panelControls');
+  if (!pc || !pc.children.length){ backBtn.hidden = true; return; }
+  const box = pc.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top >= 0 && box.bottom <= vh;
+  if (inSight) panelSeen = true;
+  // only offer to return somewhere the reader has been, or was moved away from
+  backBtn.hidden = inSight || !(panelSeen || movedAway);
+  if (!backBtn.hidden) backBtn.textContent = mode === 'guided' ? 'Back to the step' : 'Back to the task';
+}
+let backTicking = false;
+function queueSyncBack(){ if (backTicking) return; backTicking = true; requestAnimationFrame(() => { backTicking = false; syncBack(); }); }
+window.addEventListener('scroll', queueSyncBack, { passive:true });
+window.addEventListener('resize', queueSyncBack);
+
+/* ---------------- panel rendering ---------------- */
+function renderCards(pr){
+  renderLegend(pr);
+  renderTrees(pr);
+  renderWorksheet(pr);
+  renderRule(pr);
+  renderFindings(pr);
+}
+function dots(n, cur){
+  const el = document.getElementById('progressDots');
+  el.innerHTML = '';
+  for (let i = 0; i < n; i++){
+    const d = document.createElement('span');
+    if (i < cur) d.classList.add('done');
+    if (i === cur) d.classList.add('current');
+    el.appendChild(d);
+  }
+}
+
+let lastGuidedKey = null;
+function renderGuided(){
+  const pr = progress(), steps = guidedSteps(), id = steps[guidedStep];
+  renderCards(pr);
+  const info = guidedInfo();
+  document.getElementById('stepLabel').textContent = info.label;
+  document.getElementById('stepText').innerHTML = info.text;
+  document.getElementById('optsHost').innerHTML = '';
+  const note = document.getElementById('resultNote');
+  note.className = 'result-note'; note.innerHTML = '';
+  const cards = guidedCards(id);
+  renderLook(cards.look);
+  const key = game().id + '|' + guidedStep;
+  if (key !== lastGuidedKey && cards.fresh.length) bringIntoView(cards.fresh[0], false);
+  lastGuidedKey = key;
+  dots(steps.length, guidedStep);
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+  const back = document.createElement('button');
+  back.className = 'btn'; back.type = 'button'; back.textContent = 'Back';
+  back.disabled = guidedStep === 0;
+  back.onclick = () => { guidedStep = Math.max(0, guidedStep - 1); renderGuided(); };
+  const next = document.createElement('button');
+  next.className = 'btn primary'; next.type = 'button';
+  const last = guidedStep === steps.length - 1;
+  next.textContent = last ? 'Restart' : (guidedStep === 0 ? 'Begin' : 'Next');
+  next.onclick = () => { guidedStep = last ? 0 : guidedStep + 1; renderGuided(); };
+  controls.appendChild(back); controls.appendChild(next);
+  syncBack();
+}
+
+function renderPractice(keepNote){
+  const pr = progress(), t = taskInfo();
+  renderCards(pr);
+  document.getElementById('stepLabel').textContent = `Practice · Task ${taskIdx + 1} of ${TASKS.length}`;
+  document.getElementById('stepText').innerHTML = t.text;
+  renderLook(taskCards(t.id).look);
+
+  const host = document.getElementById('optsHost');
+  host.innerHTML = '';
+  if (t.kind === 'opts'){
+    const box = document.createElement('div');
+    box.className = 'opts'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Answer options');
+    t.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'opt' + (o.num ? ' num' : '');
+      b.textContent = o.label;
+      b.setAttribute('aria-pressed', String(optPick === i));
+      b.disabled = checked;
+      b.onclick = () => { optPick = i; renderPractice(true); host.querySelectorAll('.opt')[i].focus(); };
+      box.appendChild(b);
+    });
+    host.appendChild(box);
+  }
+  if (!keepNote){ const note = document.getElementById('resultNote'); note.className = 'result-note'; note.innerHTML = ''; }
+  dots(TASKS.length, taskIdx);
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+  const check = document.createElement('button');
+  check.className = 'btn primary'; check.type = 'button'; check.textContent = 'Check answer';
+  check.disabled = checked || !taskReady(t);
+  check.onclick = () => {
+    const note = document.getElementById('resultNote');
+    if (taskCorrect(t)){
+      checked = true;
+      if (t.id === 'solve0' || t.id === 'solve1') ticks = new Set(pending);
+      pending = new Set();
+      note.className = 'result-note show ok'; note.innerHTML = rightMessage(t);
+      renderPractice(true);
+      bringIntoView(taskCards(t.id).done, false);
+    } else {
+      pending = new Set(); optPick = null;
+      note.className = 'result-note show no'; note.innerHTML = wrongMessage(t);
+      renderPractice(true);
+    }
+    lastFocusKey = null;
+  };
+  const next = document.createElement('button');
+  next.className = 'btn'; next.type = 'button';
+  const last = taskIdx === TASKS.length - 1;
+  next.textContent = last ? 'Restart' : 'Next task';
+  next.disabled = !checked;
+  next.onclick = () => {
+    taskIdx = last ? 0 : taskIdx + 1;
+    checked = false; pending = new Set(); optPick = null; ticks = new Set(); lastFocusKey = null;
+    renderPractice();
+    const c = taskCards(TASKS[taskIdx]).look[0];
+    bringIntoView(c, false);
+  };
+  controls.appendChild(check); controls.appendChild(next);
+  syncBack();
+}
+
+/* ---------------- picker, tabs, theme ---------------- */
+const GROUPS = [
+  { key:'chapter', label:'The chapter’s games' },
+  { key:'short',   label:'Two-move games' },
+  { key:'paired',  label:'Same ranking, different payoffs' },
+  { key:'long',    label:'Longer games' }
+];
+function renderPicker(){
+  const host = document.getElementById('pickers');
+  host.innerHTML = '';
+  GROUPS.forEach(gr => {
+    const list = GAMES.map((g, i) => ({ g, i })).filter(x => x.g.group === gr.key && !(mode === 'practice' && x.g.guidedOnly));
+    if (!list.length) return;
+    const lab = document.createElement('p'); lab.className = 'group-label'; lab.textContent = gr.label;
+    const row = document.createElement('div'); row.className = 'picker';
+    list.forEach(({ g, i }) => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (i === currentIdx ? ' active' : ''); b.type = 'button';
+      b.textContent = g.title; b.setAttribute('aria-pressed', String(i === currentIdx));
+      b.onclick = () => { currentIdx = i; resetAll(); scrolledFor = null; renderAll(); };
+      row.appendChild(b);
+    });
+    host.appendChild(lab); host.appendChild(row);
+  });
+  if (mode === 'practice'){
+    const n = document.createElement('p'); n.className = 'picker-note';
+    n.textContent = 'The Terrorism Game is worked step by step in the chapter, so it appears in the guided walkthrough only.';
+    host.appendChild(n);
+  }
+}
+function renderAll(){
+  renderPicker();
+  if (mode === 'guided') renderGuided(); else renderPractice();
+}
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+    tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+    mode = tab.dataset.mode;
+    if (mode === 'practice' && game().guidedOnly) currentIdx = 0;
+    resetAll(); scrolledFor = null; lastGuidedKey = null;
+    renderAll();
+  };
+});
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeIcon').textContent = dark ? '☀' : '☽';
+  document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeToggle').setAttribute('aria-pressed', String(dark));
+}
+let isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(isDark);
+document.getElementById('themeToggle').onclick = () => { isDark = !isDark; applyTheme(isDark); };
+
+renderAll();
+
+</script>
+</body>
+</html>

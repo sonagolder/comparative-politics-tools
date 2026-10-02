@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finding best responses</title>
+<style>
+  :root{
+    /* base */
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: player identity */
+    --row-color:#009E73;   /* bluish green — Player A */
+    --col-color:#CC79A7;   /* reddish purple — Player B */
+
+    /* semantic: correct / incorrect (also reused for row/col marks during practice state) */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state only */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --cell-border:#141414;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --row-color:#3FCFA0;
+    --col-color:#E29FC4;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --cell-border:#E8E8E8;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:620px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .matrix-col{flex:1 1 380px; min-width:320px;}
+  .matrix-outer{background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:24px 16px;}
+
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+
+  .dom-controls{margin-top:12px;}
+  .dom-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
+  .dom-subprompt{font-size:13px; color:var(--secondary); margin:4px 0 8px;}
+
+  .ne-list{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:14px; text-align:left; color:var(--gold-text);
+  }
+  .ne-list div{margin:2px 0;}
+  .ne-list .ne-list-label{font-weight:700; margin-right:6px;}
+
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--secondary); margin-bottom:16px; flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:11px; height:11px; border-radius:2px; display:inline-block;}
+  .swatch.row{background:var(--row-color);}
+  .swatch.col{background:var(--col-color);}
+  .legend-note{font-size:12px; color:var(--secondary); margin:-8px 0 16px;}
+
+  table.game-table{border-collapse:collapse; margin:0 auto; table-layout:fixed;}
+  table.game-table td{text-align:center; vertical-align:middle; font-size:14px; padding:0; color:var(--ink);}
+  td.label-blank{width:24px; height:24px;}
+  td.player-top{width:auto; height:24px; font-weight:700; font-size:14px; font-family:var(--font-data);}
+  td.action-head{width:110px; height:32px; font-weight:600; color:var(--secondary); font-family:var(--font-data); font-size:13px;}
+  td.player-side{width:24px; font-weight:700; font-size:14px; font-family:var(--font-data);}
+  td.action-side{width:64px; font-weight:600; color:var(--secondary); padding-right:8px; font-family:var(--font-data); font-size:13px;}
+  td.cell{
+    width:120px; height:88px;
+    border:3px solid var(--cell-border);
+    background:var(--panel-bg);
+    font-size:17px; font-weight:500;
+    position:relative;
+    font-family:var(--font-data);
+  }
+  td.cell.wash-row{background:color-mix(in srgb, var(--row-color) 12%, var(--panel-bg));}
+  td.cell.wash-col{background:color-mix(in srgb, var(--col-color) 12%, var(--panel-bg));}
+  td.cell.equilibrium{box-shadow:inset 0 0 0 3px var(--gold-ui);}
+  td.cell.equilibrium::before{
+    content:"NE"; position:absolute; top:3px; left:5px;
+    font-size:9px; font-weight:700; letter-spacing:.04em; color:var(--gold-text);
+    font-family:var(--font-body);
+  }
+
+  .cellbtn{
+    all:unset; position:absolute; inset:0; cursor:pointer; border-radius:2px;
+  }
+  .cellbtn.selected{box-shadow:inset 0 0 0 3px var(--gold-ui);}
+  .cellbtn:hover{outline:2px dashed var(--secondary); outline-offset:-2px;}
+
+  .num{display:inline-block; padding:1px 2px; font-weight:700; font-size:19px; color:var(--ink); font-family:var(--font-data);}
+  .num[data-kind="row"]{color:var(--row-color);}
+  .num[data-kind="col"]{color:var(--col-color);}
+  .num.deemph{color:var(--deemph); font-weight:400; font-size:17px;}
+
+  /* row player mark = underline (identity color already applied above via data-kind) */
+  .num.mk-row{
+    border-bottom:3px solid var(--row-color);
+    padding-bottom:4px;
+  }
+  .num.mk-row.st-selected{border-bottom-color:var(--gold-ui); color:var(--gold-text);}
+
+  /* col player mark = circle (ring) */
+  .num.mk-col{
+    box-shadow:0 0 0 2px var(--col-color); border-radius:50%; padding:1px 6px;
+  }
+  .num.mk-col.st-selected{box-shadow:0 0 0 2px var(--gold-ui); color:var(--gold-text);}
+
+  .num.just-correct::after{content:" \2713"; font-size:11px; color:var(--correct); font-family:var(--font-body);}
+
+  button.numbtn{
+    all:unset; cursor:pointer;
+  }
+  button.numbtn:hover .num{opacity:.75;}
+
+  .panel-col{flex:1 1 280px; min-width:260px;}
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:260px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.6; flex:1; color:var(--ink);}
+  .panel .step-text b{color:var(--ink);}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+
+  @media (max-width:600px){
+    td.cell{width:92px; height:76px; font-size:14px;}
+    td.action-head{width:82px; font-size:12px;}
+    td.action-side{width:46px; font-size:11px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Finding best responses</h1>
+      <p class="lede">Work through the matrix one comparison at a time: pick a column, compare Player A's two payoffs in it, mark the higher one. Then pick a row and do the same for Player B.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <p class="group-label">2&times;2 games</p>
+  <div class="picker" id="picker2"></div>
+  <p class="group-label">3&times;3 games</p>
+  <div class="picker" id="picker3"></div>
+  <p class="group-label">Indifference examples</p>
+  <div class="picker" id="pickerTie"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div class="layout">
+    <div class="matrix-col">
+      <div class="matrix-outer">
+        <div class="legend">
+          <span><span class="swatch row"></span> Player A's payoff (1st number)</span>
+          <span><span class="swatch col"></span> Player B's payoff (2nd number)</span>
+        </div>
+        <p class="legend-note">Each cell reads (Player A's payoff, Player B's payoff). Equilibria are written (Strategy A; Strategy B).</p>
+        <div id="tableWrap"></div>
+        <div class="ne-list" id="nashList" style="display:none;" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div id="domControls" class="dom-controls" style="display:none;"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Each game: n (2 or 3), rowActions/colActions of length n, payoffs[r][c] = [A's payoff, B's payoff]
+const GAMES = [
+  // ---- 2x2 games ----
+  { id:'ex1', group:2, title:'Example 1', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[3,3],[1,4]], [[4,1],[2,2]] ] },
+  { id:'ex2', group:2, title:'Example 2', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[0,0],[3,1]], [[1,3],[2,2]] ] },
+  { id:'ex3', group:2, title:'Example 3', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[4,4],[0,3]], [[3,0],[2,2]] ] },
+  { id:'ex4', group:2, title:'Example 4', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[3,2],[0,0]], [[0,0],[2,3]] ] },
+  { id:'ex5', group:2, title:'Example 5', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[5,1],[4,3]], [[2,0],[1,2]] ] },
+  { id:'ex6', group:2, title:'Example 6', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[4,2],[3,2]], [[1,0],[2,1]] ] },
+  { id:'ex7', group:2, title:'Example 7', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[3,4],[1,1]], [[3,2],[2,0]] ] },
+  { id:'ex8', group:2, title:'Example 8', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[2,4],[0,1]], [[5,3],[1,0]] ] },
+  { id:'ex9', group:2, title:'Example 9', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[4,5],[3,5]], [[2,1],[3,4]] ] },
+  { id:'ex10', group:2, title:'Example 10', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[4,4],[3,1]], [[2,3],[1,0]] ] },
+  { id:'ex11', group:2, title:'Example 11', rowActions:['Swerve','Straight'], colActions:['Swerve','Straight'],
+    payoffs:[ [[7,7],[3,10]], [[10,3],[0,0]] ] },
+  { id:'ex12', group:2, title:'Example 12', rowActions:['Left','Right'], colActions:['Left','Right'],
+    payoffs:[ [[5,5],[0,0]], [[0,0],[5,5]] ] },
+  { id:'ex13', group:2, title:'Example 13', rowActions:['Option 1','Option 2'], colActions:['Option 1','Option 2'],
+    payoffs:[ [[6,4],[1,1]], [[0,0],[4,6]] ] },
+  { id:'ex14', group:2, title:'Example 14', rowActions:['Team up','Go solo'], colActions:['Team up','Go solo'],
+    payoffs:[ [[9,9],[2,6]], [[6,2],[5,5]] ] },
+
+  // ---- 3x3 games ----
+  { id:'ex15', group:3, title:'Example 15', rowActions:['Low tax','Medium tax','High tax'], colActions:['Low tax','Medium tax','High tax'],
+    payoffs:[
+      [[4,4],[7,2],[9,1]],
+      [[2,7],[5,5],[8,3]],
+      [[1,9],[3,8],[6,6]]
+    ] },
+  { id:'ex16', group:3, title:'Example 16', rowActions:['Top','Middle','Bottom'], colActions:['Left','Middle','Right'],
+    payoffs:[
+      [[11,7],[8,3],[4,14]],
+      [[0,1],[2,3],[14,12]],
+      [[10,5],[10,13],[9,6]]
+    ] },
+  { id:'ex17', group:3, title:'Example 17', rowActions:['Strategy 1','Strategy 2','Strategy 3'], colActions:['Strategy 1','Strategy 2','Strategy 3'],
+    payoffs:[
+      [[14,9],[4,1],[5,2]],
+      [[0,13],[1,11],[6,14]],
+      [[10,12],[10,7],[8,3]]
+    ] },
+
+  // ---- indifference / tie examples ----
+  { id:'ex18', group:'tie', title:'Example 18', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[4,3],[2,6]], [[4,5],[5,1]] ] },
+  { id:'ex19', group:'tie', title:'Example 19', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[3,4],[5,4]], [[6,2],[1,5]] ] },
+  { id:'ex20', group:'tie', title:'Example 20', rowActions:['Up','Down'], colActions:['Left','Right'],
+    payoffs:[ [[5,4],[2,1]], [[5,3],[6,2]] ] },
+  { id:'ex21', group:'tie', title:'Example 21', rowActions:['Strategy 1','Strategy 2','Strategy 3'], colActions:['Strategy 1','Strategy 2','Strategy 3'],
+    payoffs:[
+      [[14,14],[7,3],[8,13]],
+      [[4,9],[7,10],[0,11]],
+      [[1,12],[2,2],[5,6]]
+    ] }
+];
+
+const ROW_LABEL = 'A';
+const COL_LABEL = 'B';
+
+let currentGameIdx = GAMES.findIndex(g => g.id === 'ex1');
+let mode = 'guided';
+let guidedStep = 0;
+
+let practiceTaskIdx = 0;
+let practiceSelected = new Set();
+let practiceChecked = false;
+let practiceLocked = new Set();
+let justSolvedKeys = new Set(); // marks solved in the current task, cleared on advancing
+let domAnswer = { hasDom: null, action: null }; // in-progress answer for the current dominant-strategy task
+let solvedSpecial = new Set(); // which of 'dom-row' / 'dom-col' / 'nash' have been solved this round
+
+function game(){ return GAMES[currentGameIdx]; }
+function n(){ return game().payoffs.length; }
+
+function rowBestForCol(colIdx){
+  const g = game(), N = n();
+  let max = -Infinity, best = [];
+  for(let r=0;r<N;r++){ const v = g.payoffs[r][colIdx][0]; if (v > max) max = v; }
+  for(let r=0;r<N;r++){ if (g.payoffs[r][colIdx][0] === max) best.push(r); }
+  return best;
+}
+function colBestForRow(rowIdx){
+  const g = game(), N = n();
+  let max = -Infinity, best = [];
+  for(let c=0;c<N;c++){ const v = g.payoffs[rowIdx][c][1]; if (v > max) max = v; }
+  for(let c=0;c<N;c++){ if (g.payoffs[rowIdx][c][1] === max) best.push(c); }
+  return best;
+}
+function nashCells(){
+  const N = n(), cells = [];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    if (rowBestForCol(c).includes(r) && colBestForRow(r).includes(c)) cells.push([r,c]);
+  }
+  return cells;
+}
+function dominantForRow(){
+  const N = n(), dom = [];
+  for(let r=0;r<N;r++){
+    let ok = true;
+    for(let c=0;c<N;c++){ const best = rowBestForCol(c); if (!(best.length === 1 && best[0] === r)){ ok = false; break; } }
+    if (ok) dom.push(r);
+  }
+  return dom;
+}
+function dominantForCol(){
+  const N = n(), dom = [];
+  for(let c=0;c<N;c++){
+    let ok = true;
+    for(let r=0;r<N;r++){ const best = colBestForRow(r); if (!(best.length === 1 && best[0] === c)){ ok = false; break; } }
+    if (ok) dom.push(c);
+  }
+  return dom;
+}
+function neLabel(r,c){
+  const g = game();
+  return `(${g.rowActions[r]}; ${g.colActions[c]})`;
+}
+function joinWithAnd(items){
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return items[0] + ' and ' + items[1];
+  return items.slice(0,-1).join(', ') + ', and ' + items[items.length-1];
+}
+
+// ---------- theme ----------
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeIcon').textContent = dark ? '\u2600' : '\u263D';
+  document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeToggle').setAttribute('aria-pressed', String(dark));
+}
+let isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(isDark);
+document.getElementById('themeToggle').onclick = () => { isDark = !isDark; applyTheme(isDark); };
+
+// ---------- picker ----------
+function renderPicker(){
+  const el2 = document.getElementById('picker2');
+  const el3 = document.getElementById('picker3');
+  const elTie = document.getElementById('pickerTie');
+  el2.innerHTML = ''; el3.innerHTML = ''; elTie.innerHTML = '';
+  const containers = { 2: el2, 3: el3, tie: elTie };
+  GAMES.forEach((g,i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (i===currentGameIdx ? ' active' : '');
+    b.type = 'button';
+    b.textContent = g.title;
+    b.setAttribute('aria-pressed', String(i===currentGameIdx));
+    b.onclick = () => { currentGameIdx = i; resetAll(); renderAll(); };
+    containers[g.group].appendChild(b);
+  });
+}
+
+// ---------- table ----------
+// interaction: {type:'none'} | {type:'row', col} | {type:'col', row} | {type:'nash'}
+function renderTable(interaction){
+  const g = game(), N = n();
+  const wrap = document.getElementById('tableWrap');
+  const t = document.createElement('table');
+  t.className = 'game-table';
+  t.setAttribute('role','table');
+  t.setAttribute('aria-label', `${g.title} payoff matrix`);
+
+  const tr0 = document.createElement('tr');
+  tr0.innerHTML = `<td class="label-blank"></td><td class="label-blank"></td>
+    <td class="player-top" colspan="${N}">${COL_LABEL}</td>`;
+  t.appendChild(tr0);
+
+  const tr1 = document.createElement('tr');
+  let headCells = '';
+  for(let c=0;c<N;c++) headCells += `<td class="action-head">${g.colActions[c]}</td>`;
+  tr1.innerHTML = `<td class="label-blank"></td><td class="label-blank"></td>${headCells}`;
+  t.appendChild(tr1);
+
+  for(let r=0;r<N;r++){
+    const tr = document.createElement('tr');
+    if (r === 0){
+      const sideCell = document.createElement('td');
+      sideCell.className = 'player-side';
+      sideCell.rowSpan = N;
+      sideCell.textContent = ROW_LABEL;
+      tr.appendChild(sideCell);
+    }
+    const actionCell = document.createElement('td');
+    actionCell.className = 'action-side';
+    actionCell.textContent = g.rowActions[r];
+    tr.appendChild(actionCell);
+
+    for(let c=0;c<N;c++){
+      const td = document.createElement('td');
+      td.className = 'cell';
+      td.dataset.r = r; td.dataset.c = c;
+      const [rp, cp] = g.payoffs[r][c];
+
+      const isEq = interaction.type === 'guided' && interaction.revealEq && nashCells().some(([nr,nc]) => nr===r && nc===c);
+      if (isEq) td.classList.add('equilibrium');
+
+      const rowLabel = `Player A's payoff ${rp}, row ${g.rowActions[r]}, column ${g.colActions[c]}`;
+      const colLabel = `Player B's payoff ${cp}, row ${g.rowActions[r]}, column ${g.colActions[c]}`;
+
+      if (interaction.type === 'row' && interaction.col === c){
+        const key = `row-${r}-${c}`;
+        td.classList.add('wash-row');
+        td.innerHTML = `<button type="button" class="numbtn" data-key="${key}" aria-label="${rowLabel}"><span class="num" data-kind="row" data-r="${r}" data-c="${c}">${rp}</span></button><span>, </span><span class="num" data-kind="col" data-r="${r}" data-c="${c}">${cp}</span>`;
+      } else if (interaction.type === 'col' && interaction.row === r){
+        const key = `col-${r}-${c}`;
+        td.classList.add('wash-col');
+        td.innerHTML = `<span class="num" data-kind="row" data-r="${r}" data-c="${c}">${rp}</span><span>, </span><button type="button" class="numbtn" data-key="${key}" aria-label="${colLabel}"><span class="num" data-kind="col" data-r="${r}" data-c="${c}">${cp}</span></button>`;
+      } else if (interaction.type === 'nash'){
+        const key = `cell-${r}-${c}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cellbtn';
+        btn.dataset.key = key;
+        btn.setAttribute('aria-label', `Cell row ${g.rowActions[r]}, column ${g.colActions[c]}, payoffs ${rp}, ${cp}`);
+        td.appendChild(btn);
+        const content = document.createElement('span');
+        content.innerHTML = `<span class="num" data-kind="row" data-r="${r}" data-c="${c}">${rp}</span><span>, </span><span class="num" data-kind="col" data-r="${r}" data-c="${c}">${cp}</span>`;
+        td.appendChild(content);
+      } else if (interaction.type === 'guided'){
+        const rowMarked = interaction.rowMarkedCols && interaction.rowMarkedCols.includes(c) && rowBestForCol(c).includes(r);
+        const colMarked = interaction.colMarkedRows && interaction.colMarkedRows.includes(r) && colBestForRow(r).includes(c);
+        let rowClass = 'num';
+        if (rowMarked) rowClass += ' mk-row';
+        let colClass = 'num';
+        if (colMarked) colClass += ' mk-col';
+
+        const rowDim = interaction.dimCol === c;
+        const colDim = interaction.dimRow === r;
+        const rowSpanClass = rowClass + (colDim ? ' deemph' : '');
+        const colSpanClass = colClass + (rowDim ? ' deemph' : '');
+
+        if (interaction.washRow === r) td.classList.add('wash-row');
+        if (interaction.washCol === c) td.classList.add('wash-col');
+
+        td.innerHTML = `<span class="${rowSpanClass}" data-kind="row">${rp}</span><span>, </span><span class="${colSpanClass}" data-kind="col">${cp}</span>`;
+      } else {
+        td.innerHTML = `<span class="num" data-kind="row" data-r="${r}" data-c="${c}">${rp}</span><span>, </span><span class="num" data-kind="col" data-r="${r}" data-c="${c}">${cp}</span>`;
+      }
+      tr.appendChild(td);
+    }
+    t.appendChild(tr);
+  }
+
+  wrap.innerHTML = '';
+  wrap.appendChild(t);
+}
+
+function guidedInteraction(){
+  const N = n(), step = guidedStep;
+  const domRowStep = N+1, colStart = N+2, colEnd = 2*N+1, domColStep = 2*N+2, neStep = 2*N+3;
+  const out = { type:'guided', rowMarkedCols:[], colMarkedRows:[], dimCol:null, dimRow:null, revealEq:false, washRow:null, washCol:null };
+
+  if (step >= 1 && step <= N){
+    out.dimCol = step - 1;
+    for(let i=1;i<=step;i++) out.rowMarkedCols.push(i-1);
+  } else if (step === domRowStep){
+    for(let i=0;i<N;i++) out.rowMarkedCols.push(i);
+    const dom = dominantForRow();
+    if (dom.length) out.washRow = dom[0];
+  } else if (step >= colStart && step <= colEnd){
+    for(let i=0;i<N;i++) out.rowMarkedCols.push(i);
+    const r = step - colStart;
+    out.dimRow = r;
+    for(let i=0;i<=r;i++) out.colMarkedRows.push(i);
+  } else if (step === domColStep){
+    for(let i=0;i<N;i++){ out.rowMarkedCols.push(i); out.colMarkedRows.push(i); }
+    const dom = dominantForCol();
+    if (dom.length) out.washCol = dom[0];
+  } else if (step === neStep){
+    for(let i=0;i<N;i++){ out.rowMarkedCols.push(i); out.colMarkedRows.push(i); }
+    out.revealEq = true;
+  }
+  return out;
+}
+
+function guidedStepInfo(step){
+  const g = game(), N = n();
+  const domRowStep = N+1, colStart = N+2, colEnd = 2*N+1, domColStep = 2*N+2;
+
+  if (step === 0){
+    return { label:'Start here',
+      text:`For each action <b>${COL_LABEL}</b> might play, we'll find <b>${ROW_LABEL}</b>'s best response (underlined). Then we'll flip it: for each action ${ROW_LABEL} might play, we'll find ${COL_LABEL}'s best response (circled).` };
+  }
+  if (step >= 1 && step <= N){
+    const c = step - 1;
+    const bestRows = rowBestForCol(c);
+    let text;
+    if (bestRows.length > 1){
+      const names = joinWithAnd(bestRows.map(i => `"${g.rowActions[i]}"`));
+      text = `Suppose <b>${COL_LABEL}</b> plays <b>"${g.colActions[c]}"</b>. Compare ${ROW_LABEL}'s payoffs (the first number in each cell) down this column — they're <b>tied</b>, so ${ROW_LABEL} is indifferent between ${names}. When a player is indifferent, <b>every one of the tied payoffs is underlined</b>: they're all best responses.`;
+    } else {
+      text = `Suppose <b>${COL_LABEL}</b> plays <b>"${g.colActions[c]}"</b>. Compare ${ROW_LABEL}'s payoffs (the first number in each cell) down this column. The highest is underlined — that's ${ROW_LABEL}'s best response.`;
+    }
+    return { label:`Step ${step} of ${2*N} — Player ${ROW_LABEL}`, text };
+  }
+  if (step === domRowStep){
+    const dom = dominantForRow();
+    let text;
+    if (dom.length){
+      const name = g.rowActions[dom[0]];
+      text = `Look at ${ROW_LABEL}'s underlines: every one of them lands in the <b>"${name}"</b> row, with no ties along the way. That means <b>${name}</b> is always ${ROW_LABEL}'s uniquely best response, no matter what ${COL_LABEL} does — a <b>dominant strategy</b>.`;
+    } else {
+      text = `Look at ${ROW_LABEL}'s underlines: they land in more than one row. No single action is uniquely best in every column, so ${ROW_LABEL} <b>doesn't have a dominant strategy</b>.`;
+    }
+    return { label:`Dominant strategy — Player ${ROW_LABEL}`, text };
+  }
+  if (step >= colStart && step <= colEnd){
+    const r = step - colStart;
+    const compNum = step - 1;
+    const bestCols = colBestForRow(r);
+    let text;
+    if (bestCols.length > 1){
+      const names = joinWithAnd(bestCols.map(i => `"${g.colActions[i]}"`));
+      text = `Switch sides. Suppose <b>${ROW_LABEL}</b> plays <b>"${g.rowActions[r]}"</b>. Compare ${COL_LABEL}'s payoffs (the second number in each cell) across this row — they're <b>tied</b>, so ${COL_LABEL} is indifferent between ${names}. Every one of the tied payoffs is circled: they're all best responses.`;
+    } else {
+      text = `Switch sides. Suppose <b>${ROW_LABEL}</b> plays <b>"${g.rowActions[r]}"</b>. Compare ${COL_LABEL}'s payoffs (the second number in each cell) across this row. The highest is circled — that's ${COL_LABEL}'s best response.`;
+    }
+    return { label:`Step ${compNum} of ${2*N} — Player ${COL_LABEL}`, text };
+  }
+  if (step === domColStep){
+    const dom = dominantForCol();
+    let text;
+    if (dom.length){
+      const name = g.colActions[dom[0]];
+      text = `Look at ${COL_LABEL}'s circles: every one of them lands in the <b>"${name}"</b> column, with no ties along the way. That means <b>${name}</b> is always ${COL_LABEL}'s uniquely best response, no matter what ${ROW_LABEL} does — a <b>dominant strategy</b>.`;
+    } else {
+      text = `Look at ${COL_LABEL}'s circles: they land in more than one column. No single action is uniquely best in every row, so ${COL_LABEL} <b>doesn't have a dominant strategy</b>.`;
+    }
+    return { label:`Dominant strategy — Player ${COL_LABEL}`, text };
+  }
+  return { label:'Nash equilibrium', text: nashSummary() };
+}
+function nashSummary(){
+  const cells = nashCells();
+  if (cells.length === 0){
+    return `A Nash equilibrium occurs when both players are playing best responses to each other — neither player wants to switch given what the other is doing. No cell here has both payoffs marked, so this game has no pure-strategy equilibrium.`;
+  }
+  const names = joinWithAnd(cells.map(([r,c]) => `<b>${neLabel(r,c)}</b>`));
+  return `A Nash equilibrium occurs when both players are playing best responses to each other — neither player wants to switch given what the other is doing. This happens at ${names}, where both payoffs in a cell are marked.${cells.length>1 ? ' This game has more than one equilibrium.' : ''}`;
+}
+function renderInsightsForPractice(){
+  const holder = document.getElementById('nashList');
+  const lines = [];
+  if (solvedSpecial.has('dom-row')){
+    const dom = dominantForRow();
+    lines.push(dom.length ? `Player ${ROW_LABEL}'s dominant strategy: ${joinWithAnd(dom.map(i => game().rowActions[i]))}` : `Player ${ROW_LABEL} has no dominant strategy.`);
+  }
+  if (solvedSpecial.has('dom-col')){
+    const dom = dominantForCol();
+    lines.push(dom.length ? `Player ${COL_LABEL}'s dominant strategy: ${joinWithAnd(dom.map(i => game().colActions[i]))}` : `Player ${COL_LABEL} has no dominant strategy.`);
+  }
+  if (solvedSpecial.has('nash')){
+    const cells = nashCells();
+    if (cells.length){
+      const text = joinWithAnd(cells.map(([r,c]) => neLabel(r,c)));
+      lines.push(`Nash equilibri${cells.length>1?'a':'um'}: ${text}`);
+    }
+  }
+  if (!lines.length){ holder.innerHTML=''; holder.style.display='none'; return; }
+  holder.innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+  holder.style.display = 'block';
+}
+
+function renderDomControls(){
+  const container = document.getElementById('domControls');
+  const task = practiceTasks()[practiceTaskIdx];
+  if (task.type !== 'dom'){ container.innerHTML=''; container.style.display='none'; return; }
+  container.style.display = 'block';
+  const g = game();
+  const actions = task.player === 'row' ? g.rowActions : g.colActions;
+  const label = task.player === 'row' ? ROW_LABEL : COL_LABEL;
+
+  container.innerHTML = '';
+  const yesNoRow = document.createElement('div');
+  yesNoRow.className = 'dom-row';
+  [['Yes', true], ['No', false]].forEach(([text, val]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (domAnswer.hasDom === val ? ' active' : '');
+    b.textContent = text;
+    b.disabled = practiceChecked;
+    b.setAttribute('aria-pressed', String(domAnswer.hasDom === val));
+    b.onclick = () => {
+      domAnswer.hasDom = val;
+      if (!val) domAnswer.action = null;
+      renderDomControls();
+      renderPracticeControls();
+    };
+    yesNoRow.appendChild(b);
+  });
+  container.appendChild(yesNoRow);
+
+  if (domAnswer.hasDom === true){
+    const p = document.createElement('p');
+    p.className = 'dom-subprompt';
+    p.textContent = `Which action is always a best response for Player ${label}?`;
+    container.appendChild(p);
+
+    const actionRow = document.createElement('div');
+    actionRow.className = 'dom-row';
+    actions.forEach((name, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (domAnswer.action === i ? ' active' : '');
+      b.textContent = name;
+      b.disabled = practiceChecked;
+      b.setAttribute('aria-pressed', String(domAnswer.action === i));
+      b.onclick = () => {
+        domAnswer.action = i;
+        renderDomControls();
+        renderPracticeControls();
+      };
+      actionRow.appendChild(b);
+    });
+    container.appendChild(actionRow);
+  }
+}
+
+function renderGuidedInsights(){
+  const N = n(), step = guidedStep;
+  const domRowStep = N+1, domColStep = 2*N+2, neStep = 2*N+3;
+  const holder = document.getElementById('nashList');
+  const lines = [];
+  if (step >= domRowStep){
+    const dom = dominantForRow();
+    lines.push(dom.length ? `Player ${ROW_LABEL}'s dominant strategy: ${joinWithAnd(dom.map(i => game().rowActions[i]))}` : `Player ${ROW_LABEL} has no dominant strategy.`);
+  }
+  if (step >= domColStep){
+    const dom = dominantForCol();
+    lines.push(dom.length ? `Player ${COL_LABEL}'s dominant strategy: ${joinWithAnd(dom.map(i => game().colActions[i]))}` : `Player ${COL_LABEL} has no dominant strategy.`);
+  }
+  if (step === neStep){
+    const cells = nashCells();
+    if (cells.length){
+      const text = joinWithAnd(cells.map(([r,c]) => neLabel(r,c)));
+      lines.push(`Nash equilibri${cells.length>1?'a':'um'}: ${text}`);
+    }
+  }
+  if (!lines.length){ holder.innerHTML=''; holder.style.display='none'; return; }
+  holder.innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+  holder.style.display = 'block';
+}
+
+function renderGuidedPanel(){
+  const N = n();
+  renderTable(guidedInteraction());
+  const info = guidedStepInfo(guidedStep);
+  document.getElementById('stepLabel').innerHTML = info.label;
+  document.getElementById('stepText').innerHTML = info.text;
+  document.getElementById('resultNote').className = 'result-note';
+  renderGuidedInsights();
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  const total = 2*N+3;
+  for(let i=0;i<=total;i++){
+    const d = document.createElement('span');
+    if (i < guidedStep) d.classList.add('done');
+    if (i === guidedStep) d.classList.add('current');
+    dots.appendChild(d);
+  }
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+  const back = document.createElement('button');
+  back.className = 'btn'; back.type='button'; back.textContent = 'Back';
+  back.disabled = guidedStep === 0;
+  back.onclick = () => { guidedStep = Math.max(0, guidedStep-1); renderGuidedPanel(); };
+
+  const next = document.createElement('button');
+  next.className = 'btn primary'; next.type='button';
+  next.textContent = guidedStep === total ? 'Restart' : (guidedStep === 0 ? 'Begin' : 'Next');
+  next.onclick = () => {
+    guidedStep = guidedStep === total ? 0 : Math.min(total, guidedStep+1);
+    renderGuidedPanel();
+  };
+  controls.appendChild(back); controls.appendChild(next);
+}
+
+// ---------- practice ----------
+function practiceTasks(){
+  const N = n(), g = game(), tasks = [];
+  for(let c=0;c<N;c++){
+    tasks.push({ type:'row', col:c,
+      prompt:`Suppose <b>${COL_LABEL}</b> plays <b>"${g.colActions[c]}"</b>. Click the payoff(s) of <b>${ROW_LABEL}</b> in this column that are best response(s).`,
+      correct: rowBestForCol(c).map(r => `row-${r}-${c}`) });
+  }
+  tasks.push({ type:'dom', player:'row',
+    prompt:`Look at the marks you've built up. Does <b>${ROW_LABEL}</b> have a dominant strategy — a single action that's always a best response, no matter what <b>${COL_LABEL}</b> does?`,
+    dominant: dominantForRow() });
+  for(let r=0;r<N;r++){
+    tasks.push({ type:'col', row:r,
+      prompt:`Suppose <b>${ROW_LABEL}</b> plays <b>"${g.rowActions[r]}"</b>. Click the payoff(s) of <b>${COL_LABEL}</b> in this row that are best response(s).`,
+      correct: colBestForRow(r).map(c => `col-${r}-${c}`) });
+  }
+  tasks.push({ type:'dom', player:'col',
+    prompt:`Look at the marks you've built up. Does <b>${COL_LABEL}</b> have a dominant strategy — a single action that's always a best response, no matter what <b>${ROW_LABEL}</b> does?`,
+    dominant: dominantForCol() });
+  tasks.push({ type:'nash',
+    prompt:`Using the best responses that you've marked, click the cell(s) where the players are both playing best replies to each other — where both payoffs are marked.`,
+    correct: nashCells().map(([r,c]) => `cell-${r}-${c}`) });
+  return tasks;
+}
+
+function currentInteraction(){
+  const task = practiceTasks()[practiceTaskIdx];
+  if (task.type === 'row') return { type:'row', col:task.col };
+  if (task.type === 'col') return { type:'col', row:task.row };
+  if (task.type === 'dom') return { type:'dom' };
+  return { type:'nash' };
+}
+
+function attachPracticeHandlers(){
+  document.querySelectorAll('.numbtn').forEach(btn => {
+    btn.onclick = () => onKeyToggle(btn.dataset.key);
+  });
+  document.querySelectorAll('.cellbtn').forEach(btn => {
+    btn.onclick = () => onKeyToggle(btn.dataset.key);
+  });
+}
+function onKeyToggle(key){
+  if (practiceChecked) return;
+  if (practiceSelected.has(key)) practiceSelected.delete(key);
+  else practiceSelected.add(key);
+  paintPracticeState();
+  renderPracticeControls();
+}
+
+function paintPracticeState(){
+  const task = practiceTasks()[practiceTaskIdx];
+
+  // re-apply marks locked in from earlier tasks this round, so the matrix
+  // keeps accumulating evidence as the student progresses. These render with
+  // their ordinary identity color — no separate "correct" color needed.
+  practiceLocked.forEach(key => {
+    const [kind, r, c] = key.split('-');
+    const sel = `.num[data-kind="${kind}"][data-r="${r}"][data-c="${c}"]`;
+    document.querySelectorAll(sel).forEach(sp => {
+      sp.classList.add(kind === 'row' ? 'mk-row' : 'mk-col');
+      sp.classList.toggle('just-correct', justSolvedKeys.has(key));
+    });
+  });
+
+  if (task.type === 'nash'){
+    document.querySelectorAll('.cellbtn').forEach(btn => {
+      const key = btn.dataset.key;
+      const td = btn.closest('td.cell');
+      btn.classList.remove('selected');
+      td.classList.remove('equilibrium');
+      if (!practiceChecked && practiceSelected.has(key)) btn.classList.add('selected');
+      if (practiceChecked && task.correct.includes(key)) td.classList.add('equilibrium');
+    });
+    return;
+  }
+  if (task.type === 'dom') return; // static reference matrix; answer controls render separately
+  const shapeClass = task.type === 'row' ? 'mk-row' : 'mk-col';
+  document.querySelectorAll('.numbtn').forEach(btn => {
+    const key = btn.dataset.key;
+    const sp = btn.querySelector('.num');
+    if (practiceLocked.has(key)) return; // already painted above, leave as-is
+    sp.classList.remove(shapeClass,'st-selected');
+    if (!practiceChecked && practiceSelected.has(key)){
+      sp.classList.add(shapeClass, 'st-selected');
+    }
+  });
+}
+
+function renderPracticePanel(){
+  document.getElementById('resultNote').className = 'result-note';
+  document.getElementById('resultNote').innerHTML = '';
+  renderTable(currentInteraction());
+  attachPracticeHandlers();
+  paintPracticeState();
+  renderDomControls();
+
+  const tasks = practiceTasks();
+  const task = tasks[practiceTaskIdx];
+  renderInsightsForPractice();
+  document.getElementById('stepLabel').innerHTML = `Practice &middot; Task ${practiceTaskIdx+1} of ${tasks.length}`;
+  document.getElementById('stepText').innerHTML = task.prompt;
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  tasks.forEach((_,i) => {
+    const d = document.createElement('span');
+    if (i < practiceTaskIdx) d.classList.add('done');
+    if (i === practiceTaskIdx) d.classList.add('current');
+    dots.appendChild(d);
+  });
+  renderPracticeControls();
+}
+
+function renderPracticeControls(){
+  const tasks = practiceTasks();
+  const task = tasks[practiceTaskIdx];
+  const note = document.getElementById('resultNote');
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+
+  const check = document.createElement('button');
+  check.className = 'btn primary'; check.type='button'; check.textContent = 'Check answer';
+  const answerReady = task.type === 'dom'
+    ? (domAnswer.hasDom !== null && (domAnswer.hasDom === false || domAnswer.action !== null))
+    : practiceSelected.size > 0;
+  check.disabled = practiceChecked || !answerReady;
+  check.onclick = () => {
+    if (task.type === 'dom'){
+      const dominant = task.player === 'row' ? dominantForRow() : dominantForCol();
+      const hasDominant = dominant.length > 0;
+      const label = task.player === 'row' ? ROW_LABEL : COL_LABEL;
+      const isRight = domAnswer.hasDom === hasDominant && (!hasDominant || dominant.includes(domAnswer.action));
+      if (isRight){
+        practiceChecked = true;
+        solvedSpecial.add('dom-' + task.player);
+        note.classList.add('show','ok');
+        note.innerHTML = 'Correct.';
+      } else {
+        let msg;
+        if (domAnswer.hasDom !== hasDominant){
+          msg = hasDominant
+            ? `Player ${label} does have a dominant strategy — look for an action that's marked as the best response no matter what the other player does. Try the task again.`
+            : `Player ${label} doesn't have a dominant strategy here — no single action is marked as the best response for every choice by the other player. Try the task again.`;
+        } else {
+          msg = "That's not the dominant action — try the task again.";
+        }
+        note.classList.add('show','no');
+        note.innerHTML = msg;
+        domAnswer = { hasDom: null, action: null };
+      }
+      renderInsightsForPractice();
+      renderDomControls();
+      renderPracticeControls();
+      return;
+    }
+
+    const correctSet = new Set(task.correct);
+    const isRight = correctSet.size === practiceSelected.size && [...correctSet].every(k => practiceSelected.has(k));
+    if (isRight){
+      practiceChecked = true;
+      note.classList.add('show','ok');
+      note.innerHTML = 'Correct.';
+      if (task.type !== 'nash'){
+        task.correct.forEach(k => practiceLocked.add(k));
+        justSolvedKeys = new Set(task.correct);
+      } else {
+        justSolvedKeys = new Set();
+        solvedSpecial.add('nash');
+      }
+      renderInsightsForPractice();
+    } else {
+      const multiple = task.correct.length > 1;
+      let msg;
+      if (task.type === 'nash'){
+        const gotAnyCorrect = task.correct.some(k => practiceSelected.has(k));
+        const hasExtra = [...practiceSelected].some(k => !correctSet.has(k));
+        const missingSome = task.correct.some(k => !practiceSelected.has(k));
+        if (!gotAnyCorrect){
+          msg = multiple ? "You didn't select all of the Nash equilibrium cells — try the task again."
+                         : "That's not the Nash equilibrium cell — try the task again.";
+        } else if (hasExtra){
+          msg = "You selected a cell that isn't a Nash equilibrium — try the task again and only choose the cell(s) where both players are playing best replies.";
+        } else if (missingSome){
+          msg = "There's more than one Nash equilibrium here — try the task again and choose all of the cells where both players are playing best replies.";
+        } else {
+          msg = "Not quite — try the task again.";
+        }
+      } else {
+        msg = multiple ? "You didn't select all of the highest payoffs — try the task again."
+                       : "You didn't select the highest payoff — try the task again.";
+      }
+      note.classList.add('show','no');
+      note.innerHTML = msg;
+      practiceSelected = new Set();
+    }
+    paintPracticeState();
+    renderPracticeControls();
+  };
+
+  const next = document.createElement('button');
+  next.className = 'btn'; next.type='button';
+  next.textContent = practiceTaskIdx === tasks.length-1 ? 'Restart' : 'Next task';
+  next.disabled = !practiceChecked;
+  next.onclick = () => {
+    practiceTaskIdx = practiceTaskIdx === tasks.length-1 ? 0 : practiceTaskIdx+1;
+    practiceSelected = new Set();
+    practiceChecked = false;
+    justSolvedKeys = new Set();
+    domAnswer = { hasDom: null, action: null };
+    if (practiceTaskIdx === 0){ practiceLocked = new Set(); solvedSpecial = new Set(); }
+    renderPracticePanel();
+  };
+
+  controls.appendChild(check); controls.appendChild(next);
+}
+
+function renderAll(){
+  renderPicker();
+  if (mode === 'guided') renderGuidedPanel();
+  else renderPracticePanel();
+}
+function resetAll(){
+  guidedStep = 0;
+  practiceTaskIdx = 0;
+  practiceSelected = new Set();
+  practiceChecked = false;
+  practiceLocked = new Set();
+  justSolvedKeys = new Set();
+  domAnswer = { hasDom: null, action: null };
+  solvedSpecial = new Set();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+    tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+    mode = tab.dataset.mode;
+    resetAll();
+    renderAll();
+  };
+});
+
+renderAll();
+</script>
+</body>
+</html>

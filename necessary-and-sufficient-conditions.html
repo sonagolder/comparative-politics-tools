@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Necessary and sufficient conditions</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the two terms of the claim */
+    --c-color:#009E73;   /* bluish green — the condition */
+    --e-color:#CC79A7;   /* reddish purple — the effect */
+
+    /* semantic: correct / incorrect */
+    --valid:#0072B2;
+    --invalid:#B33E00;
+    --neutral:#5F5E5A;
+
+    /* gold: scoped "found it" state only */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --c-color:#3FCFA0;
+    --e-color:#E29FC4;
+
+    --valid:#7FC7EE;
+    --invalid:#F08A4B;
+    --neutral:#A8A6A0;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:var(--font-body); color:var(--ink);
+    background:var(--bg); padding:24px 16px 64px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:640px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto; display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    padding:8px 16px; border-radius:16px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer; text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+  .chip.wide{border-radius:8px; display:block; width:100%;}
+
+  .tabs{display:flex; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body); font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .left-col{flex:1 1 430px; min-width:320px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:24px; margin-bottom:24px;
+  }
+  .card:last-child{margin-bottom:0;}
+
+  /* ---------- claim card ---------- */
+  .claim-text{font-size:16px; line-height:1.6; margin:0;}
+  .claim-text b{font-weight:700; color:var(--c-color);}
+  .claim-key{
+    display:flex; flex-wrap:wrap; gap:8px 24px; margin-top:16px; padding-top:16px;
+    border-top:1px solid var(--border); font-size:12.5px; color:var(--secondary); line-height:1.5;
+  }
+  .claim-key div{flex:1 1 190px;}
+  .claim-key b{color:var(--ink); font-weight:600;}
+  .tag{
+    display:inline-block; font-family:var(--font-data); font-size:10px; font-weight:700;
+    padding:1px 4px; border-radius:3px; margin-right:4px; vertical-align:1px;
+    border:1px solid currentColor;
+  }
+  .tag.tc{color:var(--c-color);}
+  .tag.te{color:var(--e-color);}
+
+  /* ---------- diagram ---------- */
+  .card-head{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--secondary); margin:0 0 8px;}
+  svg.venn{width:100%; height:auto; display:block; margin-bottom:16px;}
+  .v-c{fill:color-mix(in srgb, var(--c-color) 16%, var(--panel-bg)); stroke:var(--c-color); stroke-width:2;}
+  .v-e{fill:color-mix(in srgb, var(--e-color) 14%, var(--panel-bg)); stroke:var(--e-color); stroke-width:2;}
+  .vlab{font-family:var(--font-body); font-size:12.5px; font-weight:700; text-anchor:middle;}
+  .vlab.lc{fill:var(--c-color);}
+  .vlab.le{fill:var(--e-color);}
+  .venn-cap{font-size:13px; color:var(--secondary); line-height:1.6; margin:0;}
+  /* Breathing room above the card when it is scrolled into view on a stacked layout. */
+  #vennCard{scroll-margin-top:16px;}
+  .venn-cap b{color:var(--ink);}
+  .placeholder{font-size:13px; color:var(--secondary); line-height:1.6; margin:0;}
+
+  /* ---------- forbids / permits ---------- */
+  .fp{margin-top:16px; border-top:1px solid var(--border); padding-top:16px;}
+  .fp-row{display:flex; gap:8px; align-items:flex-start; font-size:13.5px; line-height:1.5; padding:4px 0;}
+  .fp-glyph{
+    flex:0 0 auto; width:19px; height:19px; border-radius:50%; margin-top:1px;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700;
+  }
+  .fp-row.no .fp-glyph{background:var(--gold-ui); color:#fff;}
+  html[data-theme="dark"] .fp-row.no .fp-glyph{color:#141414;}
+  .fp-row.ok .fp-glyph{background:transparent; color:var(--secondary); border:1.5px solid var(--secondary);}
+  .fp-lab{font-weight:700;}
+  .fp-row.no .fp-lab{color:var(--gold-text);}
+  .fp-row.ok .fp-lab{color:var(--secondary);}
+
+  /* ---------- panel ---------- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:320px; display:flex; flex-direction:column;
+  }
+  .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .step-text{font-size:14.5px; line-height:1.65; flex:1;}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .answer-controls{margin-top:16px;}
+  .answer-row{display:flex; flex-direction:column; gap:8px;}
+  .answer-row.inline{flex-direction:row; flex-wrap:wrap;}
+  .answer-row.inline .chip.wide{width:auto;}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px;}
+  .btn{
+    font-family:var(--font-body); font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:5px; display:none; line-height:1.5;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--valid) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--invalid) 18%, transparent); color:var(--ink);}
+
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:13.5px; color:var(--gold-text);
+  }
+  .findings div{margin:2px 0; line-height:1.5;}
+
+  .cue-box{
+    margin-top:16px; border-left:3px solid var(--accent); padding:8px 16px;
+    background:color-mix(in srgb, var(--accent) 8%, transparent);
+    font-size:13.5px; line-height:1.55; border-radius:0 5px 5px 0;
+  }
+  .cue-word{font-family:var(--font-data); font-weight:700; color:var(--accent);}
+
+  /* ---------- restatement comparison (guided) ---------- */
+  .restate{margin-top:16px; border:1px solid var(--border); border-radius:5px; overflow:hidden;}
+  .restate-row{display:flex; gap:8px; align-items:flex-start; padding:8px 16px; font-size:13px; line-height:1.5;}
+  .restate-row + .restate-row{border-top:1px solid var(--border);}
+  .restate-glyph{
+    flex:0 0 auto; width:19px; height:19px; border-radius:50%; margin-top:1px;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:#fff;
+  }
+  html[data-theme="dark"] .restate-glyph{color:#141414;}
+  .restate-row.same .restate-glyph{background:var(--valid);}
+  .restate-row.conv .restate-glyph{background:var(--invalid);}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Necessary and sufficient conditions</h1>
+      <p class="lede">A condition is <b>sufficient</b> when its presence guarantees the effect, and <b>necessary</b> when the effect cannot happen without it. Each claim here forbids exactly one thing from ever being observed &mdash; work out what that is, and the rest follows.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div id="pickers"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div class="layout">
+    <div class="left-col">
+      <div class="card" id="claimCard"></div>
+      <div class="card" id="vennCard"></div>
+    </div>
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots" aria-hidden="true"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="answer-controls" id="answerControls" style="display:none;"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+        <div id="findings" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Every claim in this bank is a precise conditional asserting
+   exactly one relation, so it forbids exactly one combination:
+
+     sufficient  ->  forbids  condition without effect
+     necessary   ->  forbids  effect without condition
+
+   The forbidden combination is also the refuting observation.
+   Everything else the tool says is derived from that one fact.
+============================================================ */
+
+const FORBIDDEN = { sufficient:'cNoE', necessary:'noCE' };
+const PERMITTED = { sufficient:'noCE', necessary:'cNoE' };
+const RELATION_ORDER = ['necessary','sufficient'];
+const RELATION_LABEL = { necessary:'Necessary', sufficient:'Sufficient' };
+const RELATION_SHORT = { necessary:'necessary, but not sufficient', sufficient:'sufficient, but not necessary' };
+
+const CUES = {
+  'unless':       'signals necessity when the main clause is negated, as it is here. &ldquo;No X unless Y&rdquo; says X cannot happen without Y, so Y is required &mdash; but it never promises that Y brings X about.',
+  'only if':      'is a necessity cue. &ldquo;X only if Y&rdquo; says Y is required for X. It does not say Y is enough.',
+  'without':      'is a necessity cue in disguise. &ldquo;Without Y, no X&rdquo; says X cannot happen in Y&rsquo;s absence &mdash; but says nothing about what Y produces.',
+  'always':       'is a sufficiency cue. It promises the effect follows whenever the condition is present, and says nothing about whether the effect could arrive some other way.',
+  'when':         'here works like &ldquo;whenever&rdquo; &mdash; a sufficiency cue. The claim is that the condition is enough to bring the effect about.',
+  'if \u2026 then':'puts the sufficient condition in the &ldquo;if&rdquo; slot and what follows from it in the &ldquo;then&rdquo; slot. This cue only tells you the relation once you check <i>which slot the boldfaced condition occupies</i> &mdash; it can land in either one.'
+};
+
+const CLAIMS = [
+  /* ---------- everyday examples ---------- */
+  { group:'Everyday examples', relation:'sufficient', cue:'always',
+    statement:'I always leave the ground when I <b>jump</b>.',
+    cShort:'jumping', eShort:'leaving the ground',
+    cClause:'I jump', eClause:'I leave the ground',
+    note:'Jumping is enough to get me off the ground, but it is hardly the only way &mdash; I could be lifted, or take the stairs.' },
+
+  { group:'Everyday examples', relation:'necessary', cue:'unless',
+    statement:'We can&rsquo;t have fire unless there&rsquo;s <b>oxygen</b>.',
+    cShort:'oxygen', eShort:'fire',
+    cClause:'there is oxygen', eClause:'there is fire',
+    note:'Oxygen has to be there for fire, but a room full of oxygen is not on fire. Necessity does not run in the other direction.' },
+
+  { group:'Everyday examples', relation:'necessary', cue:'if \u2026 then',
+    statement:'If someone contracts Covid, then she was <b>exposed to the Covid virus</b>.',
+    cShort:'exposure to the virus', eShort:'contracting Covid',
+    cClause:'she was exposed to the Covid virus', eClause:'she contracts Covid',
+    note:'The boldfaced condition sits in the <i>then</i> slot here, not the <i>if</i> slot, so the sentence makes exposure a requirement rather than a guarantee. Plenty of people are exposed without ever contracting the disease.' },
+
+  /* ---------- elections and candidates ---------- */
+  { group:'Elections and candidates', relation:'necessary', cue:'only if',
+    statement:'Presidential candidates can win elections only if they <b>run on a moderate platform</b>.',
+    cShort:'a moderate platform', eShort:'winning the election',
+    cClause:'the candidate runs on a moderate platform', eClause:'the candidate wins the election',
+    note:'Moderation is being claimed as a requirement, not a guarantee. Plenty of moderate candidates lose.' },
+
+  { group:'Elections and candidates', relation:'sufficient', cue:'always',
+    statement:'<b>Lower economic growth</b> always reduces support for the incumbent government.',
+    cShort:'lower economic growth', eShort:'falling incumbent support',
+    cClause:'economic growth is lower', eClause:'support for the incumbent government falls',
+    note:'Support can fall for reasons with nothing to do with growth &mdash; scandal, war, a strong challenger. The claim permits all of those.' },
+
+  { group:'Elections and candidates', relation:'sufficient', cue:'if \u2026 then',
+    statement:'If a dictator engages in <b>electoral fraud</b>, then she will win the election.',
+    cShort:'electoral fraud', eShort:'winning the election',
+    cClause:'the dictator engages in electoral fraud', eClause:'the dictator wins the election',
+    note:'Dictators also win without fraud &mdash; through genuine popularity, a divided opposition, or rules that make losing impossible before a single vote is counted.' },
+
+  /* ---------- democracy and development ---------- */
+  { group:'Democracy and development', relation:'necessary', cue:'without',
+    statement:'Without a <b>large middle class</b>, democracy isn&rsquo;t possible.',
+    cShort:'a large middle class', eShort:'democracy',
+    cClause:'the country has a large middle class', eClause:'the country is a democracy',
+    note:'A strong claim: it says every democracy anywhere has a large middle class. A single counterexample would sink it.' },
+
+  { group:'Democracy and development', relation:'sufficient', cue:'if \u2026 then',
+    statement:'If a country is <b>wealthy</b>, then it will be a democracy.',
+    cShort:'wealth', eShort:'democracy',
+    cClause:'the country is wealthy', eClause:'the country is a democracy',
+    note:'India is a democracy without being wealthy, which this claim permits. What would sink it is a wealthy country that is not a democracy.' },
+
+  { group:'Democracy and development', relation:'necessary', cue:'only if',
+    statement:'A country can join the European Union only if it is a <b>democracy</b>.',
+    cShort:'being a democracy', eShort:'joining the EU',
+    cClause:'the country is a democracy', eClause:'the country joins the European Union',
+    note:'Democracy is an entry requirement, not a ticket. Norway and Switzerland are democracies that have stayed out.' },
+
+  /* ---------- legislatures and government ---------- */
+  { group:'Legislatures and government', relation:'sufficient', cue:'if \u2026 then',
+    statement:'If a country employs a <b>majoritarian electoral system</b>, then it will have few political parties.',
+    cShort:'a majoritarian system', eShort:'a small party system',
+    cClause:'the country employs a majoritarian electoral system', eClause:'the country has few political parties',
+    note:'A country could end up with few parties for other reasons entirely &mdash; a single dominant cleavage, or a high legal threshold &mdash; and the claim permits that.' },
+
+  { group:'Legislatures and government', relation:'necessary', cue:'unless',
+    statement:'A prime minister can&rsquo;t take office in a parliamentary democracy unless she enjoys the <b>support of a legislative majority</b>.',
+    cShort:'majority support', eShort:'taking office as prime minister',
+    cClause:'she enjoys the support of a legislative majority', eClause:'she takes office as prime minister',
+    note:'Commanding a majority is what makes the office reachable, but plenty of politicians command majorities without ever becoming prime minister.' },
+
+  { group:'Legislatures and government', relation:'sufficient', cue:'when',
+    statement:'The nature of legislative debate changes when we <b>increase the number of female representatives</b>.',
+    cShort:'an increase in female representatives', eShort:'a change in debate',
+    cClause:'we increase the number of female representatives', eClause:'the nature of legislative debate changes',
+    note:'Debate changes for all sorts of reasons. The claim is only that this particular change is enough to produce it.' }
+];
+
+CLAIMS.forEach((c,i) => { c.title = 'Claim ' + (i+1); });
+
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* Four candidate observations. The two mixed cases are the live ones: one
+   refutes the claim, the other is permitted. The two matching cases are
+   consistent with the claim whatever it asserts, and are there for the
+   reader who treats any co-occurrence as evidence. */
+function observations(c){
+  return {
+    cNoE:   `${c.cShort} without ${c.eShort}`,
+    noCE:   `${c.eShort} without ${c.cShort}`,
+    cE:     `${c.cShort} together with ${c.eShort}`,
+    noCnoE: `neither ${c.cShort} nor ${c.eShort}`
+  };
+}
+const OBS_ORDER = ['cNoE','noCE','cE','noCnoE'];
+
+/* Two ways of saying sufficiency, two of saying necessity. For any claim,
+   one pair restates it and the other pair states its converse. */
+function restatements(c){
+  return {
+    s1: { rel:'sufficient', text:`If ${c.cClause}, then ${c.eClause}.` },
+    s2: { rel:'sufficient', text:`${cap(c.cShort)} guarantees ${c.eShort}.` },
+    n1: { rel:'necessary',  text:`${cap(c.eClause)} only if ${c.cClause}.` },
+    n2: { rel:'necessary',  text:`${cap(c.eShort)} is impossible without ${c.cShort}.` }
+  };
+}
+const RESTATE_ORDER = ['s1','s2','n1','n2'];
+
+/* Fixed permutations so the correct options are not always in the same
+   position, without randomness that would change between renders. */
+const PERMS = [[0,1,2,3],[2,0,3,1],[1,3,0,2],[3,2,1,0],[0,3,1,2],[2,1,3,0],[1,0,2,3],[3,1,0,2]];
+function shuffled(list, seed){
+  return PERMS[seed % PERMS.length].map(i => list[i]);
+}
+
+/* ---------- state ---------- */
+let currentIdx = 0;
+let mode = 'guided';
+let guidedStep = 0;
+const GUIDED_LAST = 4;   /* index of the final walkthrough step */
+
+let taskIdx = 0;
+let checked = false;
+let obsAnswer = null;
+let relAnswer = null;
+let selRestate = new Set();
+let solved = {};
+
+function C(){ return CLAIMS[currentIdx]; }
+function forbiddenKey(){ return FORBIDDEN[C().relation]; }
+function permittedKey(){ return PERMITTED[C().relation]; }
+
+/* ---------- theme ---------- */
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeIcon').textContent = dark ? '\u2600' : '\u263D';
+  document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeToggle').setAttribute('aria-pressed', String(dark));
+}
+let isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(isDark);
+document.getElementById('themeToggle').onclick = () => { isDark = !isDark; applyTheme(isDark); };
+
+/* ---------- picker ---------- */
+function renderPicker(){
+  const host = document.getElementById('pickers');
+  host.innerHTML = '';
+  const groups = [];
+  CLAIMS.forEach((c,i) => {
+    let g = groups.find(x => x.name === c.group);
+    if(!g){ g = { name:c.group, items:[] }; groups.push(g); }
+    g.items.push(i);
+  });
+  groups.forEach(g => {
+    const label = document.createElement('p');
+    label.className = 'group-label';
+    label.textContent = g.name;
+    host.appendChild(label);
+    const row = document.createElement('div');
+    row.className = 'picker';
+    g.items.forEach(i => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (i === currentIdx ? ' active' : '');
+      b.type = 'button';
+      b.textContent = CLAIMS[i].title;
+      b.setAttribute('aria-pressed', String(i === currentIdx));
+      b.onclick = () => { currentIdx = i; resetAll(); renderAll(); };
+      row.appendChild(b);
+    });
+    host.appendChild(row);
+  });
+}
+
+/* ---------- claim card ---------- */
+function renderClaimCard(){
+  const c = C();
+  document.getElementById('claimCard').innerHTML =
+    `<p class="group-label">${c.title}</p>
+     <p class="claim-text">${c.statement}</p>
+     <div class="claim-key">
+       <div><span class="tag tc">condition</span> <b>${cap(c.cShort)}</b></div>
+       <div><span class="tag te">effect</span> <b>${cap(c.eShort)}</b></div>
+     </div>`;
+}
+
+/* ---------- diagram ---------- */
+function vennSvg(relation){
+  const L = (x,y,cls,t) => `<text class="vlab ${cls}" x="${x}" y="${y}">${t}</text>`;
+  if(relation === 'sufficient'){
+    // condition sits inside effect
+    return `<ellipse class="v-e" cx="220" cy="90" rx="196" ry="76"></ellipse>
+            <circle class="v-c" cx="292" cy="90" r="56"></circle>
+            ${L(96,94,'le','effect')}${L(292,94,'lc','condition')}`;
+  }
+  // effect sits inside condition
+  return `<ellipse class="v-c" cx="220" cy="90" rx="196" ry="76"></ellipse>
+          <circle class="v-e" cx="292" cy="90" r="56"></circle>
+          ${L(96,94,'lc','condition')}${L(292,94,'le','effect')}`;
+}
+
+function vennCaption(relation){
+  const c = C();
+  if(relation === 'sufficient')
+    return `Every case of <b>${c.cShort}</b> is also a case of <b>${c.eShort}</b>. The condition sits <i>inside</i> the effect &mdash; that is what sufficiency looks like.`;
+  return `Every case of <b>${c.eShort}</b> is also a case of <b>${c.cShort}</b>. The effect sits <i>inside</i> the condition &mdash; that is what necessity looks like.`;
+}
+
+/* The two columns stack into one below roughly 810px, and when they do the
+   picture card sits above the panel — far enough above, on a phone, to be
+   entirely off-screen at the moment it fills in. A student who has just been
+   told the picture will appear has no way of knowing it just did. So track the
+   one transition from placeholder to picture and bring the card into view when
+   it happens. Aligning its top with the viewport (rather than centering it)
+   keeps as much of the panel visible underneath as will fit, so the step text
+   and the Next control stay reachable without hunting for them. Nothing moves
+   on a wide screen, where the card is already beside the step text. The step
+   text itself carries the same description in prose, so a screen reader gets
+   the content from the live region either way and focus is left alone. */
+let pictureShown = false;
+
+function revealPicture(){
+  const left = document.querySelector('.left-col');
+  const panel = document.querySelector('.panel-col');
+  if(!left || !panel || left.offsetTop === panel.offsetTop) return;  // side by side
+  const card = document.getElementById('vennCard');
+  requestAnimationFrame(() => {
+    const box = card.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    if(box.top >= 0 && box.bottom <= vh) return;                     // already in sight
+    card.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+  });
+}
+
+function renderVenn(show){
+  const host = document.getElementById('vennCard');
+  const c = C(), obs = observations(c);
+  const appearing = show && !pictureShown;
+  pictureShown = show;
+  if(!show){
+    host.innerHTML =
+      `<p class="card-head">The claim as a picture</p>
+       <p class="placeholder">This claim forbids one combination of condition and effect from ever occurring. Once you have worked out which one, the two sets can be drawn with one nested inside the other, and the picture will appear here.</p>`;
+    return;
+  }
+  host.innerHTML =
+    `<p class="card-head">The claim as a picture</p>
+     <svg class="venn" viewBox="0 0 440 180" role="img" aria-hidden="true" focusable="false">${vennSvg(c.relation)}</svg>
+     <p class="sr-only">${vennCaption(c.relation).replace(/<[^>]+>/g,'')}</p>
+     <p class="venn-cap">${vennCaption(c.relation)}</p>
+     <div class="fp">
+       <div class="fp-row no">
+         <span class="fp-glyph" aria-hidden="true">&#10005;</span>
+         <span><span class="fp-lab">Never observed:</span> ${obs[forbiddenKey()]}</span>
+       </div>
+       <div class="fp-row ok">
+         <span class="fp-glyph" aria-hidden="true">&#10003;</span>
+         <span><span class="fp-lab">Permitted:</span> ${obs[permittedKey()]}</span>
+       </div>
+     </div>`;
+  if(appearing) revealPicture();
+}
+
+/* ---------- guided ---------- */
+function guidedInfo(step){
+  const c = C(), obs = observations(c), r = restatements(c);
+  const forb = obs[forbiddenKey()];
+  const perm = obs[permittedKey()];
+
+  if(step === 0){
+    return { label:'Start here', text:
+      `The boldfaced part of the claim is the <b>condition</b>; what it is supposed to bring about is the <b>effect</b>. Two different questions separate the two relationships. Does the condition <i>guarantee</i> the effect? That is <b>sufficiency</b>. Can the effect happen <i>without</i> the condition? If not, the condition is <b>necessary</b>. Every claim here asserts one of the two and stays silent on the other, so exactly one of those questions gets a yes.` };
+  }
+  if(step === 1){
+    return { label:'Reading the wording', text:
+      `Cue words carry the relationship, once you know them. Here the giveaway is <span class="cue-word">${c.cue}</span>.<div class="cue-box"><span class="cue-word">${c.cue}</span> ${CUES[c.cue]}</div>` };
+  }
+  if(step === 2){
+    const why = c.relation === 'sufficient'
+      ? `If the condition really guarantees the effect, then the condition turning up with no effect is something we should never see.`
+      : `If the effect really requires the condition, then the effect turning up with no condition is something we should never see.`;
+    const silent = c.relation === 'sufficient'
+      ? `the claim never said the condition was the only route to the effect`
+      : `the claim never said the condition was enough to produce the effect`;
+    return { label:'What the claim forbids', text:
+      `A precise claim of this kind does its work by ruling something out. ${why} So this claim rules out one combination and one only: <b>${forb}</b>.<br><br>Notice what it leaves alone. <b>${cap(perm)}</b> is permitted, because ${silent}. That is the asymmetry to hold on to: the claim speaks to one side and says nothing at all about the other. A case where both turn up together, or where neither does, sits comfortably with the claim whichever relation it asserts, so neither one tells you which it is.${c.note ? '<br><br>' + c.note : ''}` };
+  }
+  if(step === 3){
+    return { label:'The claim as a picture', text:
+      `Forbidding a combination is the same as nesting one set inside the other. ${vennCaption(c.relation)}<br><br>The rule to carry away: <b>condition inside effect means sufficient; effect inside condition means necessary.</b> It is the same picture both times &mdash; only the labels swap. Written as a conditional, the inner shape is always the &ldquo;if&rdquo; part.` };
+  }
+  const same = RESTATE_ORDER.filter(k => r[k].rel === c.relation);
+  const conv = RESTATE_ORDER.filter(k => r[k].rel !== c.relation);
+  const rows = same.map(k => `<div class="restate-row same"><span class="restate-glyph" aria-hidden="true">&#10003;</span><span>${r[k].text}</span></div>`).join('')
+             + conv.map(k => `<div class="restate-row conv"><span class="restate-glyph" aria-hidden="true">&#10005;</span><span>${r[k].text}</span></div>`).join('');
+  return { label:'Saying it another way', text:
+    `One relationship can be worded in very different ways, and swapping the two terms quietly turns a claim into its converse. The first two sentences below say what this claim says. The last two say the opposite thing: they make the requirement run the other way.<div class="restate">${rows}</div>` };
+}
+
+function renderGuided(){
+  renderVenn(guidedStep >= 3);
+  const info = guidedInfo(guidedStep);
+  document.getElementById('stepLabel').innerHTML = info.label;
+  document.getElementById('stepText').innerHTML = info.text;
+  document.getElementById('answerControls').style.display = 'none';
+  document.getElementById('resultNote').className = 'result-note';
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  for(let i=0;i<=GUIDED_LAST;i++){
+    const d = document.createElement('span');
+    if(i < guidedStep) d.classList.add('done');
+    if(i === guidedStep) d.classList.add('current');
+    dots.appendChild(d);
+  }
+
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+  const back = document.createElement('button');
+  back.className = 'btn'; back.type = 'button'; back.textContent = 'Back';
+  back.disabled = guidedStep === 0;
+  back.onclick = () => { guidedStep = Math.max(0, guidedStep - 1); renderGuided(); };
+  const next = document.createElement('button');
+  next.className = 'btn primary'; next.type = 'button';
+  next.textContent = guidedStep === GUIDED_LAST ? 'Start over' : (guidedStep === 0 ? 'Begin' : 'Next');
+  next.onclick = () => { guidedStep = guidedStep === GUIDED_LAST ? 0 : guidedStep + 1; renderGuided(); };
+  controls.appendChild(back); controls.appendChild(next);
+
+  const c = C(), obs = observations(c), lines = [];
+  if(guidedStep >= 2) lines.push(`<b>Never observed:</b> ${obs[forbiddenKey()]}`);
+  if(guidedStep >= 3) lines.push(`<b>The condition is:</b> ${RELATION_SHORT[c.relation]}`);
+  renderFindings(lines);
+}
+
+/* ---------- practice ---------- */
+function tasks(){
+  return [
+    { type:'observation', prompt:`This claim forbids one combination of condition and effect from ever occurring. <b>Which observation would show that the claim is false?</b>` },
+    { type:'relation',    prompt:`<b>Is the boldfaced condition necessary or sufficient for the effect?</b> Read it off the combination you just ruled out.` },
+    { type:'restate',     prompt:`<b>Which restatements say the same thing as the claim?</b> Two of the four do. The other two swap the terms around and state the converse.` }
+  ];
+}
+
+function renderAnswerControls(){
+  const host = document.getElementById('answerControls');
+  const c = C(), task = tasks()[taskIdx];
+  host.innerHTML = '';
+  host.style.display = 'block';
+
+  const row = document.createElement('div');
+  row.className = 'answer-row' + (task.type === 'relation' ? ' inline' : '');
+
+  const mk = (label, isOn, onPick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip wide' + (isOn ? ' active' : '');
+    b.textContent = label;
+    b.disabled = checked;
+    b.setAttribute('aria-pressed', String(isOn));
+    b.onclick = () => { onPick(); renderAnswerControls(); renderControls(); };
+    return b;
+  };
+
+  if(task.type === 'observation'){
+    const obs = observations(c);
+    shuffled(OBS_ORDER, currentIdx).forEach(k =>
+      row.appendChild(mk(cap(obs[k]), obsAnswer === k, () => { obsAnswer = k; })));
+  } else if(task.type === 'relation'){
+    RELATION_ORDER.forEach(k =>
+      row.appendChild(mk(RELATION_LABEL[k], relAnswer === k, () => { relAnswer = k; })));
+  } else {
+    const r = restatements(c);
+    shuffled(RESTATE_ORDER, currentIdx + 1).forEach(k =>
+      row.appendChild(mk(r[k].text, selRestate.has(k), () => {
+        if(selRestate.has(k)) selRestate.delete(k); else selRestate.add(k);
+      })));
+  }
+  host.appendChild(row);
+}
+
+function renderPractice(){
+  renderVenn(!!solved.relation);
+  const list = tasks(), task = list[taskIdx];
+  document.getElementById('stepLabel').innerHTML = `Practice &middot; Task ${taskIdx+1} of ${list.length}`;
+  document.getElementById('stepText').innerHTML = task.prompt;
+  renderAnswerControls();
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  list.forEach((_,i) => {
+    const d = document.createElement('span');
+    if(i < taskIdx) d.classList.add('done');
+    if(i === taskIdx) d.classList.add('current');
+    dots.appendChild(d);
+  });
+
+  renderControls();
+
+  const c = C(), obs = observations(c), r = restatements(c), lines = [];
+  if(solved.observation) lines.push(`<b>Never observed:</b> ${obs[forbiddenKey()]}`);
+  if(solved.relation)    lines.push(`<b>The condition is:</b> ${RELATION_SHORT[c.relation]}`);
+  if(solved.restate)     lines.push(`<b>Says the same thing:</b> ${RESTATE_ORDER.filter(k => r[k].rel === c.relation).map(k => r[k].text).join(' ')}`);
+  renderFindings(lines);
+}
+
+function renderControls(){
+  const list = tasks(), task = list[taskIdx];
+  const note = document.getElementById('resultNote');
+  const controls = document.getElementById('panelControls');
+  controls.innerHTML = '';
+
+  const ready =
+    task.type === 'observation' ? obsAnswer !== null :
+    task.type === 'relation'    ? relAnswer !== null :
+                                  selRestate.size > 0;
+
+  const check = document.createElement('button');
+  check.className = 'btn primary'; check.type = 'button'; check.textContent = 'Check answer';
+  check.disabled = checked || !ready;
+  check.onclick = () => gradeTask(task, note);
+
+  const next = document.createElement('button');
+  next.className = 'btn'; next.type = 'button';
+  next.textContent = taskIdx === list.length - 1 ? 'Start over' : 'Next task';
+  next.disabled = !checked;
+  next.onclick = () => {
+    taskIdx = taskIdx === list.length - 1 ? 0 : taskIdx + 1;
+    checked = false; obsAnswer = null; relAnswer = null; selRestate = new Set();
+    if(taskIdx === 0) solved = {};
+    document.getElementById('resultNote').className = 'result-note';
+    renderPractice();
+  };
+
+  controls.appendChild(check); controls.appendChild(next);
+}
+
+function gradeTask(task, note){
+  const c = C(), r = restatements(c);
+  const right = () => { checked = true; note.className = 'result-note show ok'; note.innerHTML = 'Correct.'; };
+  const wrong = (msg) => { note.className = 'result-note show no'; note.innerHTML = msg; };
+
+  if(task.type === 'observation'){
+    if(obsAnswer === forbiddenKey()){ solved.observation = true; right(); }
+    else {
+      wrong(obsAnswer === permittedKey()
+        ? `That combination can look like damaging evidence. Check whether the claim actually rules it out, or simply says nothing about it. Try the task again.`
+        : `A case where the two turn up together, or where neither does, sits comfortably with the claim however it is read. Look at the two mixed combinations instead. Try the task again.`);
+      obsAnswer = null;
+    }
+  }
+
+  else if(task.type === 'relation'){
+    if(relAnswer === c.relation){ solved.relation = true; right(); }
+    else {
+      wrong(`Check which way round it runs. Ruling out the condition turning up with no effect means the condition <i>guarantees</i> the effect; ruling out the effect turning up with no condition means the effect <i>requires</i> it. Try the task again.`);
+      relAnswer = null;
+    }
+  }
+
+  else {
+    const want = new Set(RESTATE_ORDER.filter(k => r[k].rel === c.relation));
+    const ok = want.size === selRestate.size && [...want].every(k => selRestate.has(k));
+    if(ok){ solved.restate = true; right(); }
+    else {
+      const hasConverse = [...selRestate].some(k => r[k].rel !== c.relation);
+      wrong(hasConverse
+        ? `At least one of your selections states the converse, making the requirement run in the opposite direction. Try the task again.`
+        : `Everything you selected does restate the claim, but you have not found them all. Two of the four say the same thing. Try the task again.`);
+      selRestate = new Set();
+    }
+  }
+
+  renderPractice();
+}
+
+/* ---------- findings ---------- */
+function renderFindings(lines){
+  const host = document.getElementById('findings');
+  host.innerHTML = lines.length
+    ? `<div class="findings">${lines.map(l => `<div>${l}</div>`).join('')}</div>` : '';
+}
+
+/* ---------- master ---------- */
+function resetAll(){
+  guidedStep = 0;
+  taskIdx = 0; checked = false;
+  obsAnswer = null; relAnswer = null; selRestate = new Set();
+  solved = {};
+  document.getElementById('resultNote').className = 'result-note';
+}
+function renderAll(){
+  renderPicker();
+  renderClaimCard();
+  if(mode === 'guided') renderGuided(); else renderPractice();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+    tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+    mode = tab.dataset.mode;
+    resetAll();
+    renderAll();
+  };
+});
+
+renderAll();
+</script>
+</body>
+</html>

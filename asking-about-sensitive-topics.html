@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Asking about sensitive topics</title>
+<style>
+  /* Layout: the house two-column tool frame. Case column (design card, worksheet) beside a task panel; stacks below ~810px. */
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the two randomly assigned groups */
+    --cC:#009E73;   /* bluish green   — the control group */
+    --cT:#CC79A7;   /* reddish purple — the treatment group */
+
+    /* semantic: correct / incorrect — messaging surfaces only */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state — here, the settled estimate */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --structure-ink:#141414;
+    --structure-line:#8A8A8A;
+
+    --on-accent:#FFFFFF;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --cC:#3FCFA0;
+    --cT:#E29FC4;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --structure-ink:#E8E8E8;
+    --structure-line:#7E7E7E;
+
+    --on-accent:#0A1E28;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px; margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px; text-wrap:balance;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 16px;}
+  .lede:last-of-type{margin-bottom:24px;}
+  .lede em{color:var(--ink);}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible, input[type="range"]:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .group-sub{font-size:12.5px; color:var(--secondary); margin:0 0 8px; line-height:1.5; max-width:680px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 16px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .case-col{flex:1 1 540px; min-width:0;}
+  .panel-col{flex:1 1 320px; min-width:0;}
+
+  /* ---- cards ---- */
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .card-head{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin-bottom:8px;}
+  .field + .field{margin-top:16px;}
+  .field-label{font-size:11px; font-weight:700; letter-spacing:.04em; margin-bottom:2px; text-transform:uppercase; color:var(--secondary);}
+  .field-text{font-size:14.5px; line-height:1.6; color:var(--ink);}
+  .field-text ul{margin:4px 0 0; padding-left:24px;}
+  .field-text li{margin:2px 0;}
+  .field-text li.extra{font-weight:700;}
+  .card-compare{
+    margin-top:16px; padding-top:16px; border-top:1px dashed var(--border);
+    font-size:12.5px; color:var(--secondary); line-height:1.6;
+  }
+  .src{font-size:12px; color:var(--secondary); line-height:1.5; margin-top:8px;}
+
+  /* the two groups: untagged until the student says which is which */
+  .grp{border:1px solid var(--border); border-radius:6px; padding:8px 16px;}
+  .grp + .grp{margin-top:8px;}
+  .grp-name{display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:12px; font-weight:700; color:var(--ink);}
+  .grp.ctl{border-left-width:3px; border-left-color:var(--cC); padding-left:14px; background:color-mix(in srgb, var(--cC) 7%, var(--panel-bg));}
+  .grp.trt{border-left-width:3px; border-left-color:var(--cT); padding-left:14px; background:color-mix(in srgb, var(--cT) 7%, var(--panel-bg));}
+  .role{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    padding:1px 8px; border-radius:8px; border:1px solid var(--border); color:var(--ink);
+  }
+  .role .sw{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .role.ctl{border-color:var(--cC);} .role.ctl .sw{background:var(--cC);}
+  .role.trt{border-color:var(--cT);} .role.trt .sw{background:var(--cT); border-radius:1px;}
+
+  /* results table */
+  .tbl-wrap{overflow-x:auto; margin-top:4px;}
+  table.res{border-collapse:collapse; font-family:var(--font-data); font-size:12.5px; font-variant-numeric:tabular-nums; min-width:100%;}
+  table.res th, table.res td{padding:4px 8px; text-align:right; border-bottom:1px solid var(--border); white-space:nowrap;}
+  table.res th{font-family:var(--font-body); font-size:11px; font-weight:700; color:var(--secondary);}
+  table.res th[scope="row"]{text-align:left; color:var(--ink);}
+  table.res td.na{color:var(--deemph);}
+  table.res td.edge{font-weight:700; box-shadow:inset 0 0 0 2px var(--gold-ui);}
+  .res-cap{font-size:12px; color:var(--secondary); margin:0 0 4px; line-height:1.5;}
+
+  /* ---- worksheet ---- */
+  .ws-row{display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .ws-row:last-child{border-bottom:none;}
+  .ws-k{font-size:13px; color:var(--secondary); line-height:1.5; flex:1 1 180px; min-width:0;}
+  .ws-v{font-family:var(--font-data); font-size:13.5px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; flex:0 1 auto; min-width:0;}
+  .ws-v.pending{color:var(--accent); font-weight:400;}
+  .ws-v.given{color:var(--deemph); font-weight:400;}
+  .ws-row.settled{padding:7px 15px; margin:8px 0; border:2px solid var(--gold-ui); border-radius:6px;}
+  .ws-row.settled .ws-k{color:var(--ink);}
+  .ws-tag{display:block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gold-text); margin-top:2px; font-family:var(--font-body);}
+
+  /* ---- simulation ---- */
+  .sim-controls{display:flex; flex-wrap:wrap; gap:16px 24px; margin-bottom:16px;}
+  .slider{flex:1 1 220px; min-width:0;}
+  .slider label{display:flex; justify-content:space-between; gap:8px; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:4px;}
+  .slider .val{font-family:var(--font-data); font-weight:700;}
+  .slider input{width:100%; accent-color:var(--accent);}
+  .slider .ends{display:flex; justify-content:space-between; font-family:var(--font-data); font-size:11px; color:var(--secondary);}
+  .sim-btns{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
+  .sim-fig{overflow-x:auto;}
+  .sim-fig svg{display:block; max-width:100%; height:auto;}
+  .sim-fig .rowlab{font-family:var(--font-body); font-size:13px; fill:var(--ink);}
+  .sim-fig .tick{font-family:var(--font-data); font-size:11px; fill:var(--secondary);}
+  .sim-fig .axis{stroke:var(--structure-line); stroke-width:1;}
+  .sim-fig .sep{stroke:var(--border); stroke-width:1;}
+  .sim-fig .truth{stroke:var(--structure-ink); stroke-width:1.5; stroke-dasharray:4 4;}
+  .sim-fig .truthlab{font-family:var(--font-body); font-size:11px; font-weight:700; fill:var(--ink);}
+  .sim-fig .dot{fill:var(--secondary); fill-opacity:.45;}
+  .sim-fig .dot.latest{fill:var(--accent); fill-opacity:1; stroke:var(--structure-ink); stroke-width:1;}
+  .sim-note{font-size:12.5px; color:var(--secondary); line-height:1.6; margin:8px 0 0;}
+  .sim-read{font-size:13px; color:var(--ink); line-height:1.6; margin:8px 0 0; font-variant-numeric:tabular-nums;}
+
+  /* ---- panel ---- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:340px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .panel .step-text{font-size:14.5px; line-height:1.65; color:var(--ink);}
+  .panel .step-text p{margin:0 0 8px;}
+  .panel .step-text p:last-child{margin-bottom:0;}
+  .num{font-family:var(--font-data); font-weight:700; font-variant-numeric:tabular-nums;}
+  .claim{border-left:3px solid var(--border); padding:4px 16px; margin:8px 0; font-style:italic;}
+
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--secondary);}
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  .back-to-step{
+    position:fixed; right:16px; bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:var(--on-accent);
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  .back-to-step[hidden]{display:none;}
+
+  #simCard, #designCard, #worksheet{scroll-margin-top:16px;}
+
+  .opts{margin-top:16px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .opt{
+    font-family:var(--font-body); font-size:13.5px; line-height:1.5;
+    text-align:left; padding:8px 16px; border-radius:8px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .opt:hover{border-color:var(--accent);}
+  .opt.sel{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--panel-bg));}
+  .opt:disabled{cursor:default;}
+
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:4px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:4px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+  .result-note .mark{font-weight:700; margin-right:4px;}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Asking about sensitive topics</h1>
+      <p class="lede">Some questions people will not answer truthfully when asked directly: whether they took a bribe, sold their vote, or support an armed group. Chapter 7 describes several ways around this, and three of them are survey designs. Each design gives up something the researcher would normally have, <em>any individual&rsquo;s answer</em>, in exchange for an honest estimate of how common the view or behavior is in the group as a whole.</p>
+      <p class="lede">Every case asks the same five things: which technique was used, how the design is put together, what the estimate is, whether any single answer still gives someone away, and whether a stated conclusion follows. Countries are labeled by letter so that what you already believe about a real place does not do the work. The one real survey, in the guided walkthrough, is identified as such.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" id="tabGuided" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" id="tabPractice" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div id="pickerZone" hidden>
+    <p class="group-label">Public officials</p>
+    <p class="group-sub">Surveys of people who work for the state, about things their employer or the law would punish.</p>
+    <div class="picker" id="pickerA"></div>
+
+    <p class="group-label">Elections and parties</p>
+    <p class="group-sub">Surveys of voters, about how they were treated during a campaign and which political groups they favor.</p>
+    <div class="picker" id="pickerB"></div>
+
+    <p class="group-label">Work, school, and neighborhood</p>
+    <p class="group-sub">Surveys about everyday conduct and attitudes that people have reasons to keep to themselves.</p>
+    <div class="picker" id="pickerC"></div>
+  </div>
+
+  <div class="layout">
+    <div class="case-col">
+      <div class="card" id="simCard" hidden>
+        <div class="card-head">A simulated survey</div>
+        <div class="sim-controls">
+          <div class="slider">
+            <label for="simPi"><span>Share who hold the view</span><span class="val" id="simPiVal">30%</span></label>
+            <input type="range" id="simPi" min="0" max="60" step="5" value="30" aria-valuetext="30%">
+            <div class="ends"><span>0%</span><span>60%</span></div>
+          </div>
+          <div class="slider">
+            <label for="simLie"><span>Of those, share who deny it when asked directly</span><span class="val" id="simLieVal">50%</span></label>
+            <input type="range" id="simLie" min="0" max="100" step="10" value="50" aria-valuetext="50%">
+            <div class="ends"><span>0%</span><span>100%</span></div>
+          </div>
+        </div>
+        <div class="sim-btns">
+          <button class="btn" type="button" id="simOne">Run one survey</button>
+          <button class="btn" type="button" id="simMany">Run twenty surveys</button>
+        </div>
+        <div class="sim-fig" id="simFig" aria-hidden="true"></div>
+        <p class="sim-read" id="simRead" aria-live="polite"></p>
+        <p class="sim-note">Each survey has 1,000 respondents. The list experiment splits them into two groups of 500. Each dot is one survey&rsquo;s estimate; the filled dot is the most recent. The simulation assumes that anyone whose answer is protected answers truthfully, which is the best case for the two protected techniques.</p>
+      </div>
+
+      <div class="card" id="designCard" hidden></div>
+      <div class="card" id="worksheet" hidden></div>
+    </div>
+
+    <div class="panel-col">
+      <div class="panel" id="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel">Step</div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="opts" id="opts"></div>
+        <div class="result-note" id="resultNote" aria-live="polite"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const RSQ = "’";
+const MINUS = "−";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Cases. Every number in a practice case is invented, and the
+   introduction says so. The one real survey (Afghanistan) is in
+   guided mode only.
+   tech: 'rr' randomized response, 'list' list experiment,
+         'end' endorsement experiment.
+   For list and endorsement cases, `treat` is the group number
+   that received the sensitive item or the named endorser.
+   ============================================================ */
+const CASES = [
+  /* ---------------- guided-only cases ---------------- */
+  {
+    id:'G_RR', guided:true, tech:'rr', label:'Country P — hospital staff',
+    topic:'Whether staff at Country P' + RSQ + 's public hospitals have accepted an unofficial payment from a patient' + RSQ + 's family in the past year.',
+    rr:{
+      rule:'Before answering, each respondent rolls a die out of the interviewer' + RSQ + 's sight. If it shows 1, say yes. If it shows 6, say no. If it shows 2, 3, 4 or 5, answer the question truthfully.',
+      t:4/6, fy:1/6, fn:1/6, tTxt:'4 in 6', fyTxt:'1 in 6', fnTxt:'1 in 6',
+      n:1200, yes:400, who:'staff members'
+    },
+    src:'Illustrative numbers, using the die rule described in Chapter 7.'
+  },
+  {
+    id:'G_LIST', guided:true, tech:'list', label:'Afghanistan — support for ISAF',
+    topic:'Whether Afghans in the survey supported the International Security Assistance Force (ISAF), the US-led military coalition. Supporting it openly could invite retaliation from the Taliban.',
+    list:{
+      prompt:'I' + RSQ + 'm going to read you a list with the names of different groups and individuals on it. Tell me how many of them you broadly support. Please don' + RSQ + 't tell me which ones.',
+      items:{1:['Karzai Government','National Solidarity Program','Local Farmers'],
+             2:['Karzai Government','International Security Assistance Force','National Solidarity Program','Local Farmers']},
+      extra:'International Security Assistance Force',
+      treat:2,
+      counts:{1:[188,265,265,200], 2:[174,278,260,182,24]},
+      who:'respondents'
+    },
+    src:'A real survey: Blair, Imai, and Lyall (2014), the study in Problem 5c. The response counts are for the 1,836 respondents in their survey who heard one of these two lists; the averages and the estimate are computed from those counts.'
+  },
+  {
+    id:'G_END', guided:true, tech:'end', label:'Country Q — the military council',
+    topic:'What people in Country Q think of the military council that seized power last year. Criticizing it in public can lead to arrest.',
+    end:{
+      policy:'A proposal would build a new water system for the capital, paid for by a tax on imported goods. Do you agree or disagree with this proposal?',
+      endorsed:'The military council has proposed building a new water system for the capital, paid for by a tax on imported goods. Do you agree or disagree with this proposal?',
+      treat:2, a:70, b:58, n:600, actor:'military council'
+    },
+    src:'Illustrative numbers.'
+  },
+
+  /* ---------------- practice: public officials ---------------- */
+  {
+    id:'A1', group:'A', tech:'rr', label:'Country A — tax inspectors',
+    topic:'Whether tax inspectors in Country A have accepted a payment from a business to overlook something in its accounts in the past year.',
+    rr:{
+      rule:'Each inspector rolls a die in private. If it shows 1 or 2, say yes. If it shows 3, 4, 5 or 6, answer the question truthfully.',
+      t:4/6, fy:2/6, fn:0, tTxt:'4 in 6', fyTxt:'2 in 6', fnTxt:'none',
+      n:900, yes:420, who:'inspectors',
+      struct:[
+        {key:'ok', text:'4 in 6 answer truthfully; 2 in 6 are told to say yes'},
+        {key:'d1', text:'2 in 6 answer truthfully; 4 in 6 are told to say yes'},
+        {key:'d2', text:'4 in 6 answer truthfully; 1 in 6 are told to say yes'},
+        {key:'d3', text:'5 in 6 answer truthfully; 1 in 6 are told to say yes'}
+      ]
+    },
+    compare:'Country L, under work, school, and neighborhood, uses a rule that forces the other answer. The two are worth comparing.',
+    claim:'A “no” answer reveals the inspector' + RSQ + 's true answer, so this design fails to protect inspectors who took payments.',
+    claimOK:false,
+    claimWhy:'Not supported. A no does reveal the inspector' + RSQ + 's true answer, but the answer it reveals is the innocent one. The answer that could get an inspector in trouble is yes, and any yes might have been forced by the die.',
+    claimMiss:'Look at which answer can be traced back to the truth, and ask whether it is the answer an inspector would need protecting.',
+    note:'This rule forces only one answer, and it is the answer that needs cover. A design has to protect the answer people are afraid to give and nothing else: forcing no answers as well would add protection to an answer nobody is afraid of. The 480 inspectors who said no have been identified as inspectors who took nothing, and none of them has been exposed to anything.'
+  },
+  {
+    id:'A2', group:'A', tech:'list', label:'Country B — police officers',
+    topic:'Whether police officers in Country B have accepted a gift from a local business owner in the past year.',
+    list:{
+      prompt:'Here is a list of things that officers sometimes do. Tell me how many of them you have done in the past year. Don' + RSQ + 't tell me which ones.',
+      items:{1:['Worked a shift longer than twelve hours','Attended a training course','Filed a report on the condition of your equipment'],
+             2:['Worked a shift longer than twelve hours','Attended a training course','Filed a report on the condition of your equipment','Accepted a gift from a local business owner']},
+      extra:'Accepted a gift from a local business owner',
+      treat:2,
+      counts:{1:[2,10,88,300], 2:[1,8,70,216,105]},
+      who:'officers'
+    },
+    claim:'Because each officer reported only a count, no officer' + RSQ + 's answer about the gift can be traced back to them.',
+    claimOK:false,
+    claimWhy:'Not supported. 105 officers in the treatment group reported all four items, and one of the four is the gift. The control items are things nearly every officer does, so a quarter of the treatment group ended up at the top of the scale.',
+    claimMiss:'Look at the results table. Is there a count that an officer could give only if the gift was one of the things they did?',
+    note:'Three quarters of the control group reported all three control items. Put an officer like that in the treatment group and her answer is either 3 or 4, and 4 gives her away. This is the chapter' + RSQ + 's warning about choosing control items. It also casts doubt on the estimate: an officer who took a gift and understands the problem has a reason to report 3 instead of 4, which would pull the estimate down. A better list mixes items most officers have done with items few have, so that few respondents sit at either end.'
+  },
+  {
+    id:'A3', group:'A', tech:'end', label:'Country C — the banned opposition',
+    topic:'What citizens of Country C think of an opposition movement the government has banned. Voicing support for it can cost a person their job.',
+    end:{
+      policy:'A proposal would double the number of health clinics in rural areas. Do you agree or disagree with this proposal?',
+      endorsed:'The banned opposition movement has proposed doubling the number of health clinics in rural areas. Do you agree or disagree with this proposal?',
+      treat:1, a:71, b:79, n:500, actor:'banned opposition movement'
+    },
+    claim:'About 8 percent of respondents support the banned opposition movement.',
+    claimOK:false,
+    claimWhy:'Not supported. The 8 points is how far the movement' + RSQ + 's name moved support for the clinics. It is not a count of the movement' + RSQ + 's supporters, and an endorsement experiment never produces one.',
+    claimMiss:'Ask what the difference between the two groups is a difference in. Did anyone say whether they support the movement?',
+    note:'Support for the clinics rose when the movement' + RSQ + 's name was attached, which says that respondents on balance think well of the movement. It does not say how many of them are its members or would vote for it. The design never asks anyone about the movement directly. That is why nobody' + RSQ + 's answer gives them away, and it is also why the design cannot tell you how many supporters the movement has.'
+  },
+  {
+    id:'A4', group:'A', tech:'rr', label:'Country D — land registry clerks',
+    topic:'Whether clerks at Country D' + RSQ + 's land registry have ever changed an official record as a favor to someone.',
+    rr:{
+      rule:'Each clerk flips a coin in private. On heads, answer the question truthfully. On tails, flip again: say yes if the second flip is heads and no if it is tails.',
+      t:1/2, fy:1/4, fn:1/4, tTxt:'1 in 2', fyTxt:'1 in 4', fnTxt:'1 in 4',
+      n:800, yes:260, who:'clerks',
+      struct:[
+        {key:'ok', text:'1 in 2 answer truthfully; 1 in 4 are told to say yes'},
+        {key:'d1', text:'1 in 2 answer truthfully; 1 in 2 are told to say yes'},
+        {key:'d2', text:'3 in 4 answer truthfully; 1 in 4 are told to say yes'},
+        {key:'d3', text:'1 in 4 answer truthfully; 1 in 2 are told to say yes'}
+      ],
+      direct:'An earlier survey asked the same clerks the question directly. 4 percent said yes.'
+    },
+    claim:'More of these clerks have changed a record as a favor than the 4 percent who admitted it when asked directly.',
+    claimOK:true,
+    claimWhy:'Supported. The estimate is 15 percent, nearly four times what the direct question found. An estimate from 800 coin-flip answers is noisy, but not noisy enough for a gap this size to be chance.',
+    claimMiss:'Compare the estimate with the 4 percent from the direct question. Is the gap small enough to be chance?',
+    note:'This is the point of the exercise: the direct question and the protected one disagree, and the protected one is higher. Notice what the coin cost. Half of the answers carry no information about the clerk who gave them, so these 800 clerks produce a far less precise estimate than 800 honest direct answers would. The direct question was precise and wrong; this one is noisy and roughly right.'
+  },
+
+  /* ---------------- practice: elections and parties ---------------- */
+  {
+    id:'B1', group:'B', tech:'list', label:'Country E — vote buying',
+    topic:'Whether voters in Country E were offered money or a gift in exchange for their vote during the last campaign.',
+    list:{
+      prompt:'Here is a list of things that sometimes happen during a campaign. Tell me how many of them happened to you. Don' + RSQ + 't tell me which ones.',
+      items:{1:['You saw campaign posters in your neighborhood','A campaign worker visited your home','You heard a candidate speak on the radio','Someone offered you money or a gift in exchange for your vote'],
+             2:['You saw campaign posters in your neighborhood','A campaign worker visited your home','You heard a candidate speak on the radio']},
+      extra:'Someone offered you money or a gift in exchange for your vote',
+      treat:1,
+      counts:{1:[48,186,234,114,18], 2:[60,210,240,90]},
+      who:'voters',
+      est:['max','per','unit'],
+      direct:'Asked directly in the same survey, 3 percent of voters said they had been offered something for their vote.'
+    },
+    claim:'The 18 voters in the treatment group who reported all four items were each offered something for their vote.',
+    claimOK:true,
+    claimWhy:'Supported, as far as the answers are honest. Reporting all four means every item on the list happened, the offer included. This is the leak the chapter warns about, and here it points at particular people.',
+    claimMiss:'What would a voter who was never offered anything have to report, at most?',
+    note:'The estimate is 18 percent against 3 percent from the direct question, the kind of gap list experiments are built to find. The 18 voters at the top of the scale are the design' + RSQ + 's weak point. A voter who was offered money and also saw the posters, met a campaign worker and heard the radio has two choices: tell the truth and be identified, or report 3 and pull the estimate down. The 48 who reported zero are identified too, but as people who were not offered anything, which is not an answer anyone needed to hide.'
+  },
+  {
+    id:'B2', group:'B', tech:'end', label:'Country F — the ruling party',
+    topic:'What citizens of Country F, a single-party dictatorship, think of the ruling party.',
+    end:{
+      policy:'A proposal would build a new secondary school in every district. Do you agree or disagree with this proposal?',
+      endorsed:'The ruling party has proposed building a new secondary school in every district. Do you agree or disagree with this proposal?',
+      treat:2, a:58, b:57, n:700, actor:'ruling party'
+    },
+    claim:'Respondents are, on balance, strongly hostile to the ruling party.',
+    claimOK:false,
+    claimWhy:'Not supported. Attaching the party' + RSQ + 's name moved support by a single point, well within what two random groups of 700 differ by through chance alone. The survey finds no clear effect of the name in either direction, which is a long way from strong hostility.',
+    claimMiss:'How big is the change in support, and could two random groups of 700 differ by that much by chance?',
+    note:'An estimate this close to zero has two readings, and the survey cannot separate them. Respondents may really be indifferent to the party. Or the protection may not be enough: in a dictatorship, some people may be wary of disagreeing with any proposal once the ruling party' + RSQ + 's name is on it. That would push support in the treatment group up and hide hostility. The design protects what people say about the party; it does not protect what they say about the party' + RSQ + 's proposals.'
+  },
+  {
+    id:'B3', group:'B', tech:'rr', label:'Country G — pressure from employers',
+    topic:'Whether voters in Country G were told by their employer how to vote in the last election.',
+    rr:{
+      rule:'Each voter spins a spinner divided into ten equal sections, out of the interviewer' + RSQ + 's sight. On sections 1 to 8, answer the question truthfully. On section 9, say yes. On section 10, say no.',
+      t:8/10, fy:1/10, fn:1/10, tTxt:'8 in 10', fyTxt:'1 in 10', fnTxt:'1 in 10',
+      n:1500, yes:345, who:'voters',
+      struct:[
+        {key:'ok', text:'8 in 10 answer truthfully; 1 in 10 are told to say yes'},
+        {key:'d1', text:'8 in 10 answer truthfully; 2 in 10 are told to say yes'},
+        {key:'d2', text:'9 in 10 answer truthfully; none are told to say yes'},
+        {key:'d3', text:'9 in 10 answer truthfully; 1 in 10 are told to say yes'}
+      ],
+      est:['raw','nodiv','wrongden']
+    },
+    claim:'Roughly one voter in six was told by an employer how to vote.',
+    claimOK:true,
+    claimWhy:'Supported. The estimate is about 16 percent, and with 1,500 voters and eight answers in ten truthful, it is precise enough that one in six is a fair summary.',
+    claimMiss:'Work out what one in six is as a percentage and compare it with the estimate. Is this survey large enough to trust a figure of that size roughly?',
+    note:'The spinner protects fewer answers than the chapter' + RSQ + 's die. Only one answer in five is forced, so a yes is more likely to be true than under the die rule, and a careful voter may notice that and feel less safe. In exchange the estimate is more precise, because more of the answers carry information. Every randomized response design sets this dial somewhere between protection and precision.'
+  },
+  {
+    id:'B4', group:'B', tech:'list', label:'Country H — the separatist party',
+    topic:'Whether people in one district of Country H support a banned separatist party.',
+    list:{
+      prompt:'Here is a list of groups. Tell me how many of them you support. Don' + RSQ + 't tell me which ones.',
+      items:{1:['The national government','The district council','The farmers' + RSQ + ' cooperative'],
+             2:['The national government','The district council','The farmers' + RSQ + ' cooperative','The banned separatist party']},
+      extra:'The banned separatist party',
+      treat:2,
+      counts:{1:[20,45,40,15], 2:[22,46,38,13,1]},
+      who:'respondents'
+    },
+    claim:'No one in this survey supports the separatist party.',
+    claimOK:false,
+    claimWhy:'Not supported. A negative estimate is not a finding that the share is zero, since no share can be below zero. It says the true share is small enough that chance differences between two groups of 120 swamped it. And one respondent in the treatment group reported supporting all four groups, which nobody who rejects the party could do.',
+    claimMiss:'Can a share of people be negative? And look at the top of the treatment group' + RSQ + 's scale.',
+    note:'List experiments need large samples, because the estimate is a small difference between two averages that each move around by chance. With 120 respondents per group, the estimate here could easily miss the true share by 20 points in either direction. A negative estimate is a sign that the survey was too small to find what it was looking for, not a finding.'
+  },
+
+  /* ---------------- practice: work, school, neighborhood ---------------- */
+  {
+    id:'C1', group:'C', tech:'rr', label:'Country I — university students',
+    topic:'Whether students at a university in Country I have handed in work written by someone else this year.',
+    rr:{
+      rule:'Each student draws a card in private from a shuffled deck of ten cards numbered 1 to 10. On cards 1 to 7, answer the question truthfully. On card 8, say yes. On cards 9 and 10, say no.',
+      t:7/10, fy:1/10, fn:2/10, tTxt:'7 in 10', fyTxt:'1 in 10', fnTxt:'2 in 10',
+      n:500, yes:120, who:'students',
+      struct:[
+        {key:'ok', text:'7 in 10 answer truthfully; 1 in 10 are told to say yes'},
+        {key:'d1', text:'6 in 10 answer truthfully; 1 in 10 are told to say yes'},
+        {key:'d2', text:'3 in 10 answer truthfully; 1 in 10 are told to say yes'},
+        {key:'d3', text:'7 in 10 answer truthfully; none are told to say yes'}
+      ],
+      est:['nosub','nodiv','wrongden']
+    },
+    claim:'Because every answer is protected, this estimate is as precise as the one a direct question put to the same 500 students would have given.',
+    claimOK:false,
+    claimWhy:'Not supported. Three answers in ten carry no information about the student who gave them, so the estimate rests on fewer informative answers than a direct question to 500 students would. Protection is paid for in precision.',
+    claimMiss:'How many of the 500 answers actually say anything about the student who gave them?',
+    note:'Forcing different numbers of yes and no answers is fine, so long as the researcher knows both shares. Only the forced yes answers are subtracted, because only they show up among the yes answers; the forced no answers matter through the smaller share left answering truthfully. You can check the estimate by running it forward: 7 in 10 of 500 students answer truthfully, and if one in five of them cheated that is 70 true yes answers. Add the 50 forced yes answers and you have the 120 the survey recorded.'
+  },
+  {
+    id:'C2', group:'C', tech:'end', label:'Country J — the militia',
+    topic:'What residents of a district of Country J think of the armed militia that controls it.',
+    end:{
+      policy:'A proposal would install street lighting in the district' + RSQ + 's market area. Do you agree or disagree with this proposal?',
+      endorsed:'The militia that controls the district has proposed installing street lighting in the district' + RSQ + 's market area. Do you agree or disagree with this proposal?',
+      treat:2, a:64, b:53, n:400, actor:'militia'
+    },
+    claim:'Naming the militia lowered support for the plan, so residents on balance view the militia unfavorably.',
+    claimOK:true,
+    claimWhy:'Supported. Support fell by 11 points when the militia' + RSQ + 's name was attached, more than chance differences between two groups of 400 usually produce, and the name is the only difference between the groups.',
+    claimMiss:'What is the only difference between the two groups, and which way did support move?',
+    note:'This is what the technique was designed to find. The chapter' + RSQ + 's examples are attitudes toward the Taliban in Afghanistan and toward militants in Pakistan, where saying outright that you dislike the armed group running your neighborhood is dangerous. Notice the limit: the result says how the name moves support for one plan. Whether it would move support for a clinic or a school by the same amount is a separate question, which is why published studies usually attach the endorsement to several policies.'
+  },
+  {
+    id:'C3', group:'C', tech:'list', label:'Country K — employers',
+    topic:'Whether employers in Country K hold it against a job applicant that she is the mother of young children.',
+    list:{
+      prompt:'Here is a list of things about a job applicant. Tell me how many of them would make you less likely to hire the applicant. Don' + RSQ + 't tell me which ones.',
+      items:{1:['The application has spelling mistakes','The applicant arrives late to the interview','The applicant has no references','The applicant is the mother of young children'],
+             2:['The application has spelling mistakes','The applicant arrives late to the interview','The applicant has no references']},
+      extra:'The applicant is the mother of young children',
+      treat:1,
+      counts:{1:[12,51,117,93,27], 2:[15,60,135,90]},
+      who:'employers'
+    },
+    claim:'The survey shows how these employers treat applicants who are mothers of young children.',
+    claimOK:false,
+    claimWhy:'Not supported. The survey measures what employers say would make them less likely to hire someone. How they actually treat applicants is behavior, and reported attitudes, even protected ones, do not settle it.',
+    claimMiss:'Is the survey measuring what employers do, or what they say?',
+    note:'Box 7.2 makes this point about discrimination: reported attitudes and actual behavior often come apart, and the three survey techniques can only get at attitudes. To find out whether these employers really turn such applicants away, you would send them matched applications that differ only in whether the applicant mentions young children, and compare how often each is called back. That is an audit experiment.'
+  },
+  {
+    id:'C4', group:'C', tech:'rr', label:'Country L — the fuel shortage',
+    topic:'Whether residents of Country L bought fuel on the black market during last winter' + RSQ + 's shortage, which the government made a criminal offense.',
+    rr:{
+      rule:'Each respondent rolls a die in private. If it shows 1 or 2, say no. If it shows 3, 4, 5 or 6, answer the question truthfully.',
+      t:4/6, fy:0, fn:2/6, tTxt:'4 in 6', fyTxt:'none', fnTxt:'2 in 6',
+      n:600, yes:100, who:'respondents',
+      struct:[
+        {key:'ok', text:'4 in 6 answer truthfully; none are told to say yes'},
+        {key:'d1', text:'4 in 6 answer truthfully; 2 in 6 are told to say yes'},
+        {key:'d2', text:'2 in 6 answer truthfully; none are told to say yes'},
+        {key:'d3', text:'4 in 6 answer truthfully; 1 in 6 are told to say yes'}
+      ]
+    },
+    compare:'Country A, under public officials, uses a rule that forces the other answer. The two are worth comparing.',
+    claim:'This design protects respondents who bought fuel on the black market.',
+    claimOK:false,
+    claimWhy:'Not supported. Nobody is ever told to say yes, so every yes is a true yes. The 100 respondents who said yes have told the interviewer exactly what the design was meant to keep hidden.',
+    claimMiss:'Could any yes answer have been forced by the die?',
+    note:'The arithmetic still works, and 25 percent is a fair estimate of what these answers say. What fails is the protection, and anyone who understands the rule can see that before answering, so the respondents most at risk have every reason to say no whatever the die shows. That would drag the estimate down, so the design fails at its own job twice. Compare Country A, where only yes answers are forced: there a no gives someone away, but the answer given away is the innocent one.'
+  }
+];
+const byId = id => CASES.find(c => c.id === id);
+
+const TECH_NAME = {rr:'randomized response', list:'list experiment', end:'endorsement experiment'};
+
+/* ============================================================
+   Derived quantities
+   ============================================================ */
+function meanOf(arr){
+  let s = 0, n = 0;
+  arr.forEach((x, i) => { s += i * x; n += x; });
+  return s / n;
+}
+function sumOf(arr){ return arr.reduce((a, b) => a + b, 0); }
+
+function derive(c){
+  if(c.tech === 'rr'){
+    const r = c.rr;
+    const y = r.yes / r.n;
+    return {y, est:(y - r.fy) / r.t, no:r.n - r.yes};
+  }
+  if(c.tech === 'list'){
+    const L = c.list;
+    const ctl = L.treat === 1 ? 2 : 1;
+    const cT = L.counts[L.treat], cC = L.counts[ctl];
+    const J = L.items[L.treat].length;
+    const mT = meanOf(cT), mC = meanOf(cC);
+    return {ctl, J, mT:+mT.toFixed(3), mC:+mC.toFixed(3), est:+mT.toFixed(3) - +mC.toFixed(3),
+            nT:sumOf(cT), nC:sumOf(cC), n0:cT[0], nMax:cT[J], ctlMax:cC[J-1]};
+  }
+  const E = c.end;
+  return {ctl:E.treat === 1 ? 2 : 1, d:E.b - E.a};
+}
+
+/* ---- formatting ---- */
+function fmtPct(x){
+  const v = x * 100;
+  let s = Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : String(Math.round(Math.abs(v)));
+  if(s.endsWith('.0') && Math.abs(v) >= 10) s = s.slice(0, -2);
+  return (v < -0.0001 ? MINUS : '') + s + '%';
+}
+function fmtNum(x, dp){
+  const s = Math.abs(x).toFixed(dp);
+  return (x < -0.00001 ? MINUS : '') + s;
+}
+function fmtInt(n){ return n.toLocaleString('en-US'); }
+/* Worksheet inputs keep one decimal so the arithmetic shown can be checked by hand. */
+function wsPct(x){
+  const v = Math.round(x * 1000) / 10;
+  const s = (Math.abs(v) % 1 === 0) ? String(Math.abs(v)) : Math.abs(v).toFixed(1);
+  return (v < 0 ? MINUS : '') + s + '%';
+}
+
+/* ============================================================
+   Tasks
+   ============================================================ */
+const OPT_TECH = [
+  {key:'rr',   text:'Randomized response'},
+  {key:'list', text:'List experiment'},
+  {key:'end',  text:'Endorsement experiment'}
+];
+
+/* Randomized response structure options are ordered by the share answering
+   truthfully, then by the forced-yes share, so they read like a table. */
+function structVal(text){
+  const m = text.match(/^(\d+) in (\d+) answer truthfully; (none|(\d+) in (\d+)) are told/);
+  if(!m) return 0;
+  const t = +m[1] / +m[2];
+  const y = m[3] === 'none' ? 0 : +m[4] / +m[5];
+  return t * 100 + y;
+}
+function t2Options(c){
+  if(c.tech === 'rr') return c.rr.struct.map(o => Object.assign({}, o, {val:structVal(o.text)}));
+  const noun = c.tech === 'list' ? 'list' : 'version';
+  return [
+    {key:1, text:'Group 1 is the control group; Group 2 is the treatment group'},
+    {key:2, text:'Group 2 is the control group; Group 1 is the treatment group'}
+  ].map(o => Object.assign({}, o, {noun}));
+}
+
+function t3Options(c, D){
+  if(c.tech === 'list'){
+    const pool = {avg:D.mT / D.J, max:D.nMax / D.nT, per:D.est / D.J, unit:D.est / 100};
+    const pick = c.list.est || ['avg','max','per'];
+    return [{key:'ok', val:D.est, text:'About ' + fmtPct(D.est) + ' hold the sensitive view'}]
+      .concat(pick.map(k => ({key:k, val:pool[k], text:'About ' + fmtPct(pool[k]) + ' hold the sensitive view'})));
+  }
+  if(c.tech === 'rr'){
+    const r = c.rr;
+    /* Distractors are the arithmetic mistakes students actually make. Which
+       three a case offers varies, so the correct answer does not always sit
+       in the same place once the options are listed smallest first. */
+    const pool = {
+      raw:D.y, nosub:D.y / r.t, nodiv:D.y - r.fy, wrongden:(D.y - r.fy) / (1 - r.fy),
+      subno:D.y - r.fn, addno:D.y + r.fn
+    };
+    const pick = r.est || (r.fy > 0 ? ['raw','nosub','nodiv'] : ['raw','subno','addno']);
+    return [{key:'ok', val:D.est, text:'About ' + fmtPct(D.est)}]
+      .concat(pick.map(k => ({key:k, val:pool[k], text:'About ' + fmtPct(pool[k])})));
+  }
+  const E = c.end, d = D.d, mag = Math.abs(d), pts = mag === 1 ? 'point' : 'points';
+  const up = d > 0;
+  /* Fixed order: raises, lowers, then the two misreadings. The correct
+     answer moves with the direction of the effect. */
+  const raise = {key:up ? 'ok' : 'dir', text:'Naming the ' + E.actor + ' raises support for the proposal by ' + mag + ' ' + pts};
+  const lower = {key:up ? 'dir' : 'ok', text:'Naming the ' + E.actor + ' lowers support for the proposal by ' + mag + ' ' + pts};
+  return [
+    raise,
+    lower,
+    {key:'share', text:'About ' + mag + '% of respondents support the ' + E.actor},
+    {key:'level', text:'About ' + E.b + '% of respondents support the ' + E.actor}
+  ];
+}
+
+function t4Options(c, D){
+  if(c.tech === 'list'){
+    return [
+      {key:'both', val:D.n0 + D.nMax, text:'The ' + D.n0 + ' + ' + D.nMax + ' = ' + (D.n0 + D.nMax) + ' in the treatment group who reported none of the items or all ' + D.J},
+      {key:'max',  val:D.nMax, text:'Only the ' + D.nMax + ' in the treatment group who reported all ' + D.J},
+      {key:'ctl',  val:D.ctlMax, text:'The ' + D.ctlMax + ' in the control group who reported all ' + (D.J - 1)},
+      {key:'none', val:0, text:'None of them'}
+    ];
+  }
+  if(c.tech === 'rr'){
+    return [
+      {key:'none', val:0, text:'None of them'},
+      {key:'yes',  val:c.rr.yes, text:'The ' + fmtInt(c.rr.yes) + ' who answered yes'},
+      {key:'no',   val:D.no, text:'The ' + fmtInt(D.no) + ' who answered no'}
+    ];
+  }
+  return [
+    {key:'none',     text:'None of them'},
+    {key:'agree',    text:'Those in the treatment group who agreed with the proposal'},
+    {key:'disagree', text:'Those in the treatment group who disagreed with the proposal'}
+  ];
+}
+
+function t4Correct(c){
+  if(c.tech === 'list') return 'both';
+  if(c.tech === 'end') return 'none';
+  const r = c.rr;
+  if(r.fy > 0 && r.fn > 0) return 'none';
+  if(r.fn === 0) return 'no';
+  return 'yes';
+}
+
+function tasksFor(c){
+  const D = derive(c);
+  const ctl = D.ctl;
+  const groupWord = c.tech === 'list' ? 'list' : 'version of the proposal';
+  return [
+    {key:'tech', prompt:'Which technique is this?',
+     lead:'Read the design card, especially how the question was asked.',
+     options:OPT_TECH, correct:c.tech, look:['designCard']},
+    (c.tech === 'rr')
+      ? {key:'struct', prompt:'Under this rule, what share of respondents answer truthfully, and what share are told to say yes whatever the truth?',
+         lead:'Go through the rule one outcome at a time.',
+         options:t2Options(c), correct:'ok', shuffle:true, look:['designCard']}
+      : {key:'struct', prompt:'Which group is the control group, and which is the treatment group?',
+         lead:'The two groups were chosen at random. Compare the ' + groupWord + ' each one saw.',
+         options:t2Options(c), correct:ctl, look:['designCard']},
+    {key:'est', prompt:(c.tech === 'end') ? 'What does the survey estimate?' : 'What share of the ' + (c.tech === 'rr' ? c.rr.who : c.list.who) + ' does the survey estimate hold the sensitive view or did the sensitive thing?',
+     lead:(c.tech === 'rr') ? 'Take the forced yes answers out of the yes count, then remember who is left answering truthfully.'
+        : (c.tech === 'list') ? 'Use the worksheet' + RSQ + 's two averages.'
+        : 'Compare how often each group agreed with the proposal.',
+     options:t3Options(c, D), correct:'ok', shuffle:c.tech !== 'end', look:['worksheet']},
+    {key:'reveal', prompt:'Which respondents, if any, gave an answer that on its own tells the interviewer where they stand on the sensitive question?',
+     lead:(c.tech === 'list') ? 'Think about the two ends of each group' + RSQ + 's scale.'
+        : (c.tech === 'rr') ? 'For each answer, ask whether the rule could have forced it.'
+        : 'Ask what a single answer mixes together.',
+     options:t4Options(c, D), correct:t4Correct(c), shuffle:true, look:['designCard']},
+    {key:'claim', prompt:'An analyst concludes:',
+     lead:'', claim:c.claim,
+     options:[{key:'yes', text:'Supported by this survey'},{key:'no', text:'Not supported by this survey'}],
+     correct:c.claimOK ? 'yes' : 'no', look:['worksheet']}
+  ];
+}
+
+/* ============================================================
+   Feedback
+   ============================================================ */
+function wrongMessage(c, t, chosen){
+  if(t.key === 'tech'){
+    return 'Not this one. Look again at how the question was asked: what differs between respondents here? A random device deciding some answers, the length of a list, or a name attached to a proposal? Try again.';
+  }
+  if(t.key === 'struct'){
+    if(c.tech === 'rr') return 'Not quite. Go through the rule one outcome at a time and count how many outcomes lead to a truthful answer and how many to a forced yes. Try again.';
+    return 'Not quite. The control group sees everything except the sensitive part. Which group' + RSQ + 's ' + (c.tech === 'list' ? 'list leaves out the sensitive item' : 'version leaves out the name') + '? Try again.';
+  }
+  if(t.key === 'est'){
+    const M = {
+      avg:'That divides the treatment group' + RSQ + 's average by the number of items on its list, which gives the average share of items reported. The control items have to be taken out first, by comparing the two groups.',
+      max:'That is the share of the treatment group who reported every item. Most people who hold the sensitive view leave out some control item, so they never reach the top of the scale.',
+      per:'You found the difference between the groups, then divided it among the items. The whole difference belongs to the one item the groups do not share.',
+      raw:'That is the raw share of yes answers. Some of those were forced by the rule and say nothing about the respondent.',
+      wrongden:'You took out the forced yes answers and then divided by the share not told to say yes. But the forced no answers are not truthful either. Divide by the share answering truthfully.',
+      unit:'That reads the difference of ' + fmtNum(derive(c).est, 3) + ' items as a percentage. A difference of ' + fmtNum(derive(c).est, 3) + ' items per person means that about ' + Math.round(derive(c).est * 100) + ' in every 100 people added the sensitive item to their count.',
+      nodiv:'You have taken out the forced yes answers. But what remains came only from the respondents answering truthfully, so it is a share of them, not of everyone.',
+      nosub:'You scaled up by the share answering truthfully, but the forced yes answers are still in the count. Take them out first.',
+      subno:'Forced no answers never appear among the yes answers, so there is nothing of theirs to subtract from the yes count.',
+      addno:'Forced no answers do not belong in the yes count. Their only effect is to shrink the share of respondents answering truthfully.',
+      share:'That treats the change in support as a count of the endorser' + RSQ + 's supporters. Nobody was asked about the endorser, so the survey cannot count them.',
+      level:'That is how many agreed with the version that named the endorser. Most of them were agreeing with the proposal, not with whoever made it.',
+      dir:'Check the direction. Which group saw the name, and was its support higher or lower than the other group' + RSQ + 's?'
+    };
+    return (M[chosen] || 'Not quite.') + ' Try again.';
+  }
+  if(t.key === 'reveal'){
+    if(c.tech === 'list'){
+      if(chosen === 'max') return 'Those answers do give people away, but they are not the only ones. What has a treatment respondent who reports zero told you? Try again.';
+      if(chosen === 'ctl') return 'The control group never heard the sensitive item, so nothing any of them says bears on it. Try again.';
+      return 'Look at the two ends of the treatment group' + RSQ + 's scale. Is there a count that could come from only one answer to the sensitive item? Try again.';
+    }
+    if(c.tech === 'rr'){
+      if(chosen === 'none') return 'Check whether the rule forces both answers. If one answer is never forced, what does giving it tell the interviewer? Try again.';
+      return 'Could the rule have forced that answer? If it could, the interviewer cannot tell whether it is true. Try again.';
+    }
+    return 'Agreeing or disagreeing mixes two things: what the respondent thinks of the proposal and what they think of whoever made it. Can one answer separate them? Try again.';
+  }
+  return 'Not quite. ' + c.claimMiss + ' Try again.';
+}
+
+function rightMessage(c, t){
+  const D = derive(c);
+  if(t.key === 'tech'){
+    if(c.tech === 'rr') return 'Right: randomized response. A private random device decides some answers, so no single answer can be taken at face value.';
+    if(c.tech === 'list') return 'Right: a list experiment. Respondents report only a count, and one group' + RSQ + 's list carries an extra item.';
+    return 'Right: an endorsement experiment. Both groups judge the same proposal, and only one is told who is behind it.';
+  }
+  if(t.key === 'struct'){
+    if(c.tech === 'rr') return 'Right. ' + c.rr.tTxt + ' answer truthfully and ' + (c.rr.fy > 0 ? c.rr.fyTxt + ' are told to say yes' : 'nobody is told to say yes') + (c.rr.fn > 0 ? '; the other ' + c.rr.fnTxt + ' are told to say no.' : '.');
+    return 'Right. Group ' + D.ctl + ' is the control group and Group ' + (D.ctl === 1 ? 2 : 1) + ' the treatment group.';
+  }
+  if(t.key === 'est'){
+    if(c.tech === 'rr') return 'Right: about ' + fmtPct(D.est) + '. The worksheet shows the arithmetic.';
+    if(c.tech === 'list') return 'Right: about ' + fmtPct(D.est) + '. The treatment group reports ' + fmtNum(D.est, 3) + ' more items on average, and the only item it has that the control group lacks is the sensitive one.';
+    return 'Right. Support moved by ' + fmtNum(D.d, 0) + (Math.abs(D.d) === 1 ? ' point' : ' points') + ', and the only difference between the groups is the name. The estimate is a change in support for something else, not a count of anyone' + RSQ + 's supporters.';
+  }
+  if(t.key === 'reveal'){
+    if(c.tech === 'list') return 'Right. Reporting none means rejecting the sensitive item; reporting all ' + D.J + ' means accepting it. Every count in between could have come from either answer.';
+    if(c.tech === 'end') return 'Right. Every answer mixes a view of the proposal with a view of whoever made it, and no one answer separates them.';
+    const k = t4Correct(c);
+    if(k === 'none') return 'Right. Every yes might be forced and so might every no, so no answer can be taken at face value.';
+    if(k === 'no') return 'Right. Nobody is told to say no, so every no is a true no.';
+    return 'Right. Nobody is told to say yes, so every yes is a true yes.';
+  }
+  return c.claimWhy;
+}
+
+/* ============================================================
+   Rendering: the design card
+   ============================================================ */
+function roleTag(kind){
+  return '<span class="role ' + kind + '"><span class="sw" aria-hidden="true"></span>' + (kind === 'ctl' ? 'control' : 'treatment') + '</span>';
+}
+
+function renderDesign(c, done){
+  const card = $('designCard');
+  card.hidden = false;
+  const D = derive(c);
+  const rolesKnown = done >= 2 && c.tech !== 'rr';
+  const grpClass = g => !rolesKnown ? '' : (g === D.ctl ? ' ctl' : ' trt');
+  const grpTag = g => !rolesKnown ? '' : roleTag(g === D.ctl ? 'ctl' : 'trt');
+
+  let h = '<div class="card-head">The design</div>';
+  h += '<div class="field"><div class="field-label">What the researcher wants to know</div><div class="field-text">' + c.topic + '</div></div>';
+
+  if(c.tech === 'rr'){
+    const r = c.rr;
+    h += '<div class="field"><div class="field-label">How it was asked</div><div class="field-text">' + r.rule + '</div></div>';
+    if(r.direct) h += '<div class="field"><div class="field-label">Asked directly</div><div class="field-text">' + r.direct + '</div></div>';
+    h += '<div class="field"><div class="field-label">The results</div><div class="field-text"><span class="num">' + fmtInt(r.n) + '</span> ' + r.who + ' answered. <span class="num">' + fmtInt(r.yes) + '</span> said yes and <span class="num">' + fmtInt(D.no) + '</span> said no.</div></div>';
+  }
+  else if(c.tech === 'list'){
+    const L = c.list;
+    h += '<div class="field"><div class="field-label">How it was asked</div><div class="field-text">Respondents were split into two groups at random. Each was read one of the lists and asked: &ldquo;' + L.prompt + '&rdquo;</div></div>';
+    h += '<div class="field">';
+    [1,2].forEach(g => {
+      h += '<div class="grp' + grpClass(g) + '"><div class="grp-name">Group ' + g + grpTag(g) + '</div><div class="field-text"><ul>' +
+           L.items[g].map(it => '<li' + ((rolesKnown && it === L.extra && g === L.treat) ? ' class="extra"' : '') + '>' + it + '</li>').join('') +
+           '</ul></div></div>';
+    });
+    h += '</div>';
+    if(L.direct) h += '<div class="field"><div class="field-label">Asked directly</div><div class="field-text">' + L.direct + '</div></div>';
+    // results table
+    const J = D.J;
+    const markEdges = done >= 4;
+    let tb = '<table class="res"><caption class="sr-only">How many items each respondent reported, by group</caption><thead><tr><th scope="col">Items reported</th>';
+    for(let k = 0; k <= J; k++) tb += '<th scope="col">' + k + '</th>';
+    tb += '<th scope="col">Total</th><th scope="col">Average</th></tr></thead><tbody>';
+    [1,2].forEach(g => {
+      const cnt = L.counts[g];
+      const isT = g === L.treat;
+      tb += '<tr><th scope="row">Group ' + g + '</th>';
+      for(let k = 0; k <= J; k++){
+        if(k < cnt.length){
+          const edge = markEdges && isT && (k === 0 || k === J);
+          tb += '<td' + (edge ? ' class="edge"' : '') + '>' + fmtInt(cnt[k]) + '</td>';
+        } else {
+          tb += '<td class="na" aria-label="not possible">—</td>';
+        }
+      }
+      tb += '<td>' + fmtInt(sumOf(cnt)) + '</td><td>' + meanOf(cnt).toFixed(3) + '</td></tr>';
+    });
+    tb += '</tbody></table>';
+    h += '<div class="field"><div class="field-label">The results</div><p class="res-cap">Number of respondents giving each count.' + (markEdges ? ' Outlined: the counts at the two ends of the treatment group' + RSQ + 's scale.' : '') + '</p><div class="tbl-wrap">' + tb + '</div></div>';
+  }
+  else {
+    const E = c.end;
+    h += '<div class="field"><div class="field-label">How it was asked</div><div class="field-text">Respondents were split into two groups at random. Each group heard one version of the proposal.</div></div>';
+    h += '<div class="field">';
+    [1,2].forEach(g => {
+      const txt = g === E.treat ? E.endorsed : E.policy;
+      h += '<div class="grp' + grpClass(g) + '"><div class="grp-name">Group ' + g + grpTag(g) + '</div><div class="field-text">&ldquo;' + txt + '&rdquo;</div></div>';
+    });
+    h += '</div>';
+    const pct = g => g === E.treat ? E.b : E.a;
+    h += '<div class="field"><div class="field-label">The results</div><div class="field-text">' +
+         'Group 1: <span class="num">' + pct(1) + '%</span> agreed, of <span class="num">' + fmtInt(E.n) + '</span>.<br>' +
+         'Group 2: <span class="num">' + pct(2) + '%</span> agreed, of <span class="num">' + fmtInt(E.n) + '</span>.</div></div>';
+  }
+
+  if(c.src) h += '<p class="src">' + c.src + '</p>';
+  if(c.compare) h += '<div class="card-compare">' + c.compare + '</div>';
+  card.innerHTML = h;
+}
+
+/* ============================================================
+   Rendering: the worksheet
+   done = number of tasks settled (0 to 5)
+   ============================================================ */
+function wsRow(k, v, cls, tag){
+  return '<div class="ws-row' + (tag ? ' settled' : '') + '"><div class="ws-k">' + k + '</div><div class="ws-v' + (cls ? ' ' + cls : '') + '">' + v +
+         (tag ? '<span class="ws-tag">' + tag + '</span>' : '') + '</div></div>';
+}
+const PENDING = '?';
+
+function renderWorksheet(c, done){
+  const w = $('worksheet');
+  w.hidden = false;
+  const D = derive(c);
+  let h = '<div class="card-head">Worksheet</div>';
+  h += wsRow('Technique', done >= 1 ? TECH_NAME[c.tech] : PENDING, done >= 1 ? '' : 'pending');
+
+  if(c.tech === 'rr'){
+    const r = c.rr;
+    h += wsRow('Share answering yes', fmtInt(r.yes) + ' of ' + fmtInt(r.n) + ' = ' + wsPct(D.y), 'given');
+    h += wsRow('Answering truthfully', done >= 2 ? r.tTxt + ' = ' + wsPct(r.t) : PENDING, done >= 2 ? '' : 'pending');
+    h += wsRow('Told to say yes whatever the truth', done >= 2 ? (r.fy > 0 ? r.fyTxt + ' = ' + wsPct(r.fy) : 'none = 0%') : PENDING, done >= 2 ? '' : 'pending');
+    if(done >= 3){
+      const expr = '(' + wsPct(D.y) + ' ' + MINUS + ' ' + wsPct(r.fy) + ')' + ' ÷ ' + wsPct(r.t) + ' = ' + wsPct(D.est);
+      h += wsRow('Estimate: (yes share ' + MINUS + ' forced yes) ÷ share answering truthfully', expr, '', 'Estimate');
+    } else {
+      h += wsRow('Estimate', PENDING, 'pending');
+    }
+  }
+  else if(c.tech === 'list'){
+    const lab = g => 'Group ' + g + (done >= 2 ? (g === D.ctl ? ' (control)' : ' (treatment)') : '') + ': average count';
+    [1,2].forEach(g => {
+      const m = g === D.ctl ? D.mC : D.mT;
+      h += wsRow(lab(g), m.toFixed(3), 'given');
+    });
+    if(done >= 3){
+      h += wsRow('Estimate: treatment average ' + MINUS + ' control average', D.mT.toFixed(3) + ' ' + MINUS + ' ' + D.mC.toFixed(3) + ' = ' + fmtNum(D.est, 3) + ' items, or ' + fmtPct(D.est), '', 'Estimate');
+    } else {
+      h += wsRow('Estimate', PENDING, 'pending');
+    }
+  }
+  else {
+    const E = c.end;
+    [1,2].forEach(g => {
+      const lab = 'Group ' + g + (done >= 2 ? (g === D.ctl ? ' (control, no name)' : ' (treatment, named)') : '') + ': agreed';
+      h += wsRow(lab, (g === E.treat ? E.b : E.a) + '%', 'given');
+    });
+    if(done >= 3){
+      h += wsRow('Estimate: treatment ' + MINUS + ' control', E.b + '% ' + MINUS + ' ' + E.a + '% = ' + (D.d > 0 ? '+' : (D.d < 0 ? MINUS : '')) + Math.abs(D.d) + (Math.abs(D.d) === 1 ? ' point' : ' points'), '', 'Estimate');
+    } else {
+      h += wsRow('Estimate', PENDING, 'pending');
+    }
+  }
+
+  let rev = PENDING;
+  if(done >= 4){
+    const k = t4Correct(c);
+    if(k === 'none') rev = 'none';
+    else if(k === 'both') rev = fmtInt(D.n0 + D.nMax) + ' of ' + fmtInt(D.nT) + ' in the treatment group';
+    else if(k === 'no') rev = 'the ' + fmtInt(D.no) + ' who said no';
+    else rev = 'the ' + fmtInt(c.rr.yes) + ' who said yes';
+  }
+  h += wsRow('Answers that give the respondent away', rev, done >= 4 ? '' : 'pending');
+  w.innerHTML = h;
+}
+
+/* ============================================================
+   Simulation (guided mode only)
+   ============================================================ */
+let simRuns = [];
+const SIM_N = 1000;
+const LIST_P = [0.6, 0.35, 0.5];
+
+function runSurvey(pi, deny){
+  let yes = 0;
+  for(let i = 0; i < SIM_N; i++){
+    if(Math.random() < pi && Math.random() >= deny) yes++;
+  }
+  const direct = yes / SIM_N;
+
+  let ry = 0;
+  for(let i = 0; i < SIM_N; i++){
+    const holder = Math.random() < pi;
+    const roll = 1 + Math.floor(Math.random() * 6);
+    if(roll === 1 || (roll >= 2 && roll <= 5 && holder)) ry++;
+  }
+  const rr = (ry / SIM_N - 1/6) / (4/6);
+
+  const half = SIM_N / 2;
+  let sC = 0, sT = 0;
+  for(let i = 0; i < half; i++){
+    LIST_P.forEach(p => { if(Math.random() < p) sC++; });
+    LIST_P.forEach(p => { if(Math.random() < p) sT++; });
+    if(Math.random() < pi) sT++;
+  }
+  const list = sT / half - sC / half;
+  return {direct, rr, list};
+}
+
+function simParams(){
+  return {pi:+$('simPi').value / 100, deny:+$('simLie').value / 100};
+}
+
+function drawSim(){
+  /* Drawn at the figure's real pixel width so type stays at its set size.
+     Narrow figures put each row's label above its dots instead of beside them. */
+  const fig = $('simFig');
+  const W = Math.max(280, Math.round(fig.clientWidth || 640));
+  const narrow = W < 520;
+  const x0 = narrow ? 12 : 176, x1 = W - 20;
+  const rowGap = narrow ? 64 : 52, top = narrow ? 52 : 48;
+  const lo = -0.1, hi = 0.7;
+  const xs = v => x0 + (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * (x1 - x0);
+  const rows = [{k:'direct', lab:'Asked directly'}, {k:'rr', lab:'Randomized response'}, {k:'list', lab:'List experiment'}]
+    .map((r, i) => Object.assign(r, {y: top + i * rowGap}));
+  const axisY = rows[2].y + 30, H = axisY + 24;
+  const {pi} = simParams();
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="presentation" focusable="false">';
+  rows.forEach((r, i) => {
+    if(narrow) s += '<text class="rowlab" x="0" y="' + (r.y - 16) + '">' + r.lab + '</text>';
+    else s += '<text class="rowlab" x="0" y="' + (r.y + 4) + '">' + r.lab + '</text>';
+    if(i > 0) s += '<line class="sep" x1="0" x2="' + W + '" y1="' + (r.y - rowGap / 2 - (narrow ? 8 : 0)) + '" y2="' + (r.y - rowGap / 2 - (narrow ? 8 : 0)) + '"></line>';
+  });
+  for(let t = 0; t <= 0.6001; t += 0.1){
+    const x = xs(t);
+    s += '<line class="axis" x1="' + x + '" x2="' + x + '" y1="' + axisY + '" y2="' + (axisY + 6) + '"></line>';
+    s += '<text class="tick" text-anchor="middle" x="' + x + '" y="' + (axisY + 20) + '">' + Math.round(t * 100) + '%</text>';
+  }
+  s += '<line class="axis" x1="' + x0 + '" x2="' + x1 + '" y1="' + axisY + '" y2="' + axisY + '"></line>';
+  const tx = xs(pi);
+  const anchor = tx > W - 50 ? 'end' : (tx < 50 ? 'start' : 'middle');
+  s += '<line class="truth" x1="' + tx + '" x2="' + tx + '" y1="18" y2="' + axisY + '"></line>';
+  s += '<text class="truthlab" text-anchor="' + anchor + '" x="' + tx + '" y="12">true share</text>';
+  simRuns.forEach((run, idx) => {
+    const latest = idx === simRuns.length - 1;
+    rows.forEach(r => {
+      s += '<circle class="dot' + (latest ? ' latest' : '') + '" cx="' + xs(run[r.k]).toFixed(1) + '" cy="' + r.y + '" r="' + (latest ? 6 : 5) + '"></circle>';
+    });
+  });
+  s += '</svg>';
+  $('simFig').innerHTML = s;
+
+  const {deny} = simParams();
+  let txt = 'True share: ' + Math.round(pi * 100) + '%. With ' + Math.round(deny * 100) + '% of them denying it, the direct question finds ' + fmtPct(pi * (1 - deny)) + ' on average, however many people it asks.';
+  if(simRuns.length){
+    const last = simRuns[simRuns.length - 1];
+    txt += ' Latest survey: asked directly, ' + fmtPct(last.direct) + '; randomized response, ' + fmtPct(last.rr) + '; list experiment, ' + fmtPct(last.list) + '.';
+  }
+  if(simRuns.length > 1){
+    const rng = k => {
+      const v = simRuns.map(r => r[k]);
+      return fmtPct(Math.min.apply(null, v)) + ' to ' + fmtPct(Math.max.apply(null, v));
+    };
+    txt += ' Across ' + simRuns.length + ' surveys the estimates ranged: asked directly, ' + rng('direct') + '; randomized response, ' + rng('rr') + '; list experiment, ' + rng('list') + '.';
+  }
+  $('simRead').textContent = txt;
+}
+
+function simAdd(k){
+  const {pi, deny} = simParams();
+  for(let i = 0; i < k; i++){
+    simRuns.push(runSurvey(pi, deny));
+    if(simRuns.length > 20) simRuns.shift();
+  }
+  drawSim();
+}
+
+function syncSlider(id, valId){
+  const el = $(id);
+  const v = el.value + '%';
+  $(valId).textContent = v;
+  el.setAttribute('aria-valuetext', v);
+}
+['simPi','simLie'].forEach(id => {
+  $(id).addEventListener('input', () => {
+    syncSlider('simPi', 'simPiVal');
+    syncSlider('simLie', 'simLieVal');
+    simRuns = [];
+    simAdd(1);
+  });
+});
+$('simOne').addEventListener('click', () => simAdd(1));
+$('simMany').addEventListener('click', () => { simRuns = []; simAdd(20); });
+
+/* ============================================================
+   Guided walkthrough
+   ============================================================ */
+const GUIDED = [
+  {
+    label:'Why not just ask?', sim:true,
+    html:'<p>Suppose some share of the people in a survey hold a view they would rather not admit, and some of those deny it when asked. A direct question then counts only the ones who admit it, however many people you ask.</p>' +
+         '<p>Set the two sliders in the simulated survey card. The dashed line is the true share; each dot is one survey' + RSQ + 's estimate from three ways of asking. Run a few surveys and watch where the direct question' + RSQ + 's dot lands.</p>'
+  },
+  {
+    label:'Bias and noise', sim:true,
+    html:'<p>Now run twenty surveys. The direct question' + RSQ + 's dots sit close together, and in the wrong place whenever anyone denies the view. Asking more people does not help. That is <b>bias</b>, and it is the problem the chapter calls social desirability bias.</p>' +
+         '<p>The two protected techniques scatter around the true share. They are right on average and wrong in any one survey by more than the direct question is. That is <b>noise</b>, and it is the price of protection: some of each answer is spent hiding the respondent.</p>' +
+         '<p>The third technique, the endorsement experiment, does not appear here because it does not estimate a share at all. We will see what it estimates instead.</p>'
+  },
+  {
+    label:'Randomized response: the rule', caseId:'G_RR', done:2,
+    html:'<p>Hospital staff in Country P are asked whether they have taken an unofficial payment from a patient' + RSQ + 's family. Each rolls a die where the interviewer cannot see it. The rule is the chapter' + RSQ + 's own.</p>' +
+         '<p>Go through it one outcome at a time. A 1 means yes, whatever the truth: <span class="num">1 in 6</span> answers are forced yes. A 6 means no: another <span class="num">1 in 6</span> forced no. The other four faces, <span class="num">4 in 6</span>, mean answer truthfully. The worksheet has these filled in.</p>'
+  },
+  {
+    label:'Randomized response: the estimate', caseId:'G_RR', done:3,
+    html:'<p>400 of 1,200 said yes, which is a third. About one in six of all respondents, 200 people, said yes because the die told them to. Take them out and <span class="num">1/3 ' + MINUS + ' 1/6 = 1/6</span> of all respondents gave a true yes.</p>' +
+         '<p>But only four in six respondents were answering truthfully, so that sixth is a share of them, not of everyone. Divide: <span class="num">(1/6) ÷ (4/6) = 1/4</span>. The estimate is that about <b>25%</b> of staff took a payment.</p>' +
+         '<p>You can check it by running it forward. If 25% took a payment, then of the 800 answering truthfully, 200 say yes; add the 200 forced yes answers and you get the 400 recorded.</p>'
+  },
+  {
+    label:'Randomized response: what one answer reveals', caseId:'G_RR', done:4,
+    html:'<p>Now look at any single respondent. A yes might be one of the forced ones; so might a no. The interviewer cannot tell which, and neither can anyone who later sees the answers. <b>No answer gives anyone away.</b></p>' +
+         '<p>That depends on the rule forcing both answers, or at least the answer people are afraid to give. Practice mode has rules that force only one, and it matters which one.</p>'
+  },
+  {
+    label:'A list experiment in Afghanistan', caseId:'G_LIST', done:2,
+    html:'<p>This is a real survey, the one in Problem 5c. Blair, Imai, and Lyall wanted to know how many Afghans supported ISAF, the US-led coalition. Asking outright was dangerous for respondents in areas where the Taliban operated.</p>' +
+         '<p>Respondents were split at random. Group 1 heard three names; Group 2 heard the same three plus ISAF. Each person said only <em>how many</em> they supported. So Group 1 is the <b>control group</b> and Group 2 the <b>treatment group</b>: the one list with the sensitive item in it.</p>'
+  },
+  {
+    label:'The estimate', caseId:'G_LIST', done:3,
+    html:'<p>Because the groups were chosen at random, they should support the three shared names at the same rate. Any difference in the average count comes from the one item only the treatment group heard.</p>' +
+         '<p>The treatment group' + RSQ + 's average is <span class="num">1.569</span> and the control group' + RSQ + 's is <span class="num">1.520</span>. The difference, <span class="num">0.049</span> of an item per person, means about <b>5%</b> of respondents supported ISAF.</p>'
+  },
+  {
+    label:'What one answer reveals', caseId:'G_LIST', done:4,
+    html:'<p>A count between 1 and 3 in the treatment group could come from a supporter or a non-supporter. The two ends are different. Someone who reports <span class="num">4</span> supports every name on the list, ISAF included; 24 people did. Someone who reports <span class="num">0</span> supports none, so not ISAF; 174 people did.</p>' +
+         '<p>This is the chapter' + RSQ + 's warning about list experiments. Which end matters depends on which answer is dangerous. Here it is support for ISAF, so the 24 are the ones exposed, and the 174 have revealed an answer that was probably safe to give.</p>'
+  },
+  {
+    label:'An endorsement experiment', caseId:'G_END', done:2,
+    html:'<p>Country Q' + RSQ + 's military council seized power last year, and criticizing it can lead to arrest. Instead of asking about the council, the survey asks about a water system for the capital.</p>' +
+         '<p>Two random groups hear the same proposal. The treatment group, Group 2, is told the council proposed it; the control group, Group 1, is not told who did. Agreement in the control group measures how popular the proposal is. Agreement in the treatment group mixes that with what people think of the council.</p>'
+  },
+  {
+    label:'What the estimate measures', caseId:'G_END', done:4,
+    html:'<p>70% of the control group agreed and 58% of the treatment group. Naming the council <b>lowered support by 12 points</b>, so respondents on balance think worse of the council.</p>' +
+         '<p>Be careful with what that number is. It is not the share who oppose the council, or the share who support it. Nobody was asked about the council, which is why no single answer gives anyone away, and it is also why the design cannot count supporters. It measures how much the council' + RSQ + 's name moves support for something else.</p>'
+  },
+  {
+    label:'Over to you',
+    html:'<p>Practice mode has twelve cases across the three techniques, grouped by who was surveyed rather than by technique. Each asks the same five questions: which technique, how the design is put together, the estimate, whether any answer gives someone away, and whether an analyst' + RSQ + 's conclusion follows.</p>' +
+         '<p>Two of the randomized response cases force only one answer, in opposite directions. They are worth doing together.</p>'
+  }
+];
+
+let mode = 'guided';
+let stepIdx = 0;
+let current = null;
+let taskIdx = 0, pick = null, awaitingNext = false;
+let order = {};
+
+function renderDots(n, idx){
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  for(let i = 0; i < n; i++){
+    const s = document.createElement('span');
+    s.className = i < idx ? 'done' : (i === idx ? 'current' : '');
+    dots.appendChild(s);
+  }
+}
+
+function clearNote(){ const n = $('resultNote'); n.className = 'result-note'; n.innerHTML = ''; }
+function showNote(kind, text){
+  const n = $('resultNote');
+  n.className = 'result-note show ' + kind;
+  n.innerHTML = '<span class="mark" aria-hidden="true">' + (kind === 'ok' ? '✓' : '✕') + '</span>' + text;
+}
+function btn(text, cls, fn){
+  const b = document.createElement('button');
+  b.className = 'btn ' + (cls || '');
+  b.type = 'button';
+  b.textContent = text;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function renderGuided(){
+  const s = GUIDED[stepIdx];
+  const prev = stepIdx > 0 ? GUIDED[stepIdx - 1] : null;
+  renderDots(GUIDED.length, stepIdx);
+  $('stepLabel').textContent = s.label;
+  $('stepText').innerHTML = s.html;
+
+  const look = [];
+  if(s.sim){
+    $('simCard').hidden = false;
+    $('designCard').hidden = true;
+    $('worksheet').hidden = true;
+    if(!simRuns.length) simAdd(1); else drawSim();
+    look.push('simCard');
+    if(prev && !prev.sim) bringIntoView('simCard', false);
+  } else if(s.caseId){
+    $('simCard').hidden = true;
+    const c = byId(s.caseId);
+    renderDesign(c, s.done);
+    renderWorksheet(c, s.done);
+    look.push('designCard', 'worksheet');
+    if(!prev || prev.caseId !== s.caseId) bringIntoView('designCard', false);
+    else if(prev.done !== s.done) bringIntoView('worksheet', false);
+  } else {
+    $('simCard').hidden = true;
+    $('designCard').hidden = true;
+    $('worksheet').hidden = true;
+  }
+  renderLook(look);
+
+  $('opts').innerHTML = '';
+  clearNote();
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if(stepIdx > 0) ctl.appendChild(btn('Back', '', () => { stepIdx--; renderGuided(); }));
+  if(stepIdx < GUIDED.length - 1) ctl.appendChild(btn('Next', 'primary', () => { stepIdx++; renderGuided(); }));
+  else ctl.appendChild(btn('Go to practice mode', 'primary', () => setMode('practice')));
+  syncBack();
+}
+
+/* ============================================================
+   Practice mode
+   ============================================================ */
+function shuffled(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startCase(id){
+  current = id;
+  taskIdx = 0; pick = null; awaitingNext = false;
+  const c = byId(id);
+  order = {};
+  /* Options that carry a number are listed smallest first, the way a student
+     would compare them. Only option sets with no natural order, whose correct
+     answer would otherwise always sit in the same place, are shuffled. */
+  tasksFor(c).forEach((t, i) => {
+    if(!t.shuffle) return;
+    if(t.options.every(o => typeof o.val === 'number')){
+      order[i] = t.options.slice().sort((a, b) => a.val - b.val).map(o => o.key);
+    } else {
+      order[i] = shuffled(t.options.map(o => o.key));
+    }
+  });
+  $('simCard').hidden = true;
+  renderDesign(c, 0);
+  renderWorksheet(c, 0);
+  clearNote();
+  document.querySelectorAll('.picker .chip').forEach(ch => {
+    const on = ch.dataset.id === id;
+    ch.classList.toggle('active', on);
+    ch.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  renderTask();
+  bringIntoView('designCard', false);
+}
+
+function optionsInOrder(t, i){
+  if(!order[i]) return t.options;
+  return order[i].map(k => t.options.find(o => o.key === k));
+}
+
+function renderTask(){
+  const c = byId(current);
+  const tasks = tasksFor(c);
+  const t = tasks[taskIdx];
+  renderDots(tasks.length, taskIdx);
+  $('stepLabel').textContent = 'Task ' + (taskIdx + 1) + ' of ' + tasks.length;
+  let h = '<p><b>' + t.prompt + '</b></p>';
+  if(t.claim) h += '<p class="claim">&ldquo;' + t.claim + '&rdquo;</p><p>Is that supported by this survey?</p>';
+  if(t.lead) h += '<p>' + t.lead + '</p>';
+  $('stepText').innerHTML = h;
+  renderLook(t.look);
+
+  const opts = $('opts');
+  opts.innerHTML = '';
+  optionsInOrder(t, taskIdx).forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt' + (pick === o.key ? ' sel' : '');
+    b.type = 'button';
+    b.textContent = o.text;
+    b.setAttribute('aria-pressed', pick === o.key ? 'true' : 'false');
+    b.disabled = awaitingNext;
+    b.addEventListener('click', () => { pick = o.key; renderTask(); });
+    opts.appendChild(b);
+  });
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if(awaitingNext){
+    const last = taskIdx === tasks.length - 1;
+    ctl.appendChild(btn(last ? 'Finish' : 'Next task', 'primary', () => {
+      if(last){ finishCase(); return; }
+      taskIdx++; pick = null; awaitingNext = false;
+      clearNote(); renderTask();
+    }));
+  } else {
+    const b = btn('Check answer', 'primary', checkAnswer);
+    b.disabled = pick === null;
+    ctl.appendChild(b);
+  }
+  syncBack();
+}
+
+function checkAnswer(){
+  const c = byId(current);
+  const t = tasksFor(c)[taskIdx];
+  if(pick === null) return;
+  if(pick !== t.correct){
+    const msg = wrongMessage(c, t, pick);
+    pick = null;
+    renderTask();
+    showNote('no', msg);
+    return;
+  }
+  awaitingNext = true;
+  const done = taskIdx + 1;
+  renderDesign(c, done);
+  renderWorksheet(c, done);
+  renderTask();
+  showNote('ok', rightMessage(c, t));
+  /* The worksheet changes on every task but the last; the design card
+     changes on task 2 (group roles, list and endorsement cases) and on
+     task 4 (the outlined ends of a list experiment's scale). Take the
+     reader to whichever changed; the worksheet carries the answer. */
+  if(done <= 4) bringIntoView('worksheet', false);
+}
+
+function finishCase(){
+  const c = byId(current);
+  renderDots(5, 5);
+  $('stepLabel').textContent = 'Done';
+  $('stepText').innerHTML = '<p><b>' + c.label + '</b></p><p>' + c.note + '</p>';
+  renderLook(['worksheet']);
+  $('opts').innerHTML = '';
+  clearNote();
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  ctl.appendChild(btn('Run this case again', '', () => startCase(current)));
+  syncBack();
+}
+
+/* ============================================================
+   "Look at" pointers, the reveal rule, and the return control.
+   The case column holds up to three cards and can run past the
+   screen on a laptop as well as a phone, so the gate is whether
+   the target is visible, not whether the layout has stacked.
+   ============================================================ */
+const CARD_NAMES = {simCard:'the simulated survey', designCard:'the design card', worksheet:'the worksheet'};
+let movedAway = false;
+let panelSeen = false;
+
+function bringIntoView(id, forced){
+  const el = $(id);
+  if(!el || el.hidden) return;
+  requestAnimationFrame(() => {
+    const box = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const seen = Math.min(box.bottom, vh) - Math.max(box.top, 0);
+    if(!forced && box.top >= 0 && (box.bottom <= vh || seen >= vh * 0.6)) return;
+    movedAway = true;
+    el.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+  });
+}
+
+function renderLook(targets){
+  if(!targets || !targets.length) return;
+  const host = $('stepText');
+  const row = document.createElement('div');
+  row.className = 'look';
+  const lead = document.createElement('span');
+  lead.className = 'look-lead';
+  lead.textContent = 'Look at';
+  row.appendChild(lead);
+  targets.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'look-btn'; b.type = 'button';
+    b.textContent = CARD_NAMES[id];
+    b.setAttribute('aria-label', 'Go to ' + CARD_NAMES[id]);
+    b.addEventListener('click', () => bringIntoView(id, true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+
+const backBtn = document.createElement('button');
+backBtn.className = 'back-to-step';
+backBtn.type = 'button';
+backBtn.hidden = true;
+backBtn.addEventListener('click', () => {
+  $('panel').scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'start'
+  });
+});
+document.body.appendChild(backBtn);
+
+function syncBack(){
+  const pc = $('panelControls');
+  if(!pc || pc.children.length === 0){ backBtn.hidden = true; return; }
+  const box = pc.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top >= 0 && box.bottom <= vh;
+  if(inSight) panelSeen = true;
+  backBtn.hidden = inSight || !(panelSeen || movedAway);
+  if(!backBtn.hidden) backBtn.textContent = (mode === 'guided') ? 'Back to the step' : 'Back to the task';
+}
+let backTicking = false;
+function queueSyncBack(){
+  if(backTicking) return;
+  backTicking = true;
+  requestAnimationFrame(() => { backTicking = false; syncBack(); });
+}
+window.addEventListener('scroll', queueSyncBack, {passive:true});
+window.addEventListener('resize', queueSyncBack);
+let simW = 0;
+window.addEventListener('resize', () => {
+  const f = $('simFig');
+  if($('simCard').hidden || !f) return;
+  const w = Math.round(f.clientWidth);
+  if(w !== simW){ simW = w; drawSim(); }
+});
+
+/* ============================================================
+   Pickers and mode
+   ============================================================ */
+function buildPickers(){
+  const map = {A:'pickerA', B:'pickerB', C:'pickerC'};
+  Object.values(map).forEach(id => { $(id).innerHTML = ''; });
+  CASES.filter(c => !c.guided).forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.type = 'button';
+    b.dataset.id = c.id;
+    b.textContent = c.label;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => startCase(c.id));
+    $(map[c.group]).appendChild(b);
+  });
+}
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.mode === m;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  $('pickerZone').hidden = (m !== 'practice');
+  movedAway = false;
+  if(m === 'guided'){
+    stepIdx = 0;
+    renderGuided();
+  } else {
+    $('simCard').hidden = true;
+    if(current){ startCase(current); }
+    else {
+      $('designCard').hidden = true;
+      $('worksheet').hidden = true;
+      renderDots(0, 0);
+      $('stepLabel').textContent = 'Pick a case';
+      $('stepText').innerHTML = '<p>Choose a case to begin. Each one asks the same five questions: which technique was used, how the design is put together, what the survey estimates, whether any single answer gives the respondent away, and whether an analyst' + RSQ + 's conclusion is supported.</p><p>All the numbers in these cases are invented.</p>';
+      $('opts').innerHTML = '';
+      $('panelControls').innerHTML = '';
+      clearNote();
+    }
+  }
+  syncBack();
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => setMode(t.dataset.mode));
+});
+
+/* ---- theme: respect a theme the host has already set, else follow the system ---- */
+const themeBtn = $('themeToggle');
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  $('themeIcon').innerHTML = dark ? '&#9728;' : '&#9789;';
+  $('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+themeBtn.addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+});
+(function initTheme(){
+  const preset = document.documentElement.getAttribute('data-theme');
+  if(preset === 'dark' || preset === 'light') applyTheme(preset === 'dark');
+  else applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+})();
+
+buildPickers();
+setMode('guided');
+</script>
+</body>
+</html>

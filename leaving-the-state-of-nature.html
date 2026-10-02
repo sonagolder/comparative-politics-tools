@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaving the state of nature</title>
+<style>
+  :root{
+    /* base */
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: player identity */
+    --row-color:#009E73;   /* bluish green — Player A */
+    --col-color:#CC79A7;   /* reddish purple — Player B */
+
+    /* semantic: favorable / unfavorable / tied */
+    --favorable:#0072B2;
+    --unfavorable:#B33E00;
+    --neutral:#5F5E5A;
+
+    /* gold: scoped "found it" / current-state marking only */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --cell-border:#141414;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --row-color:#3FCFA0;
+    --col-color:#E29FC4;
+
+    --favorable:#7FC7EE;
+    --unfavorable:#F08A4B;
+    --neutral:#A8A6A0;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --cell-border:#E8E8E8;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:640px; line-height:1.6; margin:0 0 24px;}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible,
+  input[type="range"]:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 12px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+
+  .control-card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px; margin-bottom:24px;
+  }
+  .picker{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .chip.active{color:#0A1E28;}
+  .chip.small{font-size:12px; padding:6px 12px;}
+
+  .sliders{display:flex; flex-wrap:wrap; gap:24px;}
+  .slider-block{flex:1 1 280px; min-width:240px;}
+  .slider-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; gap:8px;}
+  .slider-head label{font-size:13px; font-weight:600;}
+  .slider-val{font-family:var(--font-data); font-size:17px; font-weight:700;}
+  input[type="range"]{width:100%; accent-color:var(--accent); cursor:pointer;}
+  .slider-scale{display:flex; justify-content:space-between; font-family:var(--font-data); font-size:11px; color:var(--hint); margin-top:2px;}
+  .slider-note{font-size:12.5px; color:var(--secondary); line-height:1.55; margin:16px 0 0;}
+  .reset-row{margin-top:16px;}
+
+  .games-row{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; margin-bottom:24px;}
+  .game-card{
+    flex:1 1 360px; min-width:320px;
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:16px 16px 24px;
+  }
+  .card-head{display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;}
+  .card-title{font-size:15px; font-weight:700; margin:0;}
+  .card-sub{font-family:var(--font-data); font-size:13px; color:var(--secondary); margin:2px 0 0;}
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--secondary); margin:8px 0 16px; flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:11px; height:11px; border-radius:2px; display:inline-block;}
+  .swatch.row{background:var(--row-color);}
+  .swatch.col{background:var(--col-color);}
+
+  .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  table.game-table{border-collapse:collapse; margin:0 auto; table-layout:fixed;}
+  table.game-table td{text-align:center; vertical-align:middle; padding:0; color:var(--ink);}
+  td.label-blank{width:24px; height:24px;}
+  td.player-top{height:24px; font-weight:700; font-size:14px; font-family:var(--font-data);}
+  td.action-head{width:128px; height:32px; font-weight:600; color:var(--secondary); font-family:var(--font-data); font-size:13px;}
+  td.player-side{width:24px; font-weight:700; font-size:14px; font-family:var(--font-data);}
+  td.action-side{width:64px; font-weight:600; color:var(--secondary); padding-right:8px; font-family:var(--font-data); font-size:13px; text-align:right;}
+  td.cell{
+    width:128px; height:96px;
+    border:3px solid var(--cell-border);
+    background:var(--panel-bg);
+    position:relative;
+    font-family:var(--font-data);
+  }
+  /* Algebraic terms (e.g. "4 \u2212 p \u2212 t") run long, so these columns get
+     more room so both payoffs sit on one line at full payoff size instead
+     of stacking at different heights. Width is set on the header cell too,
+     since table-layout:fixed sizes each column from its first row. */
+  table.game-table.algebra td.action-head,
+  table.game-table.algebra td.cell{width:230px;}
+  td.cell.equilibrium{box-shadow:inset 0 0 0 3px var(--gold-ui);}
+  td.cell.equilibrium::before{
+    content:"NE"; position:absolute; top:3px; left:5px;
+    font-size:9px; font-weight:700; letter-spacing:.04em; color:var(--gold-text);
+    font-family:var(--font-body);
+  }
+
+  .pair{display:flex; align-items:center; justify-content:center; gap:0; white-space:nowrap;}
+  .sep{font-family:var(--font-data); font-size:19px; font-weight:700; color:var(--ink); padding-right:4px;}
+
+  .num{
+    display:inline-block; padding:1px 3px;
+    font-family:var(--font-data); font-size:19px; font-weight:700; color:var(--ink);
+    white-space:nowrap;
+  }
+  .num[data-kind="row"]{color:var(--row-color);}
+  .num[data-kind="col"]{color:var(--col-color);}
+
+  /* Player A's mark = underline */
+  .num.mk-row{border-bottom:3px solid var(--row-color); padding-bottom:4px;}
+  /* Player B's mark = ring */
+  .num.mk-col{box-shadow:0 0 0 2px var(--col-color); border-radius:50%; padding:1px 6px;}
+  .num.mk-col.wide{border-radius:14px; padding:1px 8px;}
+
+  .table-note{font-size:12px; color:var(--secondary); margin:16px 0 0; text-align:center; line-height:1.5;}
+
+  .bottom-row{display:flex; gap:24px; flex-wrap:wrap; align-items:stretch;}
+  .verdict-card{flex:1 1 400px; min-width:320px; background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:24px;}
+  .map-card{flex:1 1 340px; min-width:300px; background:var(--panel-bg); border:1px solid var(--border); border-radius:8px; padding:24px;}
+
+  .step-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px;}
+  .step-text{font-size:14.5px; line-height:1.65; color:var(--ink); margin:0;}
+  .step-text b{color:var(--ink);}
+
+  .progress-dots{display:flex; gap:6px; margin-bottom:16px;}
+  .progress-dots span{width:7px; height:7px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .panel-controls{display:flex; gap:8px; margin-top:24px;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:5px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  html[data-theme="dark"] .btn.primary{color:#0A1E28;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .verdict-row{display:flex; align-items:flex-start; gap:8px; margin-bottom:16px; font-size:14px; line-height:1.5;}
+  .badge{
+    flex:0 0 auto; width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#fff; margin-top:1px;
+  }
+  html[data-theme="dark"] .badge{color:#141414;}
+  .badge.ok{background:var(--favorable);}
+  .badge.no{background:var(--unfavorable);}
+  .badge.tie{background:var(--neutral);}
+  .verdict-row b{font-weight:700;}
+
+  .payoff-compare{display:flex; gap:8px; margin:16px 0;}
+  .payoff-box{
+    flex:1 1 0; border:1px solid var(--border); border-radius:5px; padding:8px 8px 8px;
+    text-align:center;
+  }
+  .payoff-box .pb-label{font-size:11px; color:var(--secondary); line-height:1.4; display:block; margin-bottom:4px;}
+  .payoff-box .pb-val{font-family:var(--font-data); font-size:24px; font-weight:700;}
+  .payoff-box.win{border-color:var(--favorable); box-shadow:inset 0 0 0 1px var(--favorable);}
+  .payoff-box .pb-val.win{color:var(--favorable);}
+
+  .narrative{font-size:14px; line-height:1.65; color:var(--ink); margin:16px 0 0;}
+  .divider{height:1px; background:var(--border); margin:16px 0;}
+
+  .map-caption{font-size:12px; color:var(--secondary); line-height:1.55; margin:8px 0 0;}
+  svg.regionmap{width:100%; height:auto; display:block;}
+  .reg-ok{fill:color-mix(in srgb, var(--favorable) 14%, var(--panel-bg));}
+  .reg-no{fill:color-mix(in srgb, var(--unfavorable) 12%, var(--panel-bg));}
+  .reg-label{font-family:var(--font-body); font-size:11px; font-weight:600; fill:var(--secondary);}
+  .axis-line{stroke:var(--border); stroke-width:1.5;}
+  .thresh-line{stroke:var(--deemph); stroke-width:1.5; stroke-dasharray:5 4;}
+  .thresh-label{font-family:var(--font-data); font-size:10px; fill:var(--deemph);}
+  .tick-label{font-family:var(--font-data); font-size:10px; fill:var(--hint);}
+  .axis-title{font-family:var(--font-body); font-size:11px; font-weight:600; fill:var(--secondary);}
+  .guide-line{stroke:var(--gold-ui); stroke-width:1; stroke-dasharray:3 3; opacity:.7;}
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+
+  @media (max-width:640px){
+    td.cell{width:104px; height:88px;}
+    td.action-head{width:104px; font-size:12px;}
+    td.action-side{width:48px; font-size:11px;}
+    .num{font-size:18px;}
+    .sep{font-size:18px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Leaving the state of nature</h1>
+      <p class="lede">Hobbes's state of nature has one equilibrium, and it's a bad one. A state can change that &mdash; if it punishes theft enough. But the state charges for the service. Vary the punishment <b>p</b> and the extraction <b>t</b> and watch what each one does, and doesn't do, to the outcome.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="setup" role="tab" aria-selected="true">Setup</button>
+    <button class="tab" data-mode="explore" role="tab" aria-selected="false">Explore</button>
+  </div>
+
+  <div class="control-card" id="controlCard"></div>
+
+  <div class="games-row">
+    <div class="game-card" id="sonCard"></div>
+    <div class="game-card" id="csCard"></div>
+  </div>
+
+  <div class="bottom-row">
+    <div class="verdict-card" id="verdictCard"></div>
+    <div class="map-card" id="mapCard"></div>
+  </div>
+</div>
+
+<div class="sr-only" id="liveRegion" aria-live="polite"></div>
+
+<script>
+/* ---------------------------------------------------------------
+   Payoffs are held in tenths as integers, so equality tests for
+   tied best replies are exact (no floating-point comparison).
+   P = 10 means p = 1.0;  T = 5 means t = 0.5.
+----------------------------------------------------------------*/
+
+const ROW_LABEL = 'A';
+const COL_LABEL = 'B';
+const ROW_ACTIONS = ['Refrain','Steal'];
+const COL_ACTIONS = ['Refrain','Steal'];
+
+// State of nature — fixed benchmark. payoffs[r][c] = [A, B]
+const SON = [
+  [[30,30],[10,40]],
+  [[40,10],[20,20]]
+];
+const SON_EQ_PAYOFF = 20; // 2, the (Steal; Steal) payoff
+
+function csPayoffs(P,T){
+  return [
+    [[30-T,     30-T    ],[10-T,     40-P-T  ]],
+    [[40-P-T,   10-T    ],[20-P-T,   20-P-T  ]]
+  ];
+}
+
+// Algebraic forms. Constant by design — they show the structure, not the values.
+function csAlgebra(withT){
+  const s = withT ? ' \u2212 t' : '';
+  return [
+    [['3'+s,        '3'+s      ],['1'+s,        '4 \u2212 p'+s]],
+    [['4 \u2212 p'+s,'1'+s      ],['2 \u2212 p'+s,'2 \u2212 p'+s]]
+  ];
+}
+
+function fmt(x){
+  const neg = x < 0, a = Math.abs(x);
+  const whole = Math.floor(a/10), dec = a % 10;
+  return (neg ? '\u2212' : '') + (dec === 0 ? String(whole) : whole + '.' + dec);
+}
+
+function bestRowMarks(pay){
+  const s = new Set();
+  for(let c=0;c<2;c++){
+    let m = -Infinity;
+    for(let r=0;r<2;r++) m = Math.max(m, pay[r][c][0]);
+    for(let r=0;r<2;r++) if(pay[r][c][0] === m) s.add(r+'-'+c);
+  }
+  return s;
+}
+function bestColMarks(pay){
+  const s = new Set();
+  for(let r=0;r<2;r++){
+    let m = -Infinity;
+    for(let c=0;c<2;c++) m = Math.max(m, pay[r][c][1]);
+    for(let c=0;c<2;c++) if(pay[r][c][1] === m) s.add(r+'-'+c);
+  }
+  return s;
+}
+function neCells(pay){
+  const R = bestRowMarks(pay), C = bestColMarks(pay), out = [];
+  for(let r=0;r<2;r++) for(let c=0;c<2;c++){
+    if(R.has(r+'-'+c) && C.has(r+'-'+c)) out.push([r,c]);
+  }
+  return out;
+}
+function neLabel(r,c){ return '(' + ROW_ACTIONS[r] + '; ' + COL_ACTIONS[c] + ')'; }
+
+/* ---------- analysis: derived from the equilibria, not from hardcoded thresholds ---------- */
+function analyse(P,T){
+  const pay = csPayoffs(P,T);
+  const ne  = neCells(pay);
+  const hasRR = ne.some(([r,c]) => r===0 && c===0);
+  let deter;
+  if(ne.length === 1 && hasRR) deter = 'yes';
+  else if(ne.length === 1)     deter = 'no';
+  else                         deter = 'partial';
+
+  const vals = [...new Set(ne.map(([r,c]) => pay[r][c][0]))].sort((a,b)=>a-b);
+  let prefer;
+  if(vals.every(v => v >  SON_EQ_PAYOFF))      prefer = 'civil';
+  else if(vals.every(v => v <  SON_EQ_PAYOFF)) prefer = 'nature';
+  else if(vals.every(v => v === SON_EQ_PAYOFF))prefer = 'indifferent';
+  else                                         prefer = 'depends';
+
+  return { pay, ne, deter, prefer, vals };
+}
+
+/* ---------- setup walkthrough ---------- */
+const SETUP_STEPS = [
+  { label:'The state of nature',
+    showCS:false, sonRow:false, sonCol:false, sonNE:false,
+    text:`Two people live with no state above them. Each can spend their time producing (<b>refrain</b>) or taking what the other has produced (<b>steal</b>). Each cell reads <b>(Player A's payoff, Player B's payoff)</b>, where 4 is a player's best outcome and 1 their worst.` },
+
+  { label:`Player ${ROW_LABEL}'s best replies`,
+    showCS:false, sonRow:true, sonCol:false, sonNE:false,
+    text:`Suppose <b>${COL_LABEL}</b> refrains: ${ROW_LABEL} gets 3 by refraining, 4 by stealing. Suppose ${COL_LABEL} steals: ${ROW_LABEL} gets 1 by refraining, 2 by stealing. Stealing wins in both columns, so both underlines land in the same row &mdash; stealing is ${ROW_LABEL}'s <b>dominant strategy</b>.` },
+
+  { label:`Player ${COL_LABEL}'s best replies`,
+    showCS:false, sonRow:true, sonCol:true, sonNE:false,
+    text:`${COL_LABEL}'s payoffs are symmetric, so the same thing happens: stealing beats refraining whether ${ROW_LABEL} refrains or steals. Both circles land in the same column. ${COL_LABEL} has a dominant strategy to steal too.` },
+
+  { label:'The equilibrium',
+    showCS:false, sonRow:true, sonCol:true, sonNE:true,
+    text:`One cell has both payoffs marked: <b>(Steal; Steal)</b>, worth <b>2</b> to each player. And here is the dilemma &mdash; both would do better at (Refrain; Refrain), worth 3 each, but neither can get there alone. Hobbes's war of every man against every man.` },
+
+  { label:'Adding a state',
+    showCS:true, csMarks:false, P:0, T:0, withT:false, algebra:true, verdict:false,
+    sonRow:true, sonCol:true, sonNE:true,
+    text:`Now add a state strong enough to punish. It takes a punishment <b>p</b> from anyone who steals &mdash; so p is subtracted only from the cells where that player stole. Nothing else about the situation changes: same people, same choices, same underlying payoffs.` },
+
+  { label:'When punishment is enough',
+    showCS:true, csMarks:true, P:15, T:0, withT:false, algebra:true, verdict:false,
+    sonRow:true, sonCol:true, sonNE:true,
+    text:`Whether this fixes anything depends entirely on the size of p. ${ROW_LABEL} refrains rather than steals when 3 &gt; 4 &minus; p, and when 1 &gt; 2 &minus; p &mdash; both of which hold exactly when <b>p &gt; 1</b>. Take p = 1.5: refraining is now dominant for both, and the equilibrium is <b>(Refrain; Refrain)</b>, worth 3 each.` },
+
+  { label:'Paying for the state',
+    showCS:true, csMarks:true, P:15, T:5, withT:true, algebra:true, verdict:false,
+    sonRow:true, sonCol:true, sonNE:true,
+    text:`But the state charges for its services. It takes <b>t</b> from each player in every cell &mdash; taxes, or obedience, or anything else it demands. Now look at the best responses. They haven't moved. Because t comes out of every cell equally, it can never change anyone's best reply.` },
+
+  { label:'The two conditions',
+    showCS:true, csMarks:true, P:15, T:5, withT:true, algebra:false, verdict:true,
+    sonRow:true, sonCol:true, sonNE:true,
+    text:`So t doesn't change what people <i>do</i> &mdash; it changes whether they'd rather be here at all. Citizens get <b>2</b> in the state of nature and <b>3 &minus; t</b> in civil society, so they prefer the state only when <b>t &lt; 1</b>. Two separate conditions, then: <b>p &gt; 1</b> for the state to work, and <b>t &lt; 1</b> for it to be worth having. Try adjusting p and t yourself next.` }
+];
+
+/* ---------- state ---------- */
+let mode = 'setup';
+let setupStep = 0;
+let expP = 15, expT = 5;
+let algebra = false;
+let liveTimer = null;
+
+function activeConfig(){
+  if(mode === 'setup'){
+    const s = SETUP_STEPS[setupStep];
+    return {
+      P: s.P || 0, T: s.T || 0,
+      showCS: s.showCS, csMarks: !!s.csMarks, withT: !!s.withT,
+      algebra: !!s.algebra, verdict: !!s.verdict,
+      sonRow: s.sonRow, sonCol: s.sonCol, sonNE: s.sonNE,
+      map: false
+    };
+  }
+  const g = { P: expP, T: expT };
+  return {
+    P: g.P, T: g.T,
+    showCS: true, csMarks: true, withT: true,
+    algebra: algebra, verdict: true,
+    sonRow: true, sonCol: true, sonNE: true,
+    map: true
+  };
+}
+
+/* ---------- theme ---------- */
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeIcon').textContent = dark ? '\u2600' : '\u263D';
+  document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeToggle').setAttribute('aria-pressed', String(dark));
+}
+let isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(isDark);
+document.getElementById('themeToggle').onclick = () => { isDark = !isDark; applyTheme(isDark); };
+
+/* ---------- matrix rendering ---------- */
+function numSpan(kind, text, marked, longForm){
+  let cls = 'num';
+  if(marked) cls += kind === 'row' ? ' mk-row' : ' mk-col';
+  if(marked && kind === 'col' && longForm) cls += ' wide';
+  const sr = marked
+    ? `<span class="sr-only"> (Player ${kind === 'row' ? ROW_LABEL : COL_LABEL}'s best reply)</span>`
+    : '';
+  return `<span class="${cls}" data-kind="${kind}">${text}</span>${sr}`;
+}
+
+function renderMatrix(host, opt){
+  const { title, sub, pay, algebraText, showRow, showCol, showNE } = opt;
+  const rowMarks = showRow ? bestRowMarks(pay) : new Set();
+  const colMarks = showCol ? bestColMarks(pay) : new Set();
+  const ne = showNE ? neCells(pay) : [];
+  const longForm = !!algebraText; // algebraic terms (e.g. "4 \u2212 p \u2212 t") need wider cells
+
+  let html = `<div class="card-head"><div>
+      <p class="card-title">${title}</p>
+      <p class="card-sub">${sub}</p>
+    </div>${opt.headExtra || ''}</div>
+    <div class="legend">
+      <span><span class="swatch row" aria-hidden="true"></span> Player ${ROW_LABEL}'s payoff, underlined when best</span>
+      <span><span class="swatch col" aria-hidden="true"></span> Player ${COL_LABEL}'s payoff, circled when best</span>
+    </div>`;
+
+  html += `<div class="table-scroll"><table class="game-table${longForm ? ' algebra' : ''}" role="table" aria-label="${title} payoff matrix">`;
+  html += `<tr><td class="label-blank"></td><td class="label-blank"></td><td class="player-top" colspan="2">${COL_LABEL}</td></tr>`;
+  html += `<tr><td class="label-blank"></td><td class="label-blank"></td>` +
+          COL_ACTIONS.map(a => `<td class="action-head">${a}</td>`).join('') + `</tr>`;
+
+  for(let r=0;r<2;r++){
+    html += '<tr>';
+    if(r === 0) html += `<td class="player-side" rowspan="2">${ROW_LABEL}</td>`;
+    html += `<td class="action-side">${ROW_ACTIONS[r]}</td>`;
+    for(let c=0;c<2;c++){
+      const key = r+'-'+c;
+      const isEq = ne.some(([nr,nc]) => nr===r && nc===c);
+      const aText = algebraText ? algebraText[r][c][0] : fmt(pay[r][c][0]);
+      const bText = algebraText ? algebraText[r][c][1] : fmt(pay[r][c][1]);
+      const eqSr = isEq ? `<span class="sr-only">Nash equilibrium. </span>` : '';
+      const body = `<div class="pair">${numSpan('row', aText, rowMarks.has(key), longForm)}<span class="sep">,</span>${numSpan('col', bText, colMarks.has(key), longForm)}</div>`;
+      html += `<td class="cell${isEq ? ' equilibrium' : ''}">${eqSr}${body}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table></div>';
+  html += `<p class="table-note">Each cell reads (Player ${ROW_LABEL}'s payoff, Player ${COL_LABEL}'s payoff). Equilibria are written (Strategy ${ROW_LABEL}; Strategy ${COL_LABEL}).</p>`;
+  host.innerHTML = html;
+}
+
+/* ---------- narration ---------- */
+function narrate(P,T,A){
+  const p = fmt(P);
+  const vals = A.vals.map(fmt);
+  let s1, s2, s3 = '';
+
+  if(A.deter === 'yes'){
+    s1 = `A punishment of <b>p = ${p}</b> costs more than anything a player gains by stealing, so refraining is now a dominant strategy for both. The only equilibrium is <b>${neLabel(0,0)}</b> &mdash; the theft problem is solved.`;
+  } else if(A.deter === 'no'){
+    s1 = `A punishment of <b>p = ${p}</b> isn't enough to change anyone's mind: stealing still pays better than refraining, whatever the other player does. The equilibrium is still <b>${neLabel(1,1)}</b>.`;
+  } else {
+    s1 = `At exactly <b>p = 1</b> the punishment cancels the gain from stealing precisely. Each player is now indifferent between refraining and stealing no matter what the other does, so all four cells are equilibria and the state can't guarantee any particular outcome.`;
+  }
+
+  // more than one equilibrium can still fall entirely on one side of the comparison
+  const many = vals.length > 1;
+  const vstr = many ? `${vals[0]} or ${vals[vals.length-1]}` : vals[0];
+
+  if(A.prefer === 'civil'){
+    s2 = `Citizens receive <b>2</b> in the state of nature and <b>${vstr}</b> in civil society, so ${many ? 'whichever equilibrium they land in, ' : ''}they'd rather have the state.`;
+  } else if(A.prefer === 'nature'){
+    s2 = `Citizens receive <b>2</b> in the state of nature but only <b>${vstr}</b> in civil society. ${many ? 'Every equilibrium here is worse than no state at all, so they' : 'They'}'d rather take their chances without one.`;
+  } else if(A.prefer === 'indifferent'){
+    s2 = (P === 0 && T === 0)
+      ? `With no punishment and no extraction the two games are identical &mdash; a state that neither deters nor takes anything isn't doing anything at all.`
+      : `Citizens receive <b>2</b> either way. The state has solved the theft problem, then charged them exactly what solving it was worth.`;
+  } else {
+    s2 = `Depending on which equilibrium the players land in, citizens receive anywhere from <b>${vals[vals.length-1]}</b> down to <b>${vals[0]}</b> &mdash; better than the state of nature in one case, worse in another.`;
+  }
+
+  if(A.deter === 'yes' && P >= 20){
+    s3 = ` Raising p further wouldn't move a single mark or change what citizens receive. Once p passes 1, extra severity buys nothing: deterrence is a threshold, not a dial.`;
+  } else if(A.deter === 'no' && T > 0){
+    s3 = ` Paying for a state that doesn't deter is the worst of both worlds &mdash; the theft continues and the extraction is real.`;
+  } else if(A.prefer === 'nature' && A.deter === 'yes'){
+    s3 = ` This is the predatory case: the state is perfectly capable of keeping the peace, and charges more than the peace is worth.`;
+  }
+  return s1 + ' ' + s2 + s3;
+}
+
+/* ---------- verdict ---------- */
+function renderVerdict(host, P, T, showVerdict, stepInfo){
+  if(!showVerdict){
+    // setup mode: the walkthrough panel lives here instead
+    const total = SETUP_STEPS.length - 1;
+    let dots = '';
+    for(let i=0;i<=total;i++){
+      dots += `<span class="${i < setupStep ? 'done' : (i === setupStep ? 'current' : '')}"></span>`;
+    }
+    host.innerHTML =
+      `<div class="progress-dots" aria-hidden="true">${dots}</div>
+       <div class="step-label">${stepInfo.label}</div>
+       <p class="step-text">${stepInfo.text}</p>
+       <div class="panel-controls">
+         <button class="btn" type="button" id="stepBack">Back</button>
+         <button class="btn primary" type="button" id="stepNext">${setupStep === total ? 'Start over' : (setupStep === 0 ? 'Begin' : 'Next')}</button>
+       </div>`;
+    const back = document.getElementById('stepBack');
+    back.disabled = setupStep === 0;
+    back.onclick = () => { setupStep = Math.max(0, setupStep-1); render(); };
+    document.getElementById('stepNext').onclick = () => {
+      setupStep = setupStep === total ? 0 : setupStep + 1;
+      render();
+    };
+    return;
+  }
+
+  const A = analyse(P,T);
+  const deterMap = {
+    yes:     ['ok',  'Theft is deterred', `Refraining is dominant for both players; the equilibrium is <b>${neLabel(0,0)}</b>.`],
+    no:      ['no',  'Theft continues',   `Stealing is still dominant for both players; the equilibrium is <b>${neLabel(1,1)}</b>.`],
+    partial: ['tie', 'No guaranteed outcome', `All four cells are equilibria, so the state deters nobody reliably.`]
+  };
+  const preferMap = {
+    civil:       ['ok',  'Citizens prefer civil society'],
+    nature:      ['no',  'Citizens prefer the state of nature'],
+    indifferent: ['tie', 'Citizens are indifferent'],
+    depends:     ['tie', 'It depends which equilibrium they land in']
+  };
+  const glyph = { ok:'\u2713', no:'\u2715', tie:'\u2013' };
+
+  const d = deterMap[A.deter], pr = preferMap[A.prefer];
+  const csVal = A.vals.length === 1 ? fmt(A.vals[0])
+              : fmt(A.vals[0]) + ' to ' + fmt(A.vals[A.vals.length-1]);
+  const csWins = A.prefer === 'civil';
+  const sonWins = A.prefer === 'nature';
+
+  host.innerHTML =
+    `<div class="step-label">Verdict &mdash; p = ${fmt(P)}, t = ${fmt(T)}</div>
+
+     <div class="verdict-row">
+       <span class="badge ${d[0]}" aria-hidden="true">${glyph[d[0]]}</span>
+       <span><b>${d[1]}.</b> ${d[2]}</span>
+     </div>
+
+     <div class="payoff-compare">
+       <div class="payoff-box${sonWins ? ' win' : ''}">
+         <span class="pb-label">State of nature<br>each player receives</span>
+         <span class="pb-val${sonWins ? ' win' : ''}">2</span>
+       </div>
+       <div class="payoff-box${csWins ? ' win' : ''}">
+         <span class="pb-label">Civil society<br>each player receives</span>
+         <span class="pb-val${csWins ? ' win' : ''}">${csVal}</span>
+       </div>
+     </div>
+
+     <div class="verdict-row">
+       <span class="badge ${pr[0]}" aria-hidden="true">${glyph[pr[0]]}</span>
+       <span><b>${pr[1]}.</b></span>
+     </div>
+
+     <div class="divider"></div>
+     <p class="narrative">${narrate(P,T,A)}</p>`;
+}
+
+/* ---------- region map ---------- */
+function renderMap(host, P, T, show){
+  if(!show){ host.style.display = 'none'; return; }
+  host.style.display = '';
+
+  const x0=56, x1=376, y0=24, y1=248;
+  const px = p => x0 + (Math.min(p,4)/4) * (x1-x0);
+  const py = t => y1 - (Math.min(t,3)/3) * (y1-y0);
+  const p = P/10, t = T/10;
+  const cx = px(p), cy = py(t);
+  const bx = px(1), by = py(1);
+
+  const ticksP = [0,1,2,3,4].map(v =>
+    `<text class="tick-label" x="${px(v)}" y="264" text-anchor="middle">${v}</text>`).join('');
+  const ticksT = [0,1,2,3].map(v =>
+    `<text class="tick-label" x="48" y="${py(v)+3.5}" text-anchor="end">${v}</text>`).join('');
+
+  host.innerHTML =
+    `<div class="step-label">Where this sits</div>
+     <svg class="regionmap" viewBox="0 0 400 292" role="img" aria-hidden="true" focusable="false">
+       <rect class="reg-no" x="${x0}" y="${y0}" width="${bx-x0}" height="${y1-y0}"></rect>
+       <rect class="reg-no" x="${bx}" y="${y0}" width="${x1-bx}" height="${by-y0}"></rect>
+       <rect class="reg-ok" x="${bx}" y="${by}" width="${x1-bx}" height="${y1-by}"></rect>
+
+       <line class="thresh-line" x1="${bx}" y1="${y0}" x2="${bx}" y2="${y1}"></line>
+       <line class="thresh-line" x1="${bx}" y1="${by}" x2="${x1}" y2="${by}"></line>
+       <text class="thresh-label" x="${bx+4}" y="${y0+11}">p = 1</text>
+       <text class="thresh-label" x="${x1-4}" y="${by-5}" text-anchor="end">t = 1</text>
+
+       <text class="reg-label" x="${(x0+bx)/2}" y="128" text-anchor="middle">&#10005;</text>
+       <text class="reg-label" x="${(x0+bx)/2}" y="144" text-anchor="middle">Theft</text>
+       <text class="reg-label" x="${(x0+bx)/2}" y="158" text-anchor="middle">continues</text>
+
+       <text class="reg-label" x="${(bx+x1)/2}" y="${(y0+by)/2+4}" text-anchor="middle">&#10005; State takes too much</text>
+       <text class="reg-label" x="${(bx+x1)/2}" y="${(by+y1)/2+4}" text-anchor="middle">&#10003; Social contract works</text>
+
+       <line class="guide-line" x1="${x0}" y1="${cy}" x2="${cx}" y2="${cy}"></line>
+       <line class="guide-line" x1="${cx}" y1="${y1}" x2="${cx}" y2="${cy}"></line>
+       <circle cx="${cx}" cy="${cy}" r="6.5" fill="var(--gold-ui)" stroke="var(--panel-bg)" stroke-width="2"></circle>
+
+       <line class="axis-line" x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}"></line>
+       <line class="axis-line" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}"></line>
+       ${ticksP}${ticksT}
+       <text class="axis-title" x="${(x0+x1)/2}" y="284" text-anchor="middle">punishment (p)</text>
+       <text class="axis-title" x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">extraction (t)</text>
+     </svg>
+     <p class="map-caption">The gold marker is the current setting. A state has to clear two separate thresholds to be worth having: punishment above <b>p = 1</b>, and extraction below <b>t = 1</b>. Missing either one is enough to fail, and they fail in different ways.</p>`;
+}
+
+/* ---------- controls ---------- */
+function renderControls(){
+  const host = document.getElementById('controlCard');
+
+  if(mode === 'setup'){
+    host.innerHTML =
+      `<p class="group-label">Walkthrough</p>
+       <p class="slider-note" style="margin-top:0;">Step through the two games as the chapter builds them. Adjustable levels of <b>p</b> and <b>t</b> come next.</p>`;
+    return;
+  }
+
+  // If the sliders are already on screen, update them in place. Rebuilding the
+  // markup would replace the element the person is currently dragging.
+  const existing = document.getElementById('pSlider');
+  if(existing){
+    const ts0 = document.getElementById('tSlider');
+    existing.value = expP; existing.setAttribute('aria-valuetext', fmt(expP));
+    ts0.value = expT;      ts0.setAttribute('aria-valuetext', fmt(expT));
+    document.getElementById('pVal').textContent = fmt(expP);
+    document.getElementById('tVal').textContent = fmt(expT);
+    return;
+  }
+
+  host.innerHTML =
+    `<p class="group-label">Set the state's punishment and extraction</p>
+     <div class="sliders">
+       <div class="slider-block">
+         <div class="slider-head">
+           <label for="pSlider">Punishment for stealing (p)</label>
+           <span class="slider-val" id="pVal">${fmt(expP)}</span>
+         </div>
+         <input type="range" id="pSlider" min="0" max="40" step="1" value="${expP}"
+                aria-valuetext="${fmt(expP)}">
+         <div class="slider-scale"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span></div>
+       </div>
+       <div class="slider-block">
+         <div class="slider-head">
+           <label for="tSlider">Extraction per player (t)</label>
+           <span class="slider-val" id="tVal">${fmt(expT)}</span>
+         </div>
+         <input type="range" id="tSlider" min="0" max="30" step="1" value="${expT}"
+                aria-valuetext="${fmt(expT)}">
+         <div class="slider-scale"><span>0</span><span>1</span><span>2</span><span>3</span></div>
+       </div>
+     </div>
+     <p class="slider-note">Drag <b>t</b> and watch the underlines and circles: they never move. Extraction is taken from every cell, so it can't change anyone's best reply &mdash; only whether civil society beats the state of nature at all. Drag <b>p</b> past 1 and every mark jumps at once.</p>
+     <div class="reset-row"><button class="chip small" type="button" id="resetBtn">Reset to p = 1.5, t = 0.5</button></div>`;
+
+  const ps = document.getElementById('pSlider'), ts = document.getElementById('tSlider');
+  ps.oninput = () => { expP = +ps.value; render(); };
+  ts.oninput = () => { expT = +ts.value; render(); };
+  document.getElementById('resetBtn').onclick = () => { expP = 15; expT = 5; render(); };
+}
+
+/* ---------- live region ---------- */
+function announce(cfg){
+  if(!cfg.verdict) return;
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(() => {
+    const A = analyse(cfg.P, cfg.T);
+    const deterTxt = A.deter === 'yes' ? 'theft is deterred'
+                   : A.deter === 'no'  ? 'theft continues'
+                   : 'no guaranteed outcome';
+    const preferTxt = A.prefer === 'civil'  ? 'citizens prefer civil society'
+                   : A.prefer === 'nature'  ? 'citizens prefer the state of nature'
+                   : A.prefer === 'indifferent' ? 'citizens are indifferent'
+                   : 'the answer depends which equilibrium they land in';
+    const csVal = A.vals.length === 1 ? fmt(A.vals[0])
+                : fmt(A.vals[0]) + ' to ' + fmt(A.vals[A.vals.length-1]);
+    document.getElementById('liveRegion').textContent =
+      `p equals ${fmt(cfg.P)}, t equals ${fmt(cfg.T)}. ${deterTxt}. Civil society pays ${csVal} against 2 in the state of nature. So ${preferTxt}.`;
+  }, 450);
+}
+
+/* ---------- master render ---------- */
+function render(){
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.mode === mode;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+  });
+
+  renderControls();
+
+  const cfg = activeConfig();
+
+  renderMatrix(document.getElementById('sonCard'), {
+    title: 'State of nature',
+    sub: 'no punishment, no extraction',
+    pay: SON,
+    algebraText: null,
+    showRow: cfg.sonRow, showCol: cfg.sonCol, showNE: cfg.sonNE,
+    stacked: false
+  });
+
+  const csCard = document.getElementById('csCard');
+  if(!cfg.showCS){
+    csCard.style.display = 'none';
+  } else {
+    csCard.style.display = '';
+    const sub = cfg.withT
+      ? `p = ${fmt(cfg.P)}, t = ${fmt(cfg.T)}`
+      : (cfg.csMarks ? `p = ${fmt(cfg.P)}` : 'punishment p, no extraction yet');
+    const toggleBtn = (mode === 'setup') ? '' :
+      `<button class="chip small" type="button" id="algBtn" aria-pressed="${algebra}">${algebra ? 'Show numbers' : 'Show algebra'}</button>`;
+    renderMatrix(csCard, {
+      title: 'Civil society',
+      sub,
+      pay: csPayoffs(cfg.P, cfg.T),
+      algebraText: cfg.algebra ? csAlgebra(cfg.withT) : null,
+      showRow: cfg.csMarks, showCol: cfg.csMarks, showNE: cfg.csMarks,
+      stacked: cfg.algebra,
+      headExtra: toggleBtn
+    });
+    const ab = document.getElementById('algBtn');
+    if(ab) ab.onclick = () => { algebra = !algebra; render(); };
+  }
+
+  renderVerdict(document.getElementById('verdictCard'), cfg.P, cfg.T, cfg.verdict,
+                mode === 'setup' ? SETUP_STEPS[setupStep] : null);
+  renderMap(document.getElementById('mapCard'), cfg.P, cfg.T, cfg.map);
+  announce(cfg);
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    const next = tab.dataset.mode;
+    // Returning to Setup from another tab starts the walkthrough over, so it
+    // reads the same way it did the first time rather than resuming wherever
+    // the person last left it (which is often the final "Start over" step).
+    if(next === 'setup' && mode !== 'setup') setupStep = 0;
+    mode = next;
+    render();
+  };
+});
+
+render();
+</script>
+</body>
+</html>
