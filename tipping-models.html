@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tipping models</title>
+<script>
+  /* Set the theme before first paint, following the system setting. */
+  (function () {
+    try {
+      var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    } catch (e) { document.documentElement.setAttribute("data-theme", "light"); }
+  })();
+</script>
+<style>
+  :root {
+    --bg: #FAFAFA;
+    --panel: #FFFFFF;
+    --border: #D0D0D0;
+    --text: #111111;
+    --text-2: #555555;
+    --hint: #999999;
+    --deemph: #707070;
+    --accent: #0072B2;
+    --on-accent: #FFFFFF;
+    --favorable: #0072B2;
+    --unfavorable: #B33E00;
+    --neutral-state: #5F5E5A;
+    --gold-ui: #B8860B;
+    --gold-text: #946B09;
+    --structure-ink: #141414;
+    --protesting: #009E73;
+    --not-protesting: #CC79A7;
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --data-font: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --u: 8px;
+  }
+
+  html[data-theme="dark"] {
+    --bg: #1A1A1A;
+    --panel: #2A2A2A;
+    --border: #3A3A3A;
+    --text: #F2F2F2;
+    --text-2: #B3B3B3;
+    --hint: #7A7A7A;
+    --deemph: #9A9A9A;
+    --accent: #7FC7EE;
+    --on-accent: #0A1E28;
+    --favorable: #7FC7EE;
+    --unfavorable: #F08A4B;
+    --neutral-state: #A8A6A0;
+    --gold-ui: #E0B23D;
+    --gold-text: #E0B23D;
+    --structure-ink: #E8E8E8;
+    --protesting: #3FCFA0;
+    --not-protesting: #E29FC4;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Author rules that set `display` outrank the browser's [hidden] rule. */
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    padding: calc(var(--u) * 3) calc(var(--u) * 2);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  code, .num { font-family: var(--data-font); font-variant-numeric: tabular-nums; }
+
+  header { margin-bottom: calc(var(--u) * 3); }
+  h1 { font-size: 1.65rem; font-weight: 600; margin: 0 0 var(--u) 0; line-height: 1.25; }
+  .standfirst { margin: 0; color: var(--text-2); max-width: 72ch; }
+
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: calc(var(--u) * 2);
+    align-items: flex-end; justify-content: space-between;
+    margin-bottom: calc(var(--u) * 3);
+  }
+
+  .field-label { display: block; font-size: 0.8rem; color: var(--text-2); margin-bottom: var(--u); }
+
+  [role="tablist"] { display: flex; flex-wrap: wrap; gap: var(--u); }
+
+  [role="tab"] {
+    font: inherit; font-size: 0.95rem;
+    padding: var(--u) calc(var(--u) * 2);
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 -3px 0 var(--accent);
+    font-weight: 600;
+  }
+
+  .theme-toggle {
+    font: inherit; font-size: 0.85rem;
+    padding: var(--u) calc(var(--u) * 2);
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+
+  button:focus-visible, [role="tab"]:focus-visible, summary:focus-visible,
+  input:focus-visible, h2[tabindex="-1"]:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- stage: the society card plus the active mode's board ----------
+     In guided mode the step panel comes first, and on a wide screen it sits
+     beside the society card so each step and what it changes are in view
+     together. The other modes keep the card on top. */
+
+  .stage { display: flex; flex-direction: column; }
+  .stage > * { min-width: 0; }
+  .stage.mode-guided #guidedBoard { order: -1; }
+  @media (min-width: 1100px) {
+    .stage.mode-guided {
+      display: grid; grid-template-columns: 360px 1fr;
+      gap: calc(var(--u) * 3); align-items: start;
+    }
+    .stage.mode-guided #guidedBoard { position: sticky; top: var(--u); margin-bottom: 0; }
+  }
+
+  /* ---------- the society card ---------- */
+
+  .model-block {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: calc(var(--u) * 2);
+    margin-bottom: calc(var(--u) * 3);
+    scroll-margin-top: var(--u);
+  }
+  .model-block h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 var(--u) 0; }
+  .model-block h3 {
+    font-size: 0.95rem; font-weight: 600;
+    margin: calc(var(--u) * 2) 0 var(--u) 0;
+    padding-top: calc(var(--u) * 2);
+    border-top: 1px solid var(--border);
+  }
+
+  .lede { margin: 0 0 calc(var(--u) * 2) 0; color: var(--text-2); max-width: 78ch; }
+  .seqline { margin: 0 0 calc(var(--u) * 2) 0; font-family: var(--data-font); font-variant-numeric: tabular-nums; }
+
+  .strip-scroll { overflow-x: auto; padding-bottom: var(--u); }
+  .table-scroll { overflow-x: auto; padding-bottom: var(--u); }
+
+  .people-strip {
+    display: grid; grid-template-columns: repeat(10, minmax(52px, 1fr));
+    gap: calc(var(--u) * 0.5); min-width: 560px;
+  }
+
+  .person {
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: var(--u); text-align: center; background: var(--bg);
+  }
+  .person .glyph { font-size: 1.4rem; line-height: 1.1; }
+  .person .who { font-size: 0.7rem; line-height: 1.2; color: var(--text-2); }
+  .person .thr {
+    font-family: var(--data-font); font-variant-numeric: tabular-nums;
+    font-size: 1rem; font-weight: 600;
+  }
+  .person .stance:empty { display: none; }
+  .person .was {
+    font-family: var(--data-font); font-size: 0.7rem; color: var(--text);
+    margin-top: calc(var(--u) * 0.5);
+  }
+
+  .person.is-protesting { border-color: var(--protesting); }
+  .person.is-protesting .glyph { color: var(--protesting); }
+  .person.is-not-protesting { border-color: var(--not-protesting); }
+  .person.is-not-protesting .glyph { color: var(--not-protesting); }
+
+  .person.is-unknown {
+    border-style: dashed; border-color: var(--border);
+    background: repeating-linear-gradient(45deg,
+      var(--bg), var(--bg) 4px, var(--panel) 4px, var(--panel) 8px);
+  }
+  .person.is-unknown .glyph { color: var(--deemph); }
+
+  /* The person whose threshold a step has just changed. The thickened border
+     takes its extra pixel back out of the padding. */
+  .person.is-changed {
+    border-width: 2px; border-style: solid; border-color: var(--structure-ink);
+    padding: 7px;
+  }
+
+  .bigread {
+    display: flex; flex-wrap: wrap; gap: calc(var(--u) * 3);
+    align-items: baseline; margin-top: calc(var(--u) * 2);
+  }
+  .bigread .figure {
+    font-family: var(--data-font); font-variant-numeric: tabular-nums;
+    font-size: 1.9rem; font-weight: 600;
+  }
+  .bigread .cap { font-size: 0.8rem; color: var(--text-2); display: block; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 2); font-size: 0.8rem; color: var(--text-2); margin-top: var(--u); }
+  .legend span { display: inline-flex; gap: calc(var(--u) * 0.5); align-items: center; }
+  .legend .g-on { color: var(--protesting); font-size: 1rem; }
+  .legend .g-off { color: var(--not-protesting); font-size: 1rem; }
+
+  ol.rounds { margin: var(--u) 0 0 0; padding-left: calc(var(--u) * 3); }
+  ol.rounds li { margin-bottom: calc(var(--u) * 0.5); }
+
+  /* ---------- boards ---------- */
+
+  .board { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 3); margin-bottom: calc(var(--u) * 3); }
+  .board.single { grid-template-columns: 1fr; }
+  @media (max-width: 860px) { .board { grid-template-columns: 1fr; } }
+
+  .col > h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 var(--u) 0; }
+
+  .cgroup {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: calc(var(--u) * 2);
+    margin-bottom: calc(var(--u) * 2);
+    scroll-margin-top: var(--u);
+  }
+  .cgroup h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 var(--u) 0; }
+  .cgroup p { margin: 0 0 var(--u) 0; }
+  .cgroup p:last-child { margin-bottom: 0; }
+
+  .step-label { font-size: 0.8rem; color: var(--text-2); margin: 0 0 var(--u) 0; }
+  .step-body { max-width: 72ch; }
+  .step-body p { margin: 0 0 calc(var(--u) * 2) 0; }
+  .looks { display: flex; flex-wrap: wrap; gap: var(--u); align-items: center; margin: 0 0 calc(var(--u) * 2) 0; font-size: 0.85rem; color: var(--text-2); }
+  .look-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: var(--u) calc(var(--u) * 2);
+    background: var(--panel); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+  }
+
+  .slider-row {
+    display: grid; grid-template-columns: 4.5rem 1fr 4rem;
+    gap: var(--u); align-items: center; margin-bottom: calc(var(--u) * 0.5);
+  }
+  .slider-row label { font-size: 0.85rem; }
+  .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .slider-row .val {
+    font-family: var(--data-font); font-variant-numeric: tabular-nums;
+    font-size: 0.85rem; text-align: right;
+  }
+  .scale {
+    display: flex; justify-content: space-between;
+    font-size: 0.7rem; color: var(--text-2);
+    margin: 0 5rem var(--u) 5rem;
+  }
+
+  .btnrow { display: flex; flex-wrap: wrap; gap: var(--u); }
+
+  .preset-btn, .plain-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: var(--u) calc(var(--u) * 2);
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .preset-btn .pname { font-family: var(--data-font); font-weight: 600; }
+  .preset-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+  .plain-btn[aria-disabled="true"] { color: var(--hint); border-style: dashed; cursor: default; }
+
+  .primary-btn {
+    font: inherit; font-size: 0.95rem; font-weight: 600;
+    padding: var(--u) calc(var(--u) * 2);
+    background: var(--accent); color: var(--on-accent);
+    border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+  }
+
+  .answer-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--u); }
+  .ans-btn {
+    font: inherit; font-family: var(--data-font); font-size: 0.95rem;
+    padding: var(--u); background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .ans-btn[aria-disabled="true"] { cursor: default; }
+  .ans-btn[data-mark="correct"] { border-color: var(--favorable); color: var(--favorable); font-weight: 600; box-shadow: inset 0 -3px 0 var(--favorable); }
+  .ans-btn[data-mark="wrong"] { border-color: var(--unfavorable); color: var(--unfavorable); box-shadow: inset 0 -3px 0 var(--unfavorable); }
+
+  .result { margin-top: calc(var(--u) * 2); padding: var(--u) calc(var(--u) * 2);
+            border: 1px solid var(--border); border-radius: 4px; }
+  .result.is-correct { border-color: var(--favorable); }
+  .result.is-wrong { border-color: var(--unfavorable); }
+  .result .verdict { font-weight: 600; }
+  .result.is-correct .verdict { color: var(--favorable); }
+  .result.is-wrong .verdict { color: var(--unfavorable); }
+
+  ul.setlist { list-style: none; margin: 0; padding: 0; }
+  ul.setlist li {
+    display: grid; grid-template-columns: 1.5rem 1fr; gap: var(--u);
+    padding: var(--u) 0; border-bottom: 1px solid var(--border);
+    font-size: 0.9rem; align-items: start;
+  }
+  ul.setlist li:last-child { border-bottom: 0; }
+  ul.setlist li.done { color: var(--gold-text); }
+  ul.setlist li.done .tick { color: var(--gold-ui); font-weight: 700; }
+  ul.setlist li.current .cname { text-decoration: underline; }
+  ul.setlist .tick { text-align: center; }
+  ul.setlist .cname { font-weight: 600; }
+  ul.setlist .cseq {
+    display: block; font-weight: 400; color: var(--text-2);
+    font-family: var(--data-font); font-variant-numeric: tabular-nums; font-size: 0.8rem;
+  }
+
+  .tipline { margin: 0 0 calc(var(--u) * 0.5) 0; }
+  .tipline .who { font-family: var(--data-font); font-weight: 600; }
+
+  /* ---------- what a citizen can see ---------- */
+
+  table.observer { border-collapse: collapse; min-width: 640px; width: 100%; }
+  table.observer caption {
+    text-align: left; font-size: 0.8rem; color: var(--text-2); padding-bottom: var(--u);
+  }
+  table.observer th, table.observer td {
+    border: 1px solid var(--border); padding: calc(var(--u) * 0.5);
+    text-align: center; font-size: 0.85rem;
+  }
+  table.observer thead th { font-weight: 600; background: var(--bg); font-size: 0.75rem; }
+  table.observer th[scope="row"] {
+    font-family: var(--data-font); font-weight: 600; text-align: left;
+    padding-left: var(--u); white-space: nowrap;
+  }
+  table.observer td.stance-cell { line-height: 1.15; }
+  table.observer td.stance-cell .glyph { font-size: 1.1rem; display: block; }
+  table.observer td.stance-cell .thr {
+    font-family: var(--data-font); font-variant-numeric: tabular-nums;
+    font-size: 0.8rem; display: block; color: var(--text);
+  }
+  table.observer td.on .glyph { color: var(--protesting); }
+  table.observer td.off .glyph { color: var(--not-protesting); }
+  table.observer td.settles {
+    font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 600;
+  }
+
+  /* ---------- notes ---------- */
+
+  .notes { margin-top: calc(var(--u) * 4); }
+  .notes details {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: calc(var(--u) * 2);
+    margin-bottom: calc(var(--u) * 2); background: var(--panel);
+  }
+  .notes summary { cursor: pointer; font-weight: 600; }
+  .notes details > *:not(summary) { max-width: 78ch; }
+  .notes table { border-collapse: collapse; margin: var(--u) 0; font-size: 0.9rem; }
+  .notes th, .notes td { border: 1px solid var(--border); padding: var(--u); text-align: left; vertical-align: top; }
+  .notes th { font-weight: 600; }
+  .notes td.seq { font-family: var(--data-font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .notes blockquote { margin: var(--u) 0 var(--u) calc(var(--u) * 2); color: var(--text-2); }
+
+  /* ---------- return control ---------- */
+
+  .return-btn {
+    position: fixed; right: calc(var(--u) * 2); bottom: calc(var(--u) * 2);
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: var(--u) calc(var(--u) * 2);
+    background: var(--accent); color: var(--on-accent);
+    border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--structure-ink) 25%, transparent);
+    z-index: 10;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .person { transition: border-color 0.15s ease; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Tipping models</h1>
+    <p class="standfirst">
+      Popular revolutions tend to surprise everyone, including the people who take part in them. Eastern
+      Europe in 1989 and Tunisia in 2010–11 both looked stable until shortly before their governments fell.
+      Timur Kuran's (1991) tipping model helps explain why. Each of ten people has a revolutionary threshold:
+      how many others must already be protesting before they will join. Everyone can see who is protesting,
+      but nobody can see how close anyone else is to joining.
+    </p>
+  </header>
+
+  <div class="topbar">
+    <div>
+      <span class="field-label" id="mode-label">Three ways to use this</span>
+      <div role="tablist" aria-labelledby="mode-label" id="tabs">
+        <button role="tab" id="tab-guided" aria-selected="true" aria-controls="guidedBoard" type="button">Guided walkthrough</button>
+        <button role="tab" id="tab-explore" aria-selected="false" aria-controls="exploreBoard" tabindex="-1" type="button">Explore a society</button>
+        <button role="tab" id="tab-practice" aria-selected="false" aria-controls="practiceBoard" tabindex="-1" type="button">Practice</button>
+      </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Switch to dark mode</button>
+  </div>
+
+  <div class="stage mode-guided" id="stage">
+
+  <!-- ============================ THE SOCIETY CARD ============================ -->
+
+  <section class="model-block" id="societyCard" aria-labelledby="societyTitle">
+    <h2 id="societyTitle">Society A</h2>
+    <p class="seqline" id="seqLine"></p>
+    <p class="lede" id="societyLede"></p>
+
+    <div class="strip-scroll">
+      <div class="people-strip" id="strip" aria-hidden="true"></div>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><span class="g-on">●</span> protesting</span>
+      <span><span class="g-off">○</span> not protesting</span>
+      <span>? not yet worked out</span>
+    </div>
+
+    <div class="bigread">
+      <div>
+        <span class="figure" id="sizeFigure">1</span>
+        <span class="cap">people protesting, out of 10</span>
+      </div>
+      <div>
+        <span class="figure" id="roundsFigure">1</span>
+        <span class="cap" id="roundsCap">round before it settled</span>
+      </div>
+      <div>
+        <span class="figure" id="meanFigure">4.7</span>
+        <span class="cap">average threshold</span>
+      </div>
+    </div>
+
+    <div id="cascadeWrap">
+      <h3>How it unfolded</h3>
+      <ol class="rounds" id="rounds"></ol>
+    </div>
+
+    <div id="hiddenNote" hidden>
+      <h3>How it unfolds</h3>
+      <p class="lede" id="hiddenText">
+        Not shown yet. Working out how big the protest gets is the exercise, and this list would do it for
+        you.
+      </p>
+    </div>
+
+    <p class="lede" style="margin-top: calc(var(--u) * 2); margin-bottom: 0">
+      <strong>Nobody in the society can see this card.</strong> Each person knows their own threshold.
+      Everyone else sees only who is protesting. Anyone staying home might genuinely support the regime or
+      might be falsifying their preferences, and among those who are falsifying, nobody can see how close any
+      of them is to joining.
+    </p>
+  </section>
+
+  <!-- ============================ GUIDED ============================ -->
+
+  <div class="board single" id="guidedBoard">
+    <div class="col">
+      <h2 id="guidedTitle" tabindex="-1">Guided walkthrough</h2>
+      <div class="cgroup" id="stepPanel">
+        <p class="step-label" id="stepLabel">Step 1 of 10</p>
+        <div id="stepLive" aria-live="polite">
+          <h3 id="stepTitle"></h3>
+          <div class="step-body" id="stepBody"></div>
+          <div class="looks" id="stepLooks"></div>
+        </div>
+        <p class="btnrow" id="stepNav">
+          <button class="plain-btn" id="stepBack" type="button">Back</button>
+          <button class="primary-btn" id="stepNext" type="button">Next</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ EXPLORE ============================ -->
+
+  <div class="board" id="exploreBoard" hidden>
+
+    <div class="col">
+      <h2 id="exploreTitle" tabindex="-1">The ten people</h2>
+
+      <div class="cgroup" id="presetCard">
+        <h3>The chapter's five societies</h3>
+        <p class="lede">
+          Each is a ten-person society. A′ is A with person 2's threshold lowered by one, and B′ is B with the
+          same change.
+        </p>
+        <div class="btnrow" id="presets"></div>
+      </div>
+
+      <div class="cgroup">
+        <h3>Each person's revolutionary threshold</h3>
+        <p class="lede">
+          A <strong>revolutionary threshold</strong> is how many other people must already be protesting
+          before a person will join in. Bigger protests make it harder for the state to identify and punish
+          any one protester, so joining gets less costly as a protest grows. Thresholds vary from person to
+          person. Dissidents have a threshold of <span class="num">0</span> and protest whatever anyone else
+          does. Frightened people need many others out first. People who support the regime are unlikely to
+          join under almost any circumstances. In a ten-person society a threshold of
+          <span class="num">10</span> means never, since at most nine others can be protesting.
+        </p>
+        <div id="sliders"></div>
+        <div class="scale" aria-hidden="true"><span>0</span><span>5</span><span>10</span></div>
+        <p class="lede">
+          <strong>The rule.</strong> Everyone whose threshold is at or below the number already protesting
+          joins. That raises the number, which may bring in more people, and so on until nobody new is
+          willing to join.
+        </p>
+      </div>
+
+      <div class="cgroup">
+        <h3>A structural change</h3>
+        <p class="lede">
+          The chapter's examples of structural factors include an economic recession and a repressive new
+          policy. These can turn people against the regime and lower their thresholds. This button applies
+          that kind of change to everyone at once. It leaves thresholds of <span class="num">0</span> and
+          <span class="num">10</span> alone: the dissident already protests, and nothing brings out someone
+          at <span class="num">10</span>.
+        </p>
+        <div class="btnrow">
+          <button class="plain-btn" id="shockBtn" type="button">Lower every threshold by one</button>
+          <button class="plain-btn" id="resetBtn" type="button">Back to society A</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <h2>What happens</h2>
+
+      <div class="cgroup">
+        <h3>How big the protest gets</h3>
+        <p id="verdict"></p>
+        <p id="verdictWhy" class="lede"></p>
+      </div>
+
+      <div class="cgroup">
+        <h3>Is this society on the brink?</h3>
+        <p class="lede">
+          This checks whether one person becoming a single step more willing to protest would set off a
+          revolutionary cascade, bringing out at least one other person along with them. Nobody inside the
+          society can run this check. They can see who is staying home, but not which of those people are
+          falsifying their preferences or how close any of them are to joining.
+        </p>
+        <div id="brink"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ PRACTICE ============================ -->
+
+  <div class="board" id="practiceBoard" hidden>
+
+    <div class="col">
+      <h2 id="practiceTitle" tabindex="-1">Work it out</h2>
+
+      <div class="cgroup" id="questionCard">
+        <h3 id="problemHead">Society 1 of 7</h3>
+        <p id="problemText"></p>
+        <p class="lede">
+          Start with anyone whose threshold is <span class="num">0</span>, and keep going as long as somebody
+          new is willing to join. How many of the ten end up protesting?
+        </p>
+        <div class="answer-grid" id="answers" role="group" aria-label="How many of the ten end up protesting"></div>
+        <div class="result" id="result" hidden>
+          <p class="verdict" id="resultVerdict"></p>
+          <p id="resultWhy"></p>
+          <p id="resultFragile"></p>
+          <p id="resultLesson"></p>
+        </div>
+        <p class="btnrow" style="margin-top: calc(var(--u) * 2)">
+          <button class="plain-btn" id="prevBtn" type="button">Previous society</button>
+          <button class="primary-btn" id="nextBtn" type="button">Next society</button>
+        </p>
+      </div>
+    </div>
+
+    <div class="col">
+      <h2>The seven societies</h2>
+      <div class="cgroup">
+        <h3>Work through them in order</h3>
+        <p class="lede">
+          Societies 1 to 4 come in two pairs. In each pair the second society is the first with a single
+          threshold lowered by one, and it is the same change both times.
+        </p>
+        <ul class="setlist" id="setlist"></ul>
+        <p class="lede" id="setNote" style="margin-top: var(--u)"></p>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- ======================= WHAT A CITIZEN CAN SEE ======================= -->
+
+  <section class="model-block" id="observerCard" aria-labelledby="observerTitle">
+    <h2 id="observerTitle">What a citizen can see</h2>
+    <p class="lede">
+      Three of the chapter's five societies settle in the same place: one person protesting and nine not.
+      This table shows only that. It is everything a person living in one of these societies has to go on,
+      and everything an observer outside has to go on too. The three rows are identical because what anyone
+      can observe is identical.
+    </p>
+
+    <div class="table-scroll">
+      <table class="observer" id="observerTable">
+        <caption>
+          Public behavior in three of the chapter's societies. A filled circle is a person protesting; an open
+          circle is a person not protesting.
+        </caption>
+        <thead><tr id="observerHead"></tr></thead>
+        <tbody id="observerBody"></tbody>
+      </table>
+    </div>
+
+    <p>
+      <button class="plain-btn" id="revealBtn" type="button" aria-expanded="false"
+              aria-controls="observerTable">Show what nobody can see</button>
+    </p>
+
+    <p class="lede" id="observerAfter" hidden>
+      The same three rows, with each person's threshold under their circle. These are three quite different
+      populations. In A, person 2 or person 3 becoming one step more willing would bring out nine people. In
+      C, any one of eight people would. In B, no single one-step change would do more than bring out the
+      person who changed. Nothing in the row of circles shows this. Each of the nine people staying home might
+      genuinely support the regime or might be falsifying their preferences, and among those who are
+      falsifying, nobody can see how close any of them is to joining. So nobody can tell whether they live in a
+      society like A or one like B. The two could even have exactly the same people falsifying: the only
+      difference is whether person 3 needs two others protesting or three.
+    </p>
+  </section>
+
+  <!-- ============================ NOTES ============================ -->
+
+  <div class="notes">
+
+    <details>
+      <summary>The chapter's five societies</summary>
+      <table>
+        <caption class="sr-only">The chapter's five threshold sequences and how big each protest gets</caption>
+        <thead>
+          <tr><th scope="col">Society</th><th scope="col">Thresholds</th><th scope="col">Protest size</th><th scope="col">What it shows</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">A</td><td class="seq">0, 2, 2, 3, 4, 5, 6, 7, 8, 10</td><td class="num">1</td>
+            <td>One dissident protests and nobody joins.</td></tr>
+          <tr><td class="num">A′</td><td class="seq">0, 1, 2, 3, 4, 5, 6, 7, 8, 10</td><td class="num">9</td>
+            <td>Person 2's threshold falls from 2 to 1 and a revolutionary cascade follows. Nothing else changed.</td></tr>
+          <tr><td class="num">B</td><td class="seq">0, 2, 3, 3, 4, 5, 6, 7, 8, 10</td><td class="num">1</td>
+            <td>Differs from A only in person 3's threshold, and looks exactly like A from outside.</td></tr>
+          <tr><td class="num">B′</td><td class="seq">0, 1, 3, 3, 4, 5, 6, 7, 8, 10</td><td class="num">2</td>
+            <td>The change that turned A into A′ produces only a small, abortive two-person protest here.</td></tr>
+          <tr><td class="num">C</td><td class="seq">0, 2, 2, 2, 2, 2, 2, 2, 2, 10</td><td class="num">1</td>
+            <td>A recession leaves the regime deeply unpopular and thresholds very low, and still nobody joins
+              the dissident.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Like the rest of the model in this tool, these societies come from Kuran (1991). The chapter's
+        presentation of the model draws on examples provided by Marek Kaminski.
+      </p>
+      <p>
+        Compare <span class="num">A′</span> with <span class="num">C</span>. The average threshold in
+        <span class="num">C</span> is <span class="num">2.6</span>, and in <span class="num">A′</span> it is
+        <span class="num">4.6</span>. Most people in <span class="num">C</span> are much closer to joining a
+        protest, yet <span class="num">C</span> stays quiet while <span class="num">A′</span> has a nine-person
+        protest. What matters is how thresholds are distributed across the society, not how low they are on
+        average.
+      </p>
+    </details>
+
+    <details>
+      <summary>Why revolutions come as a surprise</summary>
+      <p>
+        Opposing a dictatorship in public is dangerous, so people who oppose the regime often support it in
+        public instead. This is <strong>preference falsification</strong>. One result is that nobody knows the
+        true level of opposition, because everyone appears to support the regime.
+      </p>
+      <p>
+        Preference falsification also means that a society's distribution of revolutionary thresholds is
+        never known to the people in it. There are two layers to this. Public support lumps together the
+        regime's genuine supporters and its opponents who are falsifying their preferences, and watching
+        someone stay home cannot tell you which they are. And even among those who are falsifying, nobody can
+        see how close each one is to joining a protest. Knowing who is falsifying would not be enough:
+        societies <span class="num">A</span> and <span class="num">B</span> could have exactly the same people
+        falsifying, and differ only in whether person 3 needs two others protesting or three. Society
+        <span class="num">C</span>, where the regime is deeply unpopular, shows that widespread preference
+        falsification does not by itself produce a cascade. A society
+        can come to the brink of revolution without anyone knowing it. People may be ready to join a full-scale
+        revolt if just one more person goes out to protest. If that person stays home, there is no revolution
+        and the dictatorship looks entirely stable. Even people who know preference falsification is going
+        on cannot tell whether they live in a society like <span class="num">A</span> or one like
+        <span class="num">B</span>. That is why it is often impossible to tell very stable dictatorships from
+        very fragile ones.
+      </p>
+      <p>
+        So revolutions will nearly always come as a surprise, which Kuran (1989, 1991) calls the
+        "predictability of unpredictability." This does not make revolutions irrational or beyond
+        understanding. Failing to predict them is, in Kuran's words, "entirely consistent with calculated,
+        purposeful human action" (1991, 45).
+      </p>
+      <p>
+        The tool's "is this society on the brink" panel and its threshold numbers show what nobody inside a
+        society can see. Try using them in that spirit: look only at how many people are protesting, decide
+        whether you would have expected a revolution, and then look at the thresholds.
+      </p>
+    </details>
+
+    <details>
+      <summary>Why revolutions look inevitable afterward</summary>
+      <p>
+        Once a revolutionary cascade grows into an overwhelming majority, staying a public supporter of the
+        government becomes unwise. Some of the regime's supporters join the protests even though they would
+        have preferred them to fail. The chapter calls this a <strong>revolutionary bandwagon</strong>, to
+        distinguish it from a revolutionary cascade.
+      </p>
+      <p>
+        After the regime falls, preference falsification runs the other way. People who supported the old
+        regime now have reason to say they had always opposed it. Interviews conducted after 1989 across
+        Eastern Europe found that nearly everyone said they had opposed communist rule. That makes the old
+        dictatorship look much weaker and more unloved than it was, and the revolution look inevitable. As
+        Kuran puts it, preference falsification makes it "even less comprehensible why the revolution was
+        unforeseen" (1991, 23).
+      </p>
+    </details>
+
+    <details>
+      <summary>Structural factors and the spark</summary>
+      <p>
+        Some explanations treat revolutions as caused by structural factors such as relative deprivation,
+        grievances, or oppression (Gurr 1970). The tipping model suggests these factors can lower thresholds
+        without producing a revolution, as in society <span class="num">C</span>. Structural factors can make
+        revolutions more likely, but they do not make them inevitable. What they can do is create conditions
+        in which an idiosyncratic event becomes the start of a revolution. In Tunisia in December 2010,
+        Mohamed Bouazizi's self-immolation after mistreatment by local officials began the Arab Spring. A
+        similar act where thresholds had not been lowered might have had few consequences beyond the people
+        directly affected.
+      </p>
+      <p>
+        In Eastern Europe, the chapter points to several changes during the 1980s that lowered thresholds.
+        Gorbachev's reformist policies, perestroika and glasnost, reduced the perceived risk of challenging the
+        status quo. Many Eastern European economies performed increasingly poorly from the mid-1980s. In 1989
+        Gorbachev said that the Soviet Union would not intervene militarily to keep communist rule in place in
+        Eastern Europe. Once reforms succeeded in one country, they had demonstration effects in the others,
+        lowering thresholds further, so the cascade ran between countries as well as within them. A banner at
+        a 1989 rally in Prague put it this way: "Poland—10 years, Hungary—10 months, East Germany—10 weeks,
+        Czechoslovakia—10 days" (Garton Ash 1999).
+      </p>
+      <p>
+        The "lower every threshold by one" button on the explore tab is a change of this kind. Try it on
+        several societies. Sometimes it produces a cascade and sometimes it leaves the society one step from
+        a cascade with nobody moving.
+      </p>
+    </details>
+
+
+  </div>
+
+  <button class="return-btn" id="returnBtn" type="button" hidden>Back to the steps</button>
+  <div class="sr-only" role="status" aria-live="polite" id="liveRegion"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var N = 10;
+
+  /* ---------- the model ----------
+     Thresholds are counts of other people already protesting. A person joins
+     once the number protesting is at or above their threshold. Everyone who
+     qualifies in a round joins together. */
+
+  function cascade(t) {
+    var inProtest = [];
+    for (var i = 0; i < N; i++) inProtest.push(false);
+    var s = 0;
+    var path = [{ level: 0, joined: [], members: [] }];
+    var guard = 0;
+    while (guard++ <= N) {
+      var joined = [];
+      for (var j = 0; j < N; j++) if (!inProtest[j] && t[j] <= s) joined.push(j);
+      if (joined.length === 0) break;
+      for (var k = 0; k < joined.length; k++) inProtest[joined[k]] = true;
+      var members = [];
+      for (var m = 0; m < N; m++) if (inProtest[m]) members.push(m);
+      s = members.length;
+      path.push({ level: s, joined: joined, members: members });
+    }
+    var last = path[path.length - 1];
+    return { finalLevel: s, members: last.members, path: path, rounds: path.length - 1 };
+  }
+
+  function meanOf(t) {
+    var sum = 0;
+    for (var i = 0; i < N; i++) sum += t[i];
+    return (Math.round(sum / N * 10) / 10).toFixed(1);
+  }
+
+  function people(n) { return n === 1 ? "1 person" : n + " people"; }
+  function seq(t) { return "{" + t.join(", ") + "}"; }
+
+  /* One person becoming a single step more willing and then protesting alone
+     is not a cascade: nobody joined them. Only count a change that brings out
+     at least one person besides the one who changed. */
+  function brinkReport(t) {
+    var base = cascade(t).finalLevel;
+    var out = [];
+    for (var i = 0; i < N; i++) {
+      if (t[i] === 0) continue;
+      var alt = t.slice();
+      alt[i] -= 1;
+      var f = cascade(alt).finalLevel;
+      if (f - base >= 2) out.push({ person: i + 1, from: t[i], to: alt[i], result: f });
+    }
+    return { base: base, tips: out };
+  }
+
+  /* What to say when no single one-step change would bring anyone else out.
+     "Not on the brink" only fits a society where nobody joined the first
+     protesters. Where a protest has already grown, the question the chapter
+     asks (is a quiet-looking society close to a cascade?) is behind it. */
+  function noTipText(t) {
+    var res = cascade(t);
+    var n = res.finalLevel;
+    if (res.rounds <= 1) {
+      return "This society is not on the brink: nobody becoming a single step more willing would bring " +
+        "anyone else out.";
+    }
+    var start = res.path[1].level;
+    return (n >= 9 ? "A revolutionary cascade has already happened here. " : "") +
+      "The protest has already grown from " + start + " to " + n + ", and it has gone as far as it can: " +
+      "nobody still staying home would bring anyone else out by becoming a single step more willing.";
+  }
+
+  /* ---------- the chapter's societies ---------- */
+
+  var PRESETS = [
+    { id: "A",  label: "A",       t: [0, 2, 2, 3, 4, 5, 6, 7, 8, 10] },
+    { id: "Ap", label: "A′", t: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10] },
+    { id: "B",  label: "B",       t: [0, 2, 3, 3, 4, 5, 6, 7, 8, 10] },
+    { id: "Bp", label: "B′", t: [0, 1, 3, 3, 4, 5, 6, 7, 8, 10] },
+    { id: "C",  label: "C",       t: [0, 2, 2, 2, 2, 2, 2, 2, 2, 10] }
+  ];
+  function preset(id) {
+    for (var i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === id) return PRESETS[i];
+    return null;
+  }
+
+  /* ---------- the guided walkthrough ----------
+     Each step names the society on the society card, whether its outcome is
+     shown, and which threshold (if any) has just changed. */
+
+  var STEPS = [
+    { soc: "A", show: false, changed: null, title: "Society A",
+      body: "<p>These are the ten people in the chapter's society A: <span class=\"num\">A = {0, 2, 2, 3, 4, 5, 6, 7, 8, 10}</span>. Each number is a person's " +
+        "revolutionary threshold, meaning how many other people must already be protesting before they will " +
+        "join.</p><p>Person 1's threshold is <span class=\"num\">0</span>, so they will protest whatever " +
+        "anyone else does, like the political dissidents the chapter describes. Persons 2 and 3 need two " +
+        "others protesting. Person 10 needs ten others, which can never happen in a ten-person society.</p>" +
+        "<p>Before going on, work out how many people end up protesting.</p>" },
+    { soc: "A", show: true, changed: null, title: "Society A: a one-person protest",
+      body: "<p>Start with nobody protesting. Person 1 needs nobody, so the protest has one person. Persons " +
+        "2 and 3 each need two others and see one, and everyone else needs more. Nobody else joins.</p>" +
+        "<p>Society A settles at a one-person protest, and a one-person protest is unlikely to succeed.</p>" },
+    { soc: "Ap", show: false, changed: { i: 1, was: 2 }, title: "Society A′",
+      body: "<p>Now suppose the government does something that makes person 2 a little more willing to " +
+        "protest, so their threshold falls from 2 to 1. Nothing else changes: " +
+        "<span class=\"num\">A′ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 10}</span>. The chapter suggests " +
+        "thinking of A and A′ as the same society at two different points in time.</p>" +
+        "<p>The change looks small. Work out how many people protest now before going on.</p>" },
+    { soc: "Ap", show: true, changed: { i: 1, was: 2 }, title: "Society A′: a revolutionary cascade",
+      body: "<p>Person 1 protests, which is the one other person that person 2 needed, so person 2 joins. " +
+        "With two people out, person 3 joins. With three, person 4 joins, and so on. Each new protester " +
+        "supplies exactly the number the next person was waiting for. It stops at nine, with only person 10 " +
+        "staying home.</p><p>One person's threshold moving by one has turned a lone dissident into a " +
+        "protest by 90 percent of the society. The chapter calls this a <strong>revolutionary " +
+        "cascade</strong>, and it is why these models are called tipping models.</p>" },
+    { soc: "B", show: true, changed: { i: 2, was: 2 }, title: "Society B",
+      body: "<p>Society B differs from A in just one place: person 3's threshold is 3 rather than 2. " +
+        "<span class=\"num\">B = {0, 2, 3, 3, 4, 5, 6, 7, 8, 10}</span>.</p><p>It settles exactly as A " +
+        "does, with one person protesting and nobody joining. Anyone looking at the two societies would see " +
+        "the same thing.</p>" },
+    { soc: "Bp", show: false, changed: { i: 1, was: 2 }, title: "Society B′",
+      body: "<p>Now the government takes the same action as before, and person 2's threshold falls from 2 " +
+        "to 1. <span class=\"num\">B′ = {0, 1, 3, 3, 4, 5, 6, 7, 8, 10}</span>.</p><p>In A this " +
+        "change produced a nine-person protest. Decide what you expect here before going on.</p>" },
+    { soc: "Bp", show: true, changed: { i: 1, was: 2 }, title: "Society B′: a small, abortive protest",
+      body: "<p>Person 2 joins person 1, and then the chain breaks. Persons 3 and 4 both need three others, " +
+        "and only two are out. The regime has become slightly less popular, but there is no revolution.</p>" +
+        "<p>The change to person 2 was identical in A′ and B′. The difference came from the " +
+        "society the change was made in. A slightly different distribution of thresholds can be the " +
+        "difference between a small protest and a revolutionary cascade.</p>" },
+    { soc: "C", show: false, changed: null, title: "Society C",
+      body: "<p>Imagine an economic recession makes a government deeply unpopular, and thresholds fall " +
+        "across the population: <span class=\"num\">C = {0, 2, 2, 2, 2, 2, 2, 2, 2, 10}</span>. Eight of " +
+        "the ten need only two others protesting. The average threshold is 2.6, far below A′'s 4.6.</p>" +
+        "<p>Will there be a revolution?</p>" },
+    { soc: "C", show: true, changed: null, title: "Society C: discontent is not enough",
+      body: "<p>No. Person 1 protests alone, and since nobody else has a threshold of 1, nobody joins. A " +
+        "population can turn this far against its government and still produce a one-person protest.</p>" +
+        "<p>Structural factors such as a recession can make revolutions more likely by lowering thresholds, " +
+        "but they do not make them inevitable. In C, a single person's threshold falling to 1 would bring " +
+        "out nine people. The chapter's example of this kind of spark is Mohamed Bouazizi's " +
+        "self-immolation in Tunisia in December 2010, in a region where structural factors had already " +
+        "lowered thresholds.</p>" },
+    { soc: "C", show: true, changed: null, look: "observer", title: "What anybody could see",
+      body: "<p>A, B and C all look the same from inside: one person protesting and nine not. Each of the nine " +
+        "staying home might genuinely support the regime or might be falsifying their preferences, and among " +
+        "those who are falsifying, nobody can see how close any of them is to joining. So nobody can tell " +
+        "whether they live in a society like A, one step from a cascade, or one like B, which is not. A and B " +
+        "could even have exactly the same people falsifying their preferences.</p><p>The what-a-citizen-can-see card shows the three " +
+        "societies as an observer would see them. Press “Show what nobody can see” there to add the " +
+        "thresholds. This is why revolutions come as a surprise. The practice tab has seven societies to " +
+        "work out for yourself.</p>" }
+  ];
+
+  /* ---------- the seven practice societies ----------
+     Chosen, not generated, and kept clear of the chapter's own examples and
+     its end-of-chapter problems. Societies 1 and 2 are a pair, and so are 3
+     and 4: in each pair person 2's threshold falls from 2 to 1. */
+
+  var SET = [
+    { name: "Society 1", t: [0, 2, 4, 4, 4, 5, 5, 7, 8, 10],
+      lesson: "One person protests and nobody joins, because person 2 needs two others. Society 2 is this " +
+        "society with one threshold changed." },
+    { name: "Society 2", t: [0, 1, 4, 4, 4, 5, 5, 7, 8, 10],
+      lesson: "Person 2's threshold has fallen from 2 to 1, and that is the only difference from society 1. " +
+        "It brings person 2 out and nobody else, because the next lowest threshold is 4." },
+    { name: "Society 3", t: [0, 2, 2, 3, 3, 5, 6, 6, 9, 10],
+      lesson: "Another one-person protest, which looks exactly like society 1 from outside. Society 4 is this " +
+        "society with the change that turned society 1 into society 2. Decide what you expect before you " +
+        "answer it." },
+    { name: "Society 4", t: [0, 1, 2, 3, 3, 5, 6, 6, 9, 10],
+      lesson: "The same single change as before, and this time eight of the ten protest rather than two. " +
+        "The change was identical. What differed was the society it was made in." },
+    { name: "Society 5", t: [0, 2, 2, 2, 3, 3, 3, 3, 3, 9],
+      lesson: "Every threshold but one is 3 or lower, and the protest is still one person, because nobody " +
+        "has a threshold of 1. Thresholds can be this low with nothing visible happening." },
+    { name: "Society 6", t: [0, 1, 2, 2, 5, 6, 6, 7, 8, 10],
+      lesson: "The chain runs to four and then meets a gap, because the next lowest threshold is 5. The average " +
+        "threshold here is 4.7, against 3.0 in society 5, yet this society produces the bigger protest." },
+    { name: "Society 7", t: [0, 1, 2, 3, 4, 4, 4, 4, 9, 10],
+      lesson: "Four people share a threshold of 4, so all four join in the same round and the count jumps " +
+        "from 4 to 8. Keep going until a round brings in nobody new, rather than stopping at the first " +
+        "jump." }
+  ];
+
+  /* ---------- state ---------- */
+
+  var thresholds = PRESETS[0].t.slice();
+  var mode = "guided";
+  var step = 0;
+  var lastStepKey = null;
+  var index = 0;
+  var answered = false;
+  var chosen = null;
+  var solved = {};
+  var announcedComplete = false;
+  var explorePreset = "A";
+  var exploreThresholds = PRESETS[0].t.slice();
+
+  var live = document.getElementById("liveRegion");
+  function say(msg) { live.textContent = ""; setTimeout(function () { live.textContent = msg; }, 30); }
+
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- taking the reader to what changed ----------
+     The society card and the what-a-citizen-can-see card sit outside the
+     panel a student is reading, and on a phone (and often on a laptop) they
+     are off screen. When a step or an answer changes one of them, bring it
+     into view; then offer a way back to the controls. */
+
+  var returnBtn = document.getElementById("returnBtn");
+  var returnTarget = null;
+
+  function inView(el) {
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+
+  function bringIntoView(el) {
+    var r = el.getBoundingClientRect();
+    var vh = window.innerHeight;
+    if (r.top >= 0 && r.bottom <= vh) return false;                    /* wholly visible */
+    if (r.height > vh && r.top >= 0 && r.top < vh * 0.25) return false; /* tall, and filling the screen */
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    return true;
+  }
+
+  /* The return control is offered while the controls the reader was using
+     (`check`, default the whole panel) are off screen; pressing it scrolls
+     back to the top of the panel (`back`). */
+  var returnCheck = null;
+  function goTo(el, back, backLabel, check) {
+    if (bringIntoView(el) && back) {
+      returnTarget = back;
+      returnCheck = check || back;
+      returnBtn.textContent = backLabel;
+      settleThenUpdate();
+    }
+  }
+
+  /* Our own smooth scroll fires scroll events on the way; ignore those until
+     it has finished, or the controls look "in view" for its first frames. */
+  var selfScrolling = false, settleTimer = null;
+  function settleThenUpdate() {
+    selfScrolling = true;
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(function () { selfScrolling = false; updateReturn(); }, reduceMotion ? 50 : 800);
+  }
+
+  function updateReturn() {
+    if (!returnTarget) { returnBtn.hidden = true; return; }
+    if (inView(returnCheck || returnTarget)) { returnBtn.hidden = true; returnTarget = null; returnCheck = null; return; }
+    returnBtn.hidden = false;
+  }
+  window.addEventListener("scroll", function () { if (returnTarget && !selfScrolling) updateReturn(); }, { passive: true });
+  returnBtn.addEventListener("click", function () {
+    var t = returnTarget;
+    returnBtn.hidden = true;
+    returnTarget = null;
+    if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  });
+
+  /* ---------- the strip ---------- */
+
+  var strip = document.getElementById("strip");
+  var personEls = [];
+  (function buildStrip() {
+    for (var i = 0; i < N; i++) {
+      var d = document.createElement("div");
+      d.className = "person";
+      d.innerHTML =
+        '<div class="glyph"></div>' +
+        '<div class="who">person<br>' + (i + 1) + '</div>' +
+        '<div class="thr"></div>' +
+        '<div class="stance"></div>' +
+        '<div class="was" hidden></div>';
+      strip.appendChild(d);
+      personEls.push(d);
+    }
+  })();
+
+  function renderStrip(res, hide, changed) {
+    for (var i = 0; i < N; i++) {
+      var el = personEls[i];
+      var on = res && res.members.indexOf(i) !== -1;
+      var cls = "person " + (hide ? "is-unknown" : (on ? "is-protesting" : "is-not-protesting"));
+      if (changed && changed.i === i) cls += " is-changed";
+      el.className = cls;
+      el.querySelector(".glyph").textContent = hide ? "?" : (on ? "●" : "○");
+      el.querySelector(".thr").textContent = thresholds[i];
+      /* The glyph carries the stance, with the legend under the strip; a
+         word here does not fit ten-across on a narrow card. Screen readers
+         get the strip's content from the rounds list and the figures. */
+      el.querySelector(".stance").textContent = "";
+      var was = el.querySelector(".was");
+      if (changed && changed.i === i) { was.hidden = false; was.textContent = "was " + changed.was; }
+      else { was.hidden = true; was.textContent = ""; }
+    }
+  }
+
+  /* ---------- the society card ---------- */
+
+  var societyTitle = document.getElementById("societyTitle");
+  var seqLine = document.getElementById("seqLine");
+  var societyLede = document.getElementById("societyLede");
+  var sizeFigure = document.getElementById("sizeFigure");
+  var meanFigure = document.getElementById("meanFigure");
+  var roundsFigure = document.getElementById("roundsFigure");
+  var roundsCap = document.getElementById("roundsCap");
+  var roundsList = document.getElementById("rounds");
+  var cascadeWrap = document.getElementById("cascadeWrap");
+  var hiddenNote = document.getElementById("hiddenNote");
+  var hiddenText = document.getElementById("hiddenText");
+  var societyCard = document.getElementById("societyCard");
+  var observerCard = document.getElementById("observerCard");
+
+  function renderRounds(res) {
+    roundsList.innerHTML = "";
+    for (var r = 1; r < res.path.length; r++) {
+      var st = res.path[r];
+      var names = st.joined.map(function (i) {
+        return "person " + (i + 1) + " (threshold " + thresholds[i] + ")";
+      });
+      var text = names.length === 1
+        ? names[0] + " joins"
+        : names.slice(0, -1).join(", ") + " and " + names[names.length - 1] + " join";
+      if (r === 1) text = names.length === 1 ? names[0] + " protests" : text.replace(/ join$/, " protest");
+      var li = document.createElement("li");
+      li.innerHTML = text + " — now <span class=\"num\">" + st.level + "</span> of 10 protesting";
+      roundsList.appendChild(li);
+    }
+    var end = document.createElement("li");
+    end.innerHTML = res.finalLevel === 0
+      ? "nobody is willing to go first, so nothing happens."
+      : "nobody else is willing to join. It settles at <span class=\"num\">" + res.finalLevel + "</span>.";
+    roundsList.appendChild(end);
+  }
+
+  function paintSociety(title, lede, show, changed, hideMsg) {
+    societyTitle.textContent = title;
+    seqLine.textContent = seq(thresholds);
+    societyLede.textContent = lede;
+    meanFigure.textContent = meanOf(thresholds);
+    var res = cascade(thresholds);
+    if (show) {
+      renderStrip(res, false, changed);
+      sizeFigure.textContent = res.finalLevel;
+      roundsFigure.textContent = res.rounds;
+      roundsCap.textContent = res.rounds === 1 ? "round before it settled" : "rounds before it settled";
+      cascadeWrap.hidden = false;
+      hiddenNote.hidden = true;
+      renderRounds(res);
+    } else {
+      renderStrip(null, true, changed);
+      sizeFigure.textContent = "—";
+      roundsFigure.textContent = "—";
+      roundsCap.textContent = "rounds before it settled";
+      cascadeWrap.hidden = true;
+      hiddenNote.hidden = false;
+      hiddenText.textContent = hideMsg;
+    }
+  }
+
+  /* ---------- guided ---------- */
+
+  var stepLabel = document.getElementById("stepLabel");
+  var stepTitle = document.getElementById("stepTitle");
+  var stepBody = document.getElementById("stepBody");
+  var stepLooks = document.getElementById("stepLooks");
+  var stepBack = document.getElementById("stepBack");
+  var stepNext = document.getElementById("stepNext");
+  var stepPanel = document.getElementById("stepPanel");
+
+  function lookButton(label, target) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "look-btn";
+    b.textContent = label;
+    b.addEventListener("click", function () {
+      if (bringIntoView(target)) {
+        returnTarget = stepPanel;
+        returnCheck = document.getElementById("stepNav");
+        returnBtn.textContent = "Back to the steps";
+        settleThenUpdate();
+      }
+    });
+    return b;
+  }
+
+  function renderStep(moveView) {
+    var s = STEPS[step];
+    var p = preset(s.soc);
+    thresholds = p.t.slice();
+    var lede = s.show
+      ? "Society " + p.label + ", and how big the protest gets."
+      : "Society " + p.label + ". Work out how many people end up protesting before going on.";
+    paintSociety("Society " + p.label, lede, s.show, s.changed,
+      "Not shown yet. Working out how big the protest gets is the point of this step.");
+
+    stepLabel.textContent = "Step " + (step + 1) + " of " + STEPS.length;
+    stepTitle.textContent = s.title;
+    stepBody.innerHTML = s.body;
+    stepLooks.innerHTML = "";
+    var lab = document.createElement("span");
+    lab.textContent = "Look at:";
+    stepLooks.appendChild(lab);
+    stepLooks.appendChild(lookButton("the society card", societyCard));
+    if (s.look === "observer") stepLooks.appendChild(lookButton("the what-a-citizen-can-see card", observerCard));
+
+    if (step === 0) stepBack.setAttribute("aria-disabled", "true");
+    else stepBack.removeAttribute("aria-disabled");
+    stepNext.textContent = step === STEPS.length - 1 ? "Go to practice" : "Next";
+
+    /* Move the view only on a step that changed what a card shows. */
+    var key = s.soc + "|" + s.show + "|" + (s.look || "");
+    if (moveView && key !== lastStepKey) {
+      var target = s.look === "observer" ? observerCard : societyCard;
+      goTo(target, stepPanel, "Back to the steps", document.getElementById("stepNav"));
+    }
+    lastStepKey = key;
+  }
+
+  stepNext.addEventListener("click", function () {
+    if (step === STEPS.length - 1) { selectMode("practice", true); return; }
+    step += 1;
+    renderStep(true);
+  });
+  stepBack.addEventListener("click", function () {
+    if (step === 0) { say("This is the first step."); return; }
+    step -= 1;
+    renderStep(true);
+  });
+
+  /* ---------- explore ---------- */
+
+  var slidersWrap = document.getElementById("sliders");
+  var sliderEls = [], valEls = [];
+  (function buildSliders() {
+    for (var i = 0; i < N; i++) {
+      var row = document.createElement("div");
+      row.className = "slider-row";
+      var id = "thr" + i;
+      row.innerHTML =
+        '<label for="' + id + '">Person ' + (i + 1) + '</label>' +
+        '<input type="range" id="' + id + '" min="0" max="10" step="1">' +
+        '<span class="val" id="v' + i + '"></span>';
+      slidersWrap.appendChild(row);
+      var input = row.querySelector("input");
+      (function (idx, control) {
+        control.addEventListener("input", function () {
+          thresholds[idx] = parseInt(control.value, 10);
+          exploreThresholds = thresholds.slice();
+          setPreset(null);
+          renderExplore();
+          say("Person " + (idx + 1) + ", threshold " + thresholds[idx] + ". The protest now reaches " +
+              cascade(thresholds).finalLevel + ".");
+        });
+      })(i, input);
+      sliderEls.push(input);
+      valEls.push(row.querySelector(".val"));
+    }
+  })();
+
+  function syncSliders() {
+    for (var i = 0; i < N; i++) {
+      sliderEls[i].value = thresholds[i];
+      valEls[i].textContent = thresholds[i];
+      sliderEls[i].setAttribute("aria-valuetext",
+        "threshold " + thresholds[i] + ": joins once " + people(thresholds[i]) + " are already protesting");
+    }
+  }
+
+  var presetWrap = document.getElementById("presets");
+  var presetBtns = {};
+  PRESETS.forEach(function (p) {
+    var b = document.createElement("button");
+    b.className = "preset-btn";
+    b.type = "button";
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = 'Society <span class="pname">' + p.label + '</span>';
+    b.addEventListener("click", function () {
+      thresholds = p.t.slice();
+      exploreThresholds = thresholds.slice();
+      setPreset(p.id);
+      renderExplore();
+      goTo(societyCard, document.getElementById("presetCard"), "Back to the controls");
+      say("Society " + p.label + " loaded. The protest reaches " + cascade(thresholds).finalLevel + ".");
+    });
+    presetWrap.appendChild(b);
+    presetBtns[p.id] = b;
+  });
+
+  function setPreset(id) {
+    explorePreset = id;
+    for (var k in presetBtns) {
+      if (Object.prototype.hasOwnProperty.call(presetBtns, k)) {
+        presetBtns[k].setAttribute("aria-pressed", k === id ? "true" : "false");
+      }
+    }
+  }
+
+  document.getElementById("shockBtn").addEventListener("click", function () {
+    for (var i = 0; i < N; i++) if (thresholds[i] >= 1 && thresholds[i] <= 9) thresholds[i] -= 1;
+    exploreThresholds = thresholds.slice();
+    setPreset(null);
+    renderExplore();
+    goTo(societyCard, document.getElementById("shockBtn"), "Back to the controls");
+    say("Every threshold from 1 to 9 lowered by one. The protest now reaches " +
+        cascade(thresholds).finalLevel + ".");
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    thresholds = PRESETS[0].t.slice();
+    exploreThresholds = thresholds.slice();
+    setPreset("A");
+    renderExplore();
+    goTo(societyCard, document.getElementById("resetBtn"), "Back to the controls");
+    say("Back to society A. The protest reaches 1.");
+  });
+
+  function renderExplore() {
+    syncSliders();
+    var res = cascade(thresholds);
+    var p = explorePreset ? preset(explorePreset) : null;
+    paintSociety(p ? "Society " + p.label : "Your society",
+      "The circles show where this society settles: who ends up protesting and who does not. The list " +
+      "underneath works through how it got there.", true, null, "");
+
+    var v = document.getElementById("verdict");
+    var vw = document.getElementById("verdictWhy");
+    var n = res.finalLevel;
+    if (n === 0) {
+      v.innerHTML = "<strong>Nobody protests.</strong> Not one person is willing to protest when nobody " +
+        "else is.";
+      vw.textContent = "Give somebody a threshold of 0 and there is a first protester. Without one, no " +
+        "amount of private opposition produces anything visible.";
+    } else if (res.rounds === 1) {
+      v.innerHTML = "<strong>Nobody joins.</strong> " + people(n) + " protesting, out of ten.";
+      vw.textContent = "Whoever protests first brings nobody with them. A society like this can look " +
+        "stable for years, and that appearance tells an observer nothing about how close it is to a " +
+        "revolutionary cascade.";
+    } else if (n >= 9) {
+      v.innerHTML = "<strong>A revolutionary cascade.</strong> " + people(n) + " protesting, out of ten, " +
+        "after " + res.rounds + " rounds.";
+      vw.textContent = "Everyone who could be brought out has been. Each new protester supplied what the " +
+        "next person was waiting for.";
+    } else {
+      v.innerHTML = "<strong>It runs, and then stops.</strong> " + people(n) + " protesting, out of ten, " +
+        "after " + res.rounds + " rounds.";
+      vw.textContent = "The chain reached people whose thresholds it could not meet, and stopped. One more " +
+        "person willing to join at this point and it would have gone further.";
+    }
+
+    var b = brinkReport(thresholds);
+    var brinkEl = document.getElementById("brink");
+    brinkEl.innerHTML = "";
+    if (b.tips.length === 0) {
+      var p0 = document.createElement("p");
+      p0.textContent = cascade(thresholds).rounds <= 1 ? "No. " + noTipText(thresholds).replace(/^This society is not on the brink: n/, "N") : noTipText(thresholds);
+      brinkEl.appendChild(p0);
+    } else {
+      var lead = document.createElement("p");
+      lead.innerHTML = (cascade(thresholds).rounds > 1 ? "The protest has already grown, and it could " +
+        "grow further. " : "") + "<strong>Yes — " + people(b.tips.length) + "</strong> could each set off a " +
+        "revolutionary cascade by becoming one step more willing, with everyone else unchanged.";
+      brinkEl.appendChild(lead);
+      b.tips.forEach(function (t) {
+        var p = document.createElement("p");
+        p.className = "tipline";
+        p.innerHTML = '<span class="who">person ' + t.person + "</span>, threshold " + t.from +
+          " → " + t.to + ": the protest would reach <span class=\"num\">" + t.result +
+          "</span> instead of <span class=\"num\">" + b.base + "</span>";
+        brinkEl.appendChild(p);
+      });
+    }
+  }
+
+  /* ---------- practice ---------- */
+
+  var answersWrap = document.getElementById("answers");
+  var ansBtns = [];
+  for (var av = 1; av <= 10; av++) {
+    (function (val) {
+      var b = document.createElement("button");
+      b.className = "ans-btn";
+      b.type = "button";
+      b.textContent = val;
+      b.addEventListener("click", function () {
+        if (answered) return;
+        chosen = val;
+        submitAnswer();
+      });
+      answersWrap.appendChild(b);
+      ansBtns.push(b);
+    })(av);
+  }
+
+  var problemHead = document.getElementById("problemHead");
+  var problemText = document.getElementById("problemText");
+  var resultBox = document.getElementById("result");
+  var resultVerdict = document.getElementById("resultVerdict");
+  var resultWhy = document.getElementById("resultWhy");
+  var resultFragile = document.getElementById("resultFragile");
+  var resultLesson = document.getElementById("resultLesson");
+  var nextBtn = document.getElementById("nextBtn");
+  var prevBtn = document.getElementById("prevBtn");
+  var questionCard = document.getElementById("questionCard");
+
+  function current() { return SET[index]; }
+
+  function paintPractice() {
+    var item = current();
+    thresholds = item.t.slice();
+    paintSociety(item.name,
+      answered ? item.name + ": ten people, their thresholds, and what they did."
+               : item.name + ": ten people and their thresholds. Work out who ends up protesting before " +
+                 "you answer.",
+      answered, null, "Not shown until you have answered.");
+
+    problemHead.textContent = item.name + " of 7";
+    problemText.innerHTML = "The ten thresholds, lowest first: <span class=\"num\">" + seq(item.t) + "</span>";
+
+    prevBtn.textContent = index === 0 ? "Previous society" : "Previous: " + SET[index - 1].name;
+    nextBtn.textContent = index === SET.length - 1 ? "Back to society 1" : "Next: " + SET[index + 1].name;
+    if (index === 0) prevBtn.setAttribute("aria-disabled", "true");
+    else prevBtn.removeAttribute("aria-disabled");
+    renderSetList();
+  }
+
+  function loadProblem() {
+    answered = false;
+    chosen = null;
+    ansBtns.forEach(function (b) {
+      b.removeAttribute("aria-disabled");
+      b.removeAttribute("data-mark");
+      b.setAttribute("aria-label", b.textContent + " of the ten end up protesting");
+    });
+    resultBox.hidden = true;
+    resultBox.className = "result";
+    paintPractice();
+  }
+
+  function lowestAbove(t, v) {
+    var best = null;
+    for (var i = 0; i < N; i++) if (t[i] > v && (best === null || t[i] < best)) best = t[i];
+    return best;
+  }
+
+  function submitAnswer() {
+    var item = current();
+    var res = cascade(item.t);
+    answered = true;
+    var right = chosen === res.finalLevel;
+
+    ansBtns.forEach(function (b) {
+      var v = parseInt(b.textContent, 10);
+      b.setAttribute("aria-disabled", "true");
+      if (v === res.finalLevel) b.setAttribute("data-mark", "correct");
+      else if (v === chosen) b.setAttribute("data-mark", "wrong");
+      b.setAttribute("aria-label", v + (v === chosen ? ", your answer" : "") +
+        (v === res.finalLevel ? ", the correct answer" : "") + ". Answered.");
+    });
+
+    paintPractice();
+
+    resultBox.hidden = false;
+    resultBox.className = "result " + (right ? "is-correct" : "is-wrong");
+    resultVerdict.textContent = right
+      ? "✓ Correct: the protest reaches " + res.finalLevel + "."
+      : "✗ Not quite: the protest reaches " + res.finalLevel + ", not " + chosen + ".";
+
+    var why;
+    if (res.rounds === 1) {
+      var starters = res.path[1].joined.length;
+      var nextUp = lowestAbove(item.t, res.finalLevel);
+      why = (starters === 1 ? "One person protests" : starters + " people protest") +
+        " with nobody else out. " +
+        (nextUp === null
+          ? "Everyone else has a threshold of 10, so nobody joins."
+          : "The next lowest threshold is " + nextUp + ", so nobody joins.");
+    } else {
+      var steps = [];
+      for (var r = 1; r < res.path.length; r++) steps.push(res.path[r].level);
+      why = "The count goes " + steps.join(", then ") + ", and stops there.";
+    }
+    resultWhy.textContent = why;
+
+    var b = brinkReport(item.t);
+    if (b.tips.length === 0) {
+      resultFragile.textContent = noTipText(item.t);
+    } else {
+      var outcomes = [];
+      b.tips.forEach(function (x) { if (outcomes.indexOf(x.result) === -1) outcomes.push(x.result); });
+      outcomes.sort(function (x, y) { return x - y; });
+      resultFragile.textContent = (res.rounds > 1 ? "The protest has already grown, and it could grow " +
+        "further. " : "This society is on the brink. ") + people(b.tips.length) +
+        " could each set off a revolutionary cascade by becoming a single step more willing, and the " +
+        "protest would then reach " + outcomes.join(" or ") + ". Nobody inside the society can know this, " +
+        "because nobody can see which of the people staying home are falsifying their preferences, or how " +
+        "close any of them are to joining.";
+    }
+
+    resultLesson.textContent = item.lesson;
+
+    if (right) solved[item.name] = true;
+    renderSetList();
+    say((right ? "Correct. " : "Not quite. ") + "The protest reaches " + res.finalLevel + ". " +
+        why + " " + resultFragile.textContent + " " + item.lesson);
+    goTo(societyCard, questionCard, "Back to the question", nextBtn);
+  }
+
+  var setlistEl = document.getElementById("setlist");
+  var setNote = document.getElementById("setNote");
+  function renderSetList() {
+    setlistEl.innerHTML = "";
+    SET.forEach(function (item, i) {
+      var li = document.createElement("li");
+      var done = !!solved[item.name];
+      li.className = (done ? "done " : "") + (i === index ? "current" : "");
+      li.innerHTML = '<span class="tick" aria-hidden="true">' + (done ? "✓" : "○") + '</span>' +
+        '<span class="cname">' + item.name + (i === index ? " (open now)" : "") +
+        (done ? '<span class="sr-only">, worked out correctly</span>' : "") +
+        '<span class="cseq">' + (done || i === index ? seq(item.t) : "not yet opened") + '</span></span>';
+      setlistEl.appendChild(li);
+    });
+    var n = SET.filter(function (item) { return solved[item.name]; }).length;
+    if (n === SET.length) {
+      setNote.textContent = "All seven worked out correctly. The explore tab is where to go next: build " +
+        "your own society, or apply a structural change to one of the chapter's.";
+      if (!announcedComplete) { announcedComplete = true; say("All seven societies worked out."); }
+    } else {
+      setNote.textContent = n + " of " + SET.length + " worked out correctly so far.";
+    }
+  }
+
+  nextBtn.addEventListener("click", function () {
+    index = (index + 1) % SET.length;
+    loadProblem();
+    say(current().name + " loaded. Thresholds " + current().t.join(", ") +
+        ". How many of the ten end up protesting?");
+    document.getElementById("practiceTitle").focus();
+  });
+  prevBtn.addEventListener("click", function () {
+    if (index === 0) { say("This is the first society."); return; }
+    index -= 1;
+    loadProblem();
+    say(current().name + " loaded. Thresholds " + current().t.join(", ") +
+        ". How many of the ten end up protesting?");
+    document.getElementById("practiceTitle").focus();
+  });
+
+  /* ---------- what a citizen can see ----------
+     The chapter's societies that settle in the same place. Worked out from
+     the presets rather than hardcoded, so the table cannot drift from the
+     model if a preset is ever edited. */
+
+  var observerHead = document.getElementById("observerHead");
+  var observerBody = document.getElementById("observerBody");
+  var observerAfter = document.getElementById("observerAfter");
+  var revealBtn = document.getElementById("revealBtn");
+  var revealed = false;
+
+  function lookAlikes() {
+    var byOutcome = {};
+    PRESETS.forEach(function (p) {
+      var f = cascade(p.t).finalLevel;
+      (byOutcome[f] = byOutcome[f] || []).push(p);
+    });
+    var best = [];
+    for (var k in byOutcome) {
+      if (Object.prototype.hasOwnProperty.call(byOutcome, k) && byOutcome[k].length > best.length) best = byOutcome[k];
+    }
+    return best;
+  }
+  var ALIKE = lookAlikes();
+
+  (function buildObserverHead() {
+    var cells = ['<th scope="col">Society</th>'];
+    for (var i = 1; i <= N; i++) cells.push('<th scope="col">person ' + i + '</th>');
+    cells.push('<th scope="col">protesting</th>');
+    observerHead.innerHTML = cells.join("");
+  })();
+
+  function renderObserver() {
+    observerBody.innerHTML = "";
+    ALIKE.forEach(function (p) {
+      var res = cascade(p.t);
+      var tr = document.createElement("tr");
+      var cells = ['<th scope="row">' + p.label + "</th>"];
+      for (var i = 0; i < N; i++) {
+        var on = res.members.indexOf(i) !== -1;
+        cells.push(
+          '<td class="stance-cell ' + (on ? "on" : "off") + '">' +
+          '<span class="glyph" aria-hidden="true">' + (on ? "●" : "○") + "</span>" +
+          '<span class="sr-only">' + (on ? "protesting" : "not protesting") +
+          (revealed ? ", threshold " + p.t[i] : "") + "</span>" +
+          (revealed ? '<span class="thr" aria-hidden="true">' + p.t[i] + "</span>" : "") +
+          "</td>");
+      }
+      cells.push('<td class="settles">' + res.finalLevel + " of 10</td>");
+      tr.innerHTML = cells.join("");
+      observerBody.appendChild(tr);
+    });
+  }
+
+  revealBtn.addEventListener("click", function () {
+    revealed = !revealed;
+    revealBtn.setAttribute("aria-expanded", revealed ? "true" : "false");
+    revealBtn.textContent = revealed ? "Hide the thresholds again" : "Show what nobody can see";
+    observerAfter.hidden = !revealed;
+    renderObserver();
+    say(revealed
+      ? "Thresholds shown. The rows of circles are unchanged; the numbers underneath them differ."
+      : "Thresholds hidden again. This is what an observer sees.");
+  });
+
+  /* ---------- modes ---------- */
+
+  var TABS = {
+    guided: document.getElementById("tab-guided"),
+    explore: document.getElementById("tab-explore"),
+    practice: document.getElementById("tab-practice")
+  };
+  var BOARDS = {
+    guided: document.getElementById("guidedBoard"),
+    explore: document.getElementById("exploreBoard"),
+    practice: document.getElementById("practiceBoard")
+  };
+  var TITLES = { guided: "guidedTitle", explore: "exploreTitle", practice: "practiceTitle" };
+  var ORDER = ["guided", "explore", "practice"];
+  var practiceLoaded = false;
+
+  function selectMode(next, moveFocus) {
+    if (next === mode) return;
+    mode = next;
+    document.getElementById("stage").className = "stage mode-" + next;
+    returnTarget = null;
+    returnBtn.hidden = true;
+    ORDER.forEach(function (m) {
+      TABS[m].setAttribute("aria-selected", m === next ? "true" : "false");
+      TABS[m].tabIndex = m === next ? 0 : -1;
+      BOARDS[m].hidden = m !== next;
+    });
+    if (next === "guided") {
+      lastStepKey = null;
+      renderStep(false);
+      lastStepKey = STEPS[step].soc + "|" + STEPS[step].show + "|" + (STEPS[step].look || "");
+      say("Guided walkthrough, step " + (step + 1) + ".");
+    } else if (next === "explore") {
+      thresholds = exploreThresholds.slice();
+      renderExplore();
+      say("Explore a society.");
+    } else {
+      if (!practiceLoaded) { practiceLoaded = true; loadProblem(); } else { paintPractice(); }
+      say("Practice: " + current().name + ".");
+    }
+    if (moveFocus) document.getElementById(TITLES[next]).focus();
+  }
+
+  ORDER.forEach(function (m) {
+    TABS[m].addEventListener("click", function () { selectMode(m, true); });
+  });
+
+  document.getElementById("tabs").addEventListener("keydown", function (e) {
+    var i = ORDER.indexOf(mode);
+    var n;
+    if (e.key === "ArrowRight") n = ORDER[(i + 1) % ORDER.length];
+    else if (e.key === "ArrowLeft") n = ORDER[(i + ORDER.length - 1) % ORDER.length];
+    else if (e.key === "Home") n = ORDER[0];
+    else if (e.key === "End") n = ORDER[ORDER.length - 1];
+    else return;
+    e.preventDefault();
+    selectMode(n, false);
+    TABS[n].focus();
+  });
+
+  /* ---------- theme ---------- */
+
+  var themeBtn = document.getElementById("themeToggle");
+  function applyTheme(m) {
+    document.documentElement.setAttribute("data-theme", m);
+    themeBtn.textContent = m === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
+  applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+  themeBtn.addEventListener("click", function () {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  /* ---------- start ---------- */
+
+  renderStep(false);
+  lastStepKey = STEPS[0].soc + "|" + STEPS[0].show + "|";
+  renderSetList();
+  renderObserver();
+})();
+</script>
+</body>
+</html>

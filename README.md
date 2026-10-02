@@ -20,6 +20,7 @@ Start at the contents page, `index.html`, which lists every tool by chapter. Eac
 | 6 | Economic development and democracy | `economic-development-and-democracy.html` |
 | 7 | Asking about sensitive topics | `asking-about-sensitive-topics.html` |
 | 8 | Solving incomplete information games | `incomplete-information-games.html` |
+| 8 | Tipping models | `tipping-models.html` |
 
 ## For instructors
 
