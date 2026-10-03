@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collective action theory</title>
+<style>
+  :root {
+    --bg: #FAFAFA;
+    --panel: #FFFFFF;
+    --border: #D0D0D0;
+    --text: #111111;
+    --text-2: #555555;
+    --hint: #999999;
+    --deemph: #707070;
+    --accent: #0072B2;
+    --on-accent: #FFFFFF;
+    --favorable: #0072B2;
+    --unfavorable: #B33E00;
+    --neutral: #5F5E5A;
+    --gold-ui: #B8860B;
+    --gold-text: #946B09;
+    --you: #009E73;
+    --structure-ink: #141414;
+    --structure-line: #8A8A8A;
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --data-font: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  html[data-theme="dark"] {
+    --bg: #1A1A1A;
+    --panel: #2A2A2A;
+    --border: #3A3A3A;
+    --text: #F2F2F2;
+    --text-2: #B3B3B3;
+    --hint: #7A7A7A;
+    --deemph: #9A9A9A;
+    --accent: #7FC7EE;
+    --on-accent: #0A1E28;
+    --favorable: #7FC7EE;
+    --unfavorable: #F08A4B;
+    --neutral: #A8A6A0;
+    --gold-ui: #E0B23D;
+    --gold-text: #E0B23D;
+    --you: #3FCFA0;
+    --structure-ink: #E8E8E8;
+    --structure-line: #7E7E7E;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  header { margin-bottom: 24px; }
+  h1 { font-size: 1.65rem; font-weight: 600; margin: 0 0 8px 0; line-height: 1.25; }
+  .standfirst { margin: 0; color: var(--text-2); max-width: 70ch; }
+
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .group-label { display: block; font-size: 11px; color: var(--text-2); margin-bottom: 8px; }
+
+  [role="tablist"] { display: flex; flex-wrap: wrap; gap: 8px; }
+  [role="tab"] {
+    font: inherit; font-size: 0.95rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 -3px 0 var(--accent);
+    font-weight: 600;
+  }
+
+  .theme-toggle, .look-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--accent);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .theme-toggle { color: var(--text); }
+  .look-btn { margin-top: 8px; }
+
+  button:focus-visible, input:focus-visible, h2[tabindex="-1"]:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- board ---------- */
+
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 809px) { .board { grid-template-columns: minmax(0, 1fr); } }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    scroll-margin-top: 8px;
+  }
+  @media (min-width: 810px) { #tableCard { position: sticky; top: 16px; } }
+
+  .card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .card h3 { font-size: 0.95rem; font-weight: 600; margin: 24px 0 8px 0; }
+
+  .situation {
+    margin: 0 0 16px 0; padding: 8px 16px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg); font-size: 0.95rem;
+  }
+  .situation .n { font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  /* ---------- payoff table ---------- */
+
+  .table-scroll { overflow-x: auto; }
+  table.payoff { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  table.payoff thead td:first-child { width: 26%; }
+  @media (max-width: 520px) {
+    table.payoff th, table.payoff td { padding: 4px; }
+    table.payoff thead th { font-size: 0.75rem; }
+    table.payoff tbody th { font-size: 0.82rem; }
+    .live-tag { font-size: 0.66rem; }
+  }
+  @media (max-width: 360px) {
+    table.payoff thead th { font-size: 0.68rem; padding: 4px 2px; }
+    table.payoff thead td:first-child { width: 24%; }
+  }
+  table.payoff caption {
+    text-align: left; font-size: 0.85rem; color: var(--text-2); padding-bottom: 8px;
+  }
+  table.payoff th, table.payoff td {
+    border: 3px solid var(--structure-ink);
+    padding: 8px;
+    text-align: center; vertical-align: middle;
+  }
+  table.payoff thead th {
+    font-size: 0.82rem; font-weight: 600; line-height: 1.35;
+    background: var(--bg); vertical-align: top;
+  }
+  table.payoff thead td { border: 0; }
+  .col-name { display: block; }
+  .col-rule { display: block; font-weight: 400; margin-top: 2px; }
+  .col-range {
+    display: block; font-family: var(--data-font); font-size: 0.76rem;
+    font-weight: 400; color: var(--text-2); margin-top: 4px;
+  }
+  table.payoff tbody th {
+    text-align: left; font-size: 0.9rem; font-weight: 600; background: var(--bg);
+  }
+
+  .sym.inline { display: inline; }
+  .sym { display: block; font-family: var(--data-font); font-size: 0.8rem; color: var(--text-2); min-height: 1.2em; }
+  .pay {
+    display: inline-block; font-family: var(--data-font); font-variant-numeric: tabular-nums;
+    font-size: 20px; font-weight: 700; color: var(--you); margin-top: 2px;
+    text-underline-offset: 4px;
+  }
+  .pay.br { text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--you); }
+  .pay.unknown { color: var(--deemph); font-weight: 400; }
+
+  table.payoff .live { box-shadow: inset 0 0 0 3px var(--gold-ui); }
+  .live-tag {
+    display: inline-block; font-family: var(--data-font); font-size: 0.72rem; font-weight: 400;
+    color: var(--gold-text); border: 1px solid var(--gold-ui);
+    border-radius: 4px; padding: 1px 4px; margin-top: 4px;
+  }
+  table.payoff .void {
+    color: var(--deemph);
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 4px,
+        color-mix(in srgb, var(--structure-line) 45%, transparent) 4px,
+        color-mix(in srgb, var(--structure-line) 45%, transparent) 5px),
+      var(--panel);
+  }
+  .void-text { font-size: 0.8rem; }
+
+  .legend { margin: 16px 0 0 0; padding: 0; list-style: none; font-size: 0.85rem; color: var(--text-2); }
+  .legend li { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+  .legend .eg { white-space: nowrap; font-family: var(--data-font); font-weight: 700; color: var(--you); }
+  .legend .eg.u { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
+  .legend .eg.g { color: var(--gold-text); font-weight: 400; border: 1px solid var(--gold-ui); border-radius: 4px; padding: 1px 4px; }
+
+  .table-note { margin: 16px 0 0 0; font-size: 0.88rem; color: var(--text-2); }
+
+  /* ---------- panel: guided ---------- */
+
+  .step-label { font-size: 11px; color: var(--text-2); margin: 0 0 8px 0; }
+  .step-title { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .step-body p { margin: 0 0 8px 0; }
+  .nav { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .dots { display: flex; gap: 8px; margin-left: auto; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .dot.on { background: var(--accent); }
+
+  .btn {
+    font: inherit; font-size: 0.95rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .btn:disabled { color: var(--deemph); cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+  /* ---------- panel: explore ---------- */
+
+  .cgroup { border: 1px solid var(--border); border-radius: 4px; padding: 16px; margin-bottom: 16px; }
+  .cgroup h3 { margin: 0 0 8px 0; font-size: 0.92rem; }
+  .ctrl { margin-bottom: 16px; }
+  .ctrl:last-of-type { margin-bottom: 0; }
+  .ctrl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .ctrl-head label { font-size: 0.9rem; font-weight: 600; }
+  .ctrl-val { font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .ctrl-help { margin: 0 0 4px 0; font-size: 0.82rem; color: var(--text-2); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+  .scale { display: flex; justify-content: space-between; font-family: var(--data-font); font-size: 0.72rem; color: var(--text-2); margin-top: 2px; }
+  .cnote { margin: 8px 0 0 0; font-size: 0.85rem; color: var(--text-2); }
+
+  .verdict-box { border: 1px solid var(--border); border-radius: 4px; padding: 8px 16px; margin-bottom: 16px; }
+  .verdict-box .who { font-size: 11px; color: var(--text-2); margin: 0 0 2px 0; }
+  .verdict { font-size: 1.1rem; font-weight: 600; margin: 0 0 8px 0; }
+  .compare { list-style: none; padding: 0; margin: 0 0 8px 0; }
+  .compare li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+  .compare li:last-child { border-bottom: 0; }
+  .compare .num { font-family: var(--data-font); font-weight: 700; color: var(--you); }
+  .compare .num.br { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
+  .why { margin: 0; font-size: 0.92rem; }
+
+  /* ---------- panel: practice ---------- */
+
+  .problem dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0 0 8px 0; font-size: 0.92rem; }
+  .problem dt { font-family: var(--data-font); font-weight: 600; }
+  .problem dd { margin: 0; }
+  .expect { font-weight: 600; margin: 0 0 16px 0; }
+
+  .task { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+  .task-q { font-weight: 600; margin: 0 0 8px 0; }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opts.row { flex-direction: row; flex-wrap: wrap; }
+  .opt {
+    font: inherit; font-size: 0.95rem; text-align: left;
+    padding: 8px 16px; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt[aria-disabled="true"] { cursor: default; color: var(--deemph); }
+  .opt[aria-disabled="true"]:hover { border-color: var(--border); }
+  .opt.chosen[aria-disabled="true"] { color: var(--text); border-color: var(--gold-ui); }
+
+  .result-note {
+    margin: 8px 0 0 0; padding: 8px 16px; border-radius: 4px;
+    border: 1px solid var(--border); font-size: 0.92rem;
+  }
+  .result-note.ok { box-shadow: inset 4px 0 0 var(--favorable); }
+  .result-note.no { box-shadow: inset 4px 0 0 var(--unfavorable); }
+  .result-note .head { font-weight: 600; }
+  .result-note.ok .head { color: var(--favorable); }
+  .result-note.no .head { color: var(--unfavorable); }
+
+  .progress h3 { margin-top: 24px; }
+  .score { font-family: var(--data-font); font-size: 0.85rem; color: var(--text-2); margin: 0 0 8px 0; }
+  .coverage { list-style: none; padding: 0; margin: 0; }
+  .coverage li { display: flex; gap: 4px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  .coverage li:last-child { border-bottom: 0; }
+  .coverage .g { font-family: var(--data-font); width: 1.4em; text-align: center; flex: 0 0 auto; }
+  .coverage li.done .g { color: var(--favorable); }
+  .coverage li.todo { color: var(--text-2); }
+  .coverage .when { white-space: nowrap; margin-left: auto; font-family: var(--data-font); font-size: 0.78rem; color: var(--text-2); padding-left: 8px; }
+  .all-done { margin-top: 16px; padding: 8px 16px; border: 2px solid var(--gold-ui); border-radius: 4px; font-size: 0.9rem; }
+
+  .back-btn {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
+  }
+
+  footer { margin-top: 32px; font-size: 0.82rem; color: var(--text-2); max-width: 70ch; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .opt, .btn, [role="tab"] { transition: border-color 120ms ease, background-color 120ms ease; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Collective action theory</h1>
+    <p class="standfirst">
+      Why would anyone join a pro-democracy protest when they could stay home and still enjoy democracy if
+      the protest succeeds? This tool works through Table 8.1 one scenario at a time, then lets you change
+      the group and the stakes and practice reading the table yourself.
+    </p>
+  </header>
+
+  <div class="topbar">
+    <div>
+      <span class="group-label" id="modeLabel">Mode</span>
+      <div role="tablist" aria-labelledby="modeLabel" id="tabs">
+        <button role="tab" id="tab-guided" aria-selected="true" aria-controls="guidedPanel" type="button">Guided walkthrough</button>
+        <button role="tab" id="tab-explore" aria-selected="false" aria-controls="explorePanel" tabindex="-1" type="button">Explore</button>
+        <button role="tab" id="tab-practice" aria-selected="false" aria-controls="practicePanel" tabindex="-1" type="button">Practice</button>
+      </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Switch to dark mode</button>
+  </div>
+
+  <div class="board">
+
+    <!-- ============ the table card ============ -->
+    <section class="card" id="tableCard" aria-labelledby="tableTitle">
+      <h2 id="tableTitle">The payoff table</h2>
+      <p class="situation" id="situation"></p>
+
+      <div class="table-scroll">
+        <table class="payoff" id="payoff">
+          <caption id="tableCap">Pro-democracy protest: do I participate or not? (Table 8.1). Each entry is your own payoff.</caption>
+          <thead>
+            <tr>
+              <td></td>
+              <th scope="col" id="h1"></th>
+              <th scope="col" id="h2"></th>
+              <th scope="col" id="h3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Partic&shy;ipate</th>
+              <td id="p1"></td><td id="p2"></td><td id="p3"></td>
+            </tr>
+            <tr>
+              <th scope="row">Don&rsquo;t partic&shy;ipate</th>
+              <td id="d1"></td><td id="d2"></td><td id="d3"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ul class="legend" aria-hidden="true">
+        <li><span class="eg u">B</span><span>Underlined: your best response in that scenario, as in the chapter.</span></li>
+        <li><span class="eg g">you are here</span><span>The scenario you are in, given what you expect the others to do.</span></li>
+      </ul>
+      <p class="table-note" id="tableNote"></p>
+    </section>
+
+    <!-- ============ the panel ============ -->
+    <div>
+
+      <!-- guided -->
+      <section class="card" id="guidedPanel" role="tabpanel" aria-labelledby="tab-guided">
+        <p class="step-label" id="stepLabel"></p>
+        <div aria-live="polite" id="stepLive">
+          <h2 class="step-title" id="stepTitle" tabindex="-1"></h2>
+          <div class="step-body" id="stepBody"></div>
+          <div id="stepLook"></div>
+        </div>
+        <div class="nav" id="guidedNav">
+          <button class="btn" type="button" id="prevBtn">Back</button>
+          <button class="btn primary" type="button" id="nextBtn">Next</button>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- explore -->
+      <section class="card" id="explorePanel" role="tabpanel" aria-labelledby="tab-explore" hidden>
+        <h2 id="exploreTitle" tabindex="-1">Change the situation</h2>
+
+        <div class="verdict-box" aria-live="polite" id="verdictBox">
+          <p class="who">Your best response</p>
+          <p class="verdict" id="verdict"></p>
+          <ul class="compare">
+            <li><span>Participate <span class="sym inline" id="vPsym"></span></span><span class="num" id="vP"></span></li>
+            <li><span>Don&rsquo;t participate <span class="sym inline" id="vDsym"></span></span><span class="num" id="vD"></span></li>
+          </ul>
+          <p class="why" id="vWhy"></p>
+        </div>
+
+        <div class="cgroup">
+          <h3>What you expect</h3>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sX">Others you expect to participate</label><span class="ctrl-val" id="oX"></span></div>
+            <p class="ctrl-help">Out of the other N&nbsp;&minus;&nbsp;1 members of the group.</p>
+            <input type="range" id="sX" min="0" max="29" step="1" value="5">
+            <div class="scale"><span>0</span><span id="xMax">29</span></div>
+          </div>
+          <p class="cnote">This is the only slider that moves you from one scenario to another.</p>
+        </div>
+
+        <div class="cgroup">
+          <h3>The group</h3>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sN">N &mdash; members of the group</label><span class="ctrl-val" id="oN"></span></div>
+            <p class="ctrl-help">Everyone who benefits if the protest succeeds.</p>
+            <input type="range" id="sN" min="2" max="100" step="1" value="30">
+            <div class="scale"><span>2</span><span>100</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sK">K &mdash; participants needed</label><span class="ctrl-val" id="oK"></span></div>
+            <p class="ctrl-help">If K or more participate, the protest succeeds.</p>
+            <input type="range" id="sK" min="1" max="30" step="1" value="9">
+            <div class="scale"><span>1</span><span id="kMax">30</span></div>
+          </div>
+          <p class="cnote" id="gapNote"></p>
+        </div>
+
+        <div class="cgroup">
+          <h3>The stakes</h3>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sB">B &mdash; benefit if the protest succeeds</label><span class="ctrl-val" id="oB"></span></div>
+            <p class="ctrl-help">Received by everyone, whether or not they participated.</p>
+            <input type="range" id="sB" min="2" max="20" step="1" value="6">
+            <div class="scale"><span>2</span><span>20</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sC">C &mdash; cost of participating</label><span class="ctrl-val" id="oC"></span></div>
+            <p class="ctrl-help">Paid by each participant, whether or not the protest succeeds. Always less than B.</p>
+            <input type="range" id="sC" min="1" max="5" step="1" value="2">
+            <div class="scale"><span>1</span><span id="cMax">5</span></div>
+          </div>
+          <p class="cnote">
+            Moving B or C changes the payoffs, but as long as B is greater than C the underlines never move:
+            in each scenario the same choice is your best response. The chapter adds that it seems reasonable
+            to think people become less willing to participate as the cost rises, and more willing as the
+            benefit grows.
+          </p>
+        </div>
+      </section>
+
+      <!-- practice -->
+      <section class="card" id="practicePanel" role="tabpanel" aria-labelledby="tab-practice" hidden>
+        <h2 id="practiceTitle" tabindex="-1">Problem</h2>
+        <div class="problem">
+          <dl id="probList"></dl>
+          <p class="expect" id="probExpect"></p>
+        </div>
+
+        <div class="task" id="task1">
+          <p class="task-q">1. Which scenario are you in?</p>
+          <div class="opts" id="opts1">
+            <button class="opt" type="button" data-v="1">Scenario 1 &mdash; fewer than K&nbsp;&minus;&nbsp;1 others participate</button>
+            <button class="opt" type="button" data-v="2">Scenario 2 &mdash; exactly K&nbsp;&minus;&nbsp;1 others participate</button>
+            <button class="opt" type="button" data-v="3">Scenario 3 &mdash; K or more others participate</button>
+          </div>
+          <div id="fb1" aria-live="polite"></div>
+        </div>
+
+        <div class="task" id="task2" hidden>
+          <p class="task-q">2. What is your best response?</p>
+          <div class="opts row" id="opts2">
+            <button class="opt" type="button" data-v="p">Participate</button>
+            <button class="opt" type="button" data-v="d">Don&rsquo;t participate</button>
+          </div>
+          <div id="fb2" aria-live="polite"></div>
+        </div>
+
+        <div class="nav" id="practiceNav">
+          <button class="btn primary" type="button" id="nextProb" hidden>Next problem</button>
+        </div>
+
+        <p class="cnote">
+          Each problem gives you your expectation about how many of the others will participate. As the
+          chapter puts it, your decision depends on that conjecture.
+        </p>
+
+        <div class="progress">
+          <h3>Your progress</h3>
+          <p class="score" id="score"></p>
+          <p class="cnote">There are five kinds of case, depending on how many others you expect to
+            participate. Each is added to this list once you answer both of its tasks correctly the first
+            time.</p>
+          <ul class="coverage" id="coverage"></ul>
+          <div class="all-done" id="allDone" hidden>
+            <strong>All five covered.</strong> You have answered both tasks correctly the first time in
+            every kind of case, including the three around K&nbsp;&minus;&nbsp;1 where the answer changes.
+            The problems keep coming if you want more practice.
+          </div>
+          <div class="nav"><button class="btn" type="button" id="resetBtn">Start over</button></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    Accompanies Chapter 8 of <em>Principles of Comparative Politics</em>, 4th edition (Clark, Golder, and
+    Golder 2024). The numbers used in the explore and practice modes are illustrations, not measurements.
+  </footer>
+
+  <button class="back-btn" type="button" id="backBtn" hidden>Back to the steps</button>
+  <div class="sr-only" role="status" aria-live="polite" id="live"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MINUS = "−";
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var liveEl = document.getElementById("live");
+  function say(msg) { liveEl.textContent = ""; setTimeout(function () { liveEl.textContent = msg; }, 30); }
+  function signed(v) { return v < 0 ? MINUS + Math.abs(v) : String(v); }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function num(v) { return "<span class='n'>" + v + "</span>"; }
+
+  /* ---------------- the model (Table 8.1) ---------------- */
+
+  function scenario(k, x) { return x < k - 1 ? 1 : (x === k - 1 ? 2 : 3); }
+  function payP(col, b, c) { return col === 1 ? -c : b - c; }
+  function payD(col, b) { return col === 3 ? b : 0; }
+  function bestRow(col) { return col === 2 ? "p" : "d"; }
+  var SYM = { p1: MINUS + "C", p2: "B " + MINUS + " C", p3: "B " + MINUS + " C", d1: "0", d2: "0", d3: "B" };
+
+  function isVoid(n, k, i) { return (i === 1 && k === 1) || (i === 3 && k === n); }
+  function colRange(n, k, i) {
+    if (i === 1) return k === 2 ? "0 others" : "0 to " + (k - 2) + " others";
+    if (i === 2) return plural(k - 1, "other", "others");
+    return k === n - 1 ? plural(n - 1, "other", "others") : k + " to " + (n - 1) + " others";
+  }
+
+  /* ---------------- rendering the table card ---------------- */
+
+  var HEAD = [null,
+    ["Scenario 1", "Fewer than K\u00A0" + MINUS + "\u00A01 others partic\u00ADipate"],
+    ["Scenario 2", "Exactly K\u00A0" + MINUS + "\u00A01 others partic\u00ADipate"],
+    ["Scenario 3", "K or more others partic\u00ADipate"]];
+
+  /* spec: { numeric, n, k, b, c, heads, ranges, cells: {p1:true,...}, under: {p1:true,...}, live } */
+  function renderTable(spec) {
+    for (var i = 1; i <= 3; i++) {
+      var h = document.getElementById("h" + i);
+      var v = spec.numeric && isVoid(spec.n, spec.k, i);
+      h.className = (spec.live === i ? "live" : "") + (v ? " void" : "");
+      h.innerHTML = "";
+      if (spec.heads) {
+        var a = document.createElement("span"); a.className = "col-name"; a.textContent = HEAD[i][0];
+        var r = document.createElement("span"); r.className = "col-rule"; r.textContent = HEAD[i][1];
+        h.appendChild(a); h.appendChild(r);
+        if (spec.ranges) {
+          var g = document.createElement("span"); g.className = "col-range";
+          g.textContent = v ? "cannot arise" : colRange(spec.n, spec.k, i);
+          h.appendChild(g);
+        }
+        if (spec.live === i) {
+          var t = document.createElement("span"); t.className = "live-tag"; t.textContent = "you are here";
+          h.appendChild(t);
+        }
+      } else {
+        h.innerHTML = "<span class='col-name'>Scenario " + i + "</span>";
+      }
+      ["p", "d"].forEach(function (row) {
+        var id = row + i;
+        var td = document.getElementById(id);
+        td.className = (spec.live === i ? "live" : "") + (v ? " void" : "");
+        td.innerHTML = "";
+        var sym = document.createElement("span"); sym.className = "sym";
+        var pay = document.createElement("span"); pay.className = "pay";
+        if (v) {
+          sym.textContent = "—";
+          pay.className = "void-text"; pay.textContent = "cannot arise";
+        } else if (!spec.cells[id]) {
+          pay.className = "pay unknown"; pay.textContent = "?";
+          pay.setAttribute("aria-label", "not yet shown");
+        } else if (spec.numeric) {
+          sym.textContent = SYM[id];
+          pay.textContent = signed(row === "p" ? payP(i, spec.b, spec.c) : payD(i, spec.b));
+        } else {
+          pay.textContent = SYM[id];
+        }
+        if (!v && spec.cells[id] && spec.under[id]) {
+          pay.className += " br";
+          var s = document.createElement("span"); s.className = "sr-only"; s.textContent = " (best response)";
+          pay.appendChild(s);
+        }
+        td.appendChild(sym); td.appendChild(pay);
+      });
+    }
+  }
+
+  function allCells() { return { p1: 1, p2: 1, p3: 1, d1: 1, d2: 1, d3: 1 }; }
+  function allUnder() { return { d1: 1, p2: 1, d3: 1 }; }
+
+  function numericSituation(n, k, b, c, x) {
+    return "A group of " + num(n) + " members. If " + num(k) + " or more participate, the protest " +
+      "succeeds and every member receives a benefit of " + num(b) + ", whether or not they participated. " +
+      "Participating costs " + num(c) + ". You expect " + num(x) + " of the other " + num(n - 1) +
+      " members to participate.";
+  }
+  var SYMBOLIC_SITUATION =
+    "A group of N members. If K or more participate, the protest succeeds and every member receives a " +
+    "benefit B, whether or not they participated. Participating costs C, and B &gt; C.";
+
+  /* ---------------- moving the reader ---------------- */
+
+  var card = document.getElementById("tableCard");
+  var backBtn = document.getElementById("backBtn");
+  var movedAway = false;
+  var autoScrollUntil = 0;   /* while the tool is scrolling, passing the panel must not count as seeing it */
+  function markMoved() { movedAway = true; autoScrollUntil = Date.now() + (reduceMotion ? 100 : 900); }
+
+  function isEnoughOnScreen(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    if (r.top >= 0 && r.bottom <= vh) return true;
+    if (r.height > vh && r.top >= 0 && (vh - r.top) >= 0.6 * vh) return true;
+    return false;
+  }
+  function bringCard() {
+    if (isEnoughOnScreen(card)) return;
+    markMoved();
+    card.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    setTimeout(updateBack, reduceMotion ? 150 : 950);
+  }
+  function lookButton(container) {
+    container.innerHTML = "";
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "look-btn"; b.textContent = "Look at the payoff table";
+    b.addEventListener("click", function () {
+      markMoved();
+      card.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+      setTimeout(updateBack, reduceMotion ? 150 : 950);
+    });
+    container.appendChild(b);
+  }
+
+  function anchorFor(m) {
+    if (m === "guided") return document.getElementById("guidedNav");
+    if (m === "practice") {
+      var t2 = document.getElementById("task2");
+      return t2.hidden ? document.getElementById("task1") : t2;
+    }
+    return null;
+  }
+  function anchorVisible(el) {
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+  function updateBack() {
+    var a = anchorFor(mode);
+    if (!a) { backBtn.hidden = true; return; }
+    if (anchorVisible(a)) {
+      if (Date.now() >= autoScrollUntil) movedAway = false;
+      backBtn.hidden = true; return;
+    }
+    backBtn.hidden = !movedAway;
+    backBtn.textContent = mode === "guided" ? "Back to the steps" : "Back to the question";
+  }
+  window.addEventListener("scroll", updateBack, { passive: true });
+  window.addEventListener("resize", updateBack);
+  backBtn.addEventListener("click", function () {
+    var a = anchorFor(mode);
+    if (!a) return;
+    a.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+    movedAway = false;
+    backBtn.hidden = true;
+  });
+
+  /* ---------------- guided walkthrough ---------------- */
+
+  var STEPS = [
+    { title: "What collective action is",
+      table: { heads: false, cells: {}, under: {}, live: 0 },
+      body: [
+        "Collective action theory is about forms of mass action, or “collective action,” such as " +
+        "the protests in East Germany in 1989. Revolutions, interest group activities, strikes, elections " +
+        "and group projects in school are other examples.",
+        "Typically, collective action concerns the pursuit of a public good by a group of individuals. " +
+        "This walkthrough builds Table 8.1 one scenario at a time, then uses it to explain why public " +
+        "displays of opposition are so rare in dictatorships."
+      ] },
+    { title: "Public goods",
+      table: { heads: false, cells: {}, under: {}, live: 0 },
+      body: [
+        "A public good has two characteristics. It is <strong>nonexcludable</strong>: you can’t " +
+        "prevent members of the group who didn’t contribute from consuming it. And it is " +
+        "<strong>nonrivalrous</strong>: one person’s consumption doesn’t reduce the amount " +
+        "available to anyone else.",
+        "Democracy is a public good. Anyone living in a democracy enjoys democratic rule whether or not " +
+        "they helped bring it about, and one person’s enjoyment of it doesn’t leave less for " +
+        "anyone else.",
+        "You might expect people who value a public good to contribute to it, at least when its benefit " +
+        "outweighs the cost. Mancur Olson and Paul Samuelson showed that there are compelling reasons to " +
+        "doubt this. The difficulty groups have in providing public goods that all their members want is " +
+        "the <strong>collective action</strong>, or <strong>free-rider</strong>, problem."
+      ] },
+    { title: "Setting up the table", changes: true,
+      table: { heads: true, cells: {}, under: {}, live: 0 },
+      body: [
+        "Imagine a group of N individuals, such as the population of East Germany. K of them (K ≤ N) " +
+        "must participate for the public good to be provided. Think of K as the number of pro-democracy " +
+        "protesters needed to make the government back down.",
+        "If the protest succeeds, everyone receives a benefit B, whether they participated or not. If you " +
+        "participate, you pay a cost C. We assume B &gt; C. Otherwise nobody would ever have an incentive " +
+        "to contribute, and there would be nothing puzzling to explain.",
+        "Your decision depends on what you expect the others to do. There are three possibilities, and they " +
+        "are the three columns of the payoff table."
+      ] },
+    { title: "Scenario 1: fewer than K − 1 others participate",
+      table: { heads: true, cells: { p1: 1, d1: 1 }, under: { d1: 1 }, live: 1 },
+      body: [
+        "Suppose you expect fewer than K − 1 others to participate. Adding yourself still leaves " +
+        "fewer than K participants, so the protest fails either way.",
+        "If you participate, you pay the cost and receive no benefit: −C. If you stay home, you get 0. " +
+        "Since 0 is greater than −C, your best response is not to participate. Best responses are " +
+        "underlined, as in the chapter."
+      ] },
+    { title: "Scenario 3: K or more others participate",
+      table: { heads: true, cells: { p1: 1, d1: 1, p3: 1, d3: 1 }, under: { d1: 1, d3: 1 }, live: 3 },
+      body: [
+        "Now suppose you expect at least K others to participate. The protest succeeds without you.",
+        "If you participate, you get the benefit minus the cost: B − C. If you stay home, you get the " +
+        "full benefit B, because nobody can stop you from enjoying democracy once it arrives. Since B is " +
+        "greater than B − C, you might as well stay home and <strong>free ride</strong> on the " +
+        "participation of others."
+      ] },
+    { title: "Scenario 2: exactly K − 1 others participate",
+      table: { heads: true, cells: allCells(), under: allUnder(), live: 2 },
+      body: [
+        "Only one scenario is left: you expect exactly K − 1 others to participate. Now your " +
+        "participation is <strong>decisive</strong>. It turns an otherwise unsuccessful protest into a " +
+        "successful one.",
+        "If you participate, you get B − C. If you stay home, the protest fails and you get nothing. " +
+        "Because B − C &gt; 0, it makes sense to participate."
+      ] },
+    { title: "The basic logic",
+      table: { heads: true, cells: allCells(), under: allUnder(), live: 0 },
+      body: [
+        "Participating is your best response in only one of the three scenarios: the one in which you are " +
+        "decisive. If the protest fails, staying home saves you the cost and the risk of incurring the " +
+        "dictatorship’s wrath. If it succeeds, you get the benefit anyway.",
+        "And what difference can one person make to a mass protest? Your decision is unlikely to be the " +
+        "decisive one. This is the basic logic of the collective action problem: people who share an " +
+        "interest in a public good don’t automatically act together to get it."
+      ] },
+    { title: "The gap between K and N",
+      table: { heads: true, cells: allCells(), under: allUnder(), live: 0 },
+      body: [
+        "Two factors are particularly important for whether collective action succeeds. The first is the " +
+        "difference between K and N.",
+        "If K = N, every member knows their participation is crucial, so nobody has an incentive to free " +
+        "ride. Once K &lt; N, members know a successful protest can happen without everyone, and that " +
+        "creates the incentive to free ride. The larger the gap, the more members conclude that they " +
+        "aren’t critical, and the less likely the protest is to succeed.",
+        "So leaders do better telling members that success depends on nearly all of them rather than just a " +
+        "few. That is why parties tell supporters that every vote is crucial, and why public radio pledge " +
+        "drives say every listener’s contribution counts."
+      ] },
+    { title: "The size of N",
+      table: { heads: true, cells: allCells(), under: allUnder(), live: 0 },
+      body: [
+        "The second factor is the size of the group, and it matters for two reasons. In a large group, " +
+        "you are unlikely to think of yourself as critical: if hardly anyone else participates, the protest " +
+        "fails, and if lots of people do, your participation makes little difference. A large group also " +
+        "makes it harder to monitor, identify and punish those who don’t participate.",
+        "So larger groups tend to have more free riding, and small groups may be more effective than large " +
+        "ones. This helps explain why business groups, which are relatively small, seem to have more " +
+        "lobbying influence than consumers or workers, who are relatively large groups."
+      ] },
+    { title: "East Germany",
+      table: { heads: true, cells: allCells(), under: allUnder(), live: 0 },
+      body: [
+        "The incentives to free ride in East Germany were large. N, the number of people who would benefit " +
+        "from democracy, was virtually the entire population of 17 million. K, the number of protesters " +
+        "needed to bring the regime down in 1989, was several hundred thousand: small by comparison.",
+        "The costs of participating were largely prohibitive too. The violent and deadly outcome of the " +
+        "Berlin Uprising in 1953 was a stark reminder of what publicly opposing the government could cost. " +
+        "And just a few months before the mass protests of 1989, the East German leadership had publicly " +
+        "approved of the Chinese government’s violent crackdown on pro-democracy protesters in " +
+        "Tiananmen Square and elsewhere.",
+        "So the lack of public opposition for most of the postwar period wasn’t necessarily a sign that " +
+        "the regime enjoyed widespread support. The collective action problem may simply have made it " +
+        "difficult for the opposition to organize."
+      ] },
+    { title: "What the theory leaves unexplained",
+      table: { heads: true, cells: allCells(), under: allUnder(), live: 0 },
+      body: [
+        "Collective action theory explains why revolutions are rare and why dictatorships often appear " +
+        "stable. It can’t explain the mass protests that brought down communism in East Germany in " +
+        "1989. Once those protests happen, participation becomes the puzzle, and the chapter turns to " +
+        "tipping models to explain it."
+      ] }
+  ];
+
+  var step = 0;
+  var dotsEl = document.getElementById("dots");
+  STEPS.forEach(function () { var d = document.createElement("span"); d.className = "dot"; dotsEl.appendChild(d); });
+
+  function renderGuided(prev) {
+    var s = STEPS[step];
+    document.getElementById("situation").innerHTML = SYMBOLIC_SITUATION;
+    renderTable({ numeric: false, heads: s.table.heads, ranges: false,
+                  cells: s.table.cells, under: s.table.under, live: s.table.live });
+    document.getElementById("tableNote").textContent = "";
+    document.getElementById("stepLabel").textContent = "Step " + (step + 1) + " of " + STEPS.length;
+    document.getElementById("stepTitle").textContent = s.title;
+    document.getElementById("stepBody").innerHTML = s.body.map(function (p) { return "<p>" + p + "</p>"; }).join("");
+    var look = document.getElementById("stepLook");
+    if (s.table.heads && step >= 2 && step <= 6) lookButton(look); else look.innerHTML = "";
+    document.getElementById("prevBtn").disabled = step === 0;
+    var nb = document.getElementById("nextBtn");
+    nb.disabled = step === STEPS.length - 1;
+    var dots = dotsEl.children;
+    for (var i = 0; i < dots.length; i++) dots[i].className = "dot" + (i === step ? " on" : "");
+    if (prev !== undefined && prev !== step && s.changes) bringCard();
+  }
+
+  document.getElementById("prevBtn").addEventListener("click", function () {
+    if (step > 0) { var p = step; step--; renderGuided(p); }
+  });
+  document.getElementById("nextBtn").addEventListener("click", function () {
+    if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); }
+  });
+
+  /* ---------------- explore ---------------- */
+
+  var ex = { n: 30, k: 9, b: 6, c: 2, x: 5 };
+  var sN = document.getElementById("sN"), sK = document.getElementById("sK"),
+      sB = document.getElementById("sB"), sC = document.getElementById("sC"),
+      sX = document.getElementById("sX");
+
+  function syncBounds() {
+    if (ex.k > ex.n) ex.k = ex.n;
+    if (ex.c > ex.b - 1) ex.c = ex.b - 1;
+    if (ex.x > ex.n - 1) ex.x = ex.n - 1;
+    sK.max = String(ex.n); document.getElementById("kMax").textContent = ex.n;
+    sC.max = String(ex.b - 1); document.getElementById("cMax").textContent = ex.b - 1;
+    sX.max = String(ex.n - 1); document.getElementById("xMax").textContent = ex.n - 1;
+    sN.value = ex.n; sK.value = ex.k; sB.value = ex.b; sC.value = ex.c; sX.value = ex.x;
+  }
+
+  function setOut(el, outId, shown) {
+    document.getElementById(outId).textContent = shown;
+    el.setAttribute("aria-valuetext", String(shown));
+  }
+
+  function renderExplore() {
+    syncBounds();
+    var n = ex.n, k = ex.k, b = ex.b, c = ex.c, x = ex.x;
+    setOut(sX, "oX", x, x + " of the other " + (n - 1) + " expected to participate");
+    setOut(sN, "oN", n, n + " members");
+    setOut(sK, "oK", k, k + " of " + n + " needed");
+    setOut(sB, "oB", b, "benefit " + b);
+    setOut(sC, "oC", c, "cost " + c);
+
+    var col = scenario(k, x);
+    document.getElementById("situation").innerHTML = numericSituation(n, k, b, c, x);
+    renderTable({ numeric: true, n: n, k: k, b: b, c: c, heads: true, ranges: true,
+                  cells: allCells(), under: allUnder(), live: col });
+
+    var notes = [];
+    if (k === 1) notes.push("With K = 1, you alone are enough, so Scenario 1 cannot arise.");
+    if (k === n) notes.push("With K = N, the protest can never succeed without you, so Scenario 3 cannot " +
+                            "arise and nobody can free ride.");
+    document.getElementById("tableNote").textContent = notes.join(" ");
+
+    document.getElementById("gapNote").textContent = k === n
+      ? "K equals N: everyone is needed, so every member’s participation is crucial."
+      : "With K = " + k + " out of N = " + n + ", the protest can succeed while " +
+        plural(n - k, "member stays", "members stay") + " home.";
+
+    var pp = payP(col, b, c), pd = payD(col, b), best = bestRow(col);
+    document.getElementById("verdict").textContent =
+      "Scenario " + col + ": " + (best === "p" ? "participate" : "don’t participate");
+    document.getElementById("vPsym").textContent = "(" + SYM["p" + col] + ")";
+    document.getElementById("vDsym").textContent = "(" + SYM["d" + col] + ")";
+    var vP = document.getElementById("vP"), vD = document.getElementById("vD");
+    vP.textContent = signed(pp); vD.textContent = signed(pd);
+    vP.className = "num" + (best === "p" ? " br" : "");
+    vD.className = "num" + (best === "d" ? " br" : "");
+
+    var why;
+    if (col === 1) {
+      why = "With you, " + (x + 1) + " would participate, and " + k + " are needed, so the protest fails " +
+        "either way. Participating costs " + c + " and buys nothing.";
+    } else if (col === 2) {
+      why = "You would be participant number " + k + ". Your participation is decisive: it turns a failed " +
+        "protest into a successful one, worth " + b + " minus the cost of " + c + ".";
+    } else {
+      why = "The protest succeeds without you. Staying home gives you the full benefit of " + b +
+        "; participating gives the same benefit minus the cost of " + c + ". You free ride.";
+    }
+    document.getElementById("vWhy").textContent = why;
+  }
+
+  function bind(el, key) {
+    el.addEventListener("input", function () {
+      ex[key] = parseInt(el.value, 10);
+      renderExplore();
+    });
+  }
+  bind(sN, "n"); bind(sK, "k"); bind(sB, "b"); bind(sC, "c"); bind(sX, "x");
+
+  /* ---------------- practice ---------------- */
+
+  var SITUATIONS = [
+    { key: "farBelow",  label: "Scenario 1, well short",        when: "others < K − 2" },
+    { key: "justBelow", label: "Scenario 1, one short",         when: "others = K − 2" },
+    { key: "pivotal",   label: "Scenario 2, decisive",          when: "others = K − 1" },
+    { key: "justAbove", label: "Scenario 3, exactly K others",  when: "others = K" },
+    { key: "farAbove",  label: "Scenario 3, more than K others", when: "others > K" }
+  ];
+  var WEIGHTS = { farBelow: 1, justBelow: 3, pivotal: 3, justAbove: 3, farAbove: 1 };
+  var BOOST = 4;   /* situations not yet covered are drawn more often */
+
+  var prob = null, stage = 1, firstTry = true;
+  var stats = { done: 0, clean: 0 };
+  var covered = {};
+  var foundOrder = [];
+
+  function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  function drawSituation() {
+    var tot = 0, i;
+    var w = SITUATIONS.map(function (s) { return WEIGHTS[s.key] * (covered[s.key] ? 1 : BOOST); });
+    for (i = 0; i < w.length; i++) tot += w[i];
+    var r = Math.random() * tot;
+    for (i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return SITUATIONS[i].key; }
+    return SITUATIONS[w.length - 1].key;
+  }
+
+  function newProblem(moveReader) {
+    var n, k;
+    /* N = 50 with K = 12 is the chapter's own end-of-chapter problem; never generate it. */
+    do { n = randInt(8, 60); k = randInt(3, n - 2); } while (n === 50 && k === 12);
+    var c = randInt(1, 5), b = c + randInt(1, 8);
+    var key = drawSituation(), x;
+    if (key === "farBelow") x = randInt(0, k - 3);
+    else if (key === "justBelow") x = k - 2;
+    else if (key === "pivotal") x = k - 1;
+    else if (key === "justAbove") x = k;
+    else x = randInt(k + 1, n - 1);
+    prob = { n: n, k: k, b: b, c: c, x: x, key: key, col: scenario(k, x) };
+    stage = 1; firstTry = true;
+
+    var dl = document.getElementById("probList");
+    dl.innerHTML = "";
+    [["N", n + " members in the group"],
+     ["K", k + " must participate for the protest to succeed"],
+     ["B", b + ", the benefit to every member if it succeeds"],
+     ["C", c + ", the cost to each member who participates"]].forEach(function (r) {
+      var dt = document.createElement("dt"); dt.textContent = r[0];
+      var dd = document.createElement("dd"); dd.textContent = r[1];
+      dl.appendChild(dt); dl.appendChild(dd);
+    });
+    document.getElementById("probExpect").textContent =
+      "You expect " + x + " of the other " + (n - 1) + " members to participate.";
+
+    resetOpts("opts1"); resetOpts("opts2");
+    document.getElementById("fb1").innerHTML = "";
+    document.getElementById("fb2").innerHTML = "";
+    document.getElementById("task2").hidden = true;
+    document.getElementById("nextProb").hidden = true;
+    renderPracticeCard();
+    renderProgress();
+    if (moveReader) bringCard();
+  }
+
+  function renderPracticeCard() {
+    var p = prob;
+    document.getElementById("situation").innerHTML = numericSituation(p.n, p.k, p.b, p.c, p.x);
+    var solved1 = stage >= 2, solved2 = stage >= 3;
+    var under = {};
+    if (solved2) under[bestRow(p.col) + p.col] = 1;
+    renderTable({ numeric: true, n: p.n, k: p.k, b: p.b, c: p.c, heads: true, ranges: solved1,
+                  cells: allCells(), under: under, live: solved1 ? p.col : 0 });
+    document.getElementById("tableNote").textContent = solved1 ? ""
+      : "Which column applies is for you to work out. It is marked once you have answered.";
+  }
+
+  function resetOpts(id) {
+    var bs = document.getElementById(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].removeAttribute("aria-disabled");
+      bs[i].classList.remove("chosen");
+    }
+  }
+  function lockOpts(id, chosen) {
+    var bs = document.getElementById(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute("aria-disabled", "true");
+      if (bs[i].getAttribute("data-v") === chosen) bs[i].classList.add("chosen");
+    }
+  }
+  function note(id, ok, head, text) {
+    var el = document.getElementById(id);
+    el.innerHTML = "";
+    var d = document.createElement("div");
+    d.className = "result-note " + (ok ? "ok" : "no");
+    var h = document.createElement("span"); h.className = "head";
+    h.textContent = (ok ? "✓ " : "✕ ") + head + " ";
+    d.appendChild(h);
+    d.appendChild(document.createTextNode(text));
+    el.appendChild(d);
+    return d;
+  }
+
+  function answer1(v) {
+    if (stage !== 1) return;
+    var p = prob, pick = parseInt(v, 10);
+    if (pick === p.col) {
+      stage = 2;
+      lockOpts("opts1", v);
+      var t = p.col === 1
+        ? p.x + " is fewer than K − 1 = " + (p.k - 1) + "."
+        : p.col === 2 ? p.x + " is exactly K − 1 = " + (p.k - 1) + "."
+        : p.x + " is at least K = " + p.k + ".";
+      var d = note("fb1", true, "Scenario " + p.col + ".", t + " The column is now marked on the payoff table.");
+      lookButton(d.appendChild(document.createElement("div")));
+      document.getElementById("task2").hidden = false;
+      renderPracticeCard();
+      bringCard();
+      say("Correct. Scenario " + p.col + ". " + t);
+    } else {
+      firstTry = false;
+      var msg;
+      if (pick === 1) msg = "Scenario 1 needs fewer than K − 1 = " + (p.k - 1) + " others. You expect " + p.x + ".";
+      else if (pick === 2) msg = "Scenario 2 needs exactly K − 1 = " + (p.k - 1) + " others. You expect " + p.x + ".";
+      else msg = "Scenario 3 needs at least K = " + p.k + " others. You expect " + p.x + ".";
+      note("fb1", false, "Not that one.", msg + " Try again.");
+      say("Not that one. " + msg + " Try again.");
+    }
+  }
+
+  function answer2(v) {
+    if (stage !== 2) return;
+    var p = prob, best = bestRow(p.col);
+    var pp = payP(p.col, p.b, p.c), pd = payD(p.col, p.b);
+    var cmp = "Participating gives " + SYM["p" + p.col] + " = " + signed(pp) +
+              "; not participating gives " + SYM["d" + p.col] + " = " + signed(pd) + ".";
+    if (v === best) {
+      stage = 3;
+      lockOpts("opts2", v);
+      var why = p.col === 1 ? "The protest fails either way, so participating only costs you."
+              : p.col === 2 ? "Your participation is decisive: it turns failure into success."
+              : "The protest succeeds without you, so you free ride.";
+      note("fb2", true, best === "p" ? "Participate." : "Don’t participate.", cmp + " " + why);
+      stats.done++;
+      if (firstTry) { stats.clean++; covered[p.key] = true; }
+      document.getElementById("nextProb").hidden = false;
+      renderPracticeCard();
+      renderProgress();
+      say("Correct. " + cmp + " " + why);
+    } else {
+      firstTry = false;
+      note("fb2", false, "Compare the two payoffs in your column.", cmp + " Try again.");
+      say("Not quite. " + cmp + " Try again.");
+    }
+  }
+
+  function renderProgress() {
+    document.getElementById("score").textContent = stats.done === 0
+      ? "No problems finished yet."
+      : plural(stats.done, "problem", "problems") + " finished, " + stats.clean +
+        " with both tasks right the first time.";
+    var ul = document.getElementById("coverage");
+    ul.innerHTML = "";
+    var n = 0;
+    /* Covered kinds are listed in the order they were found, and the rest stay blank. Listing all
+       five with their labels would print the answer key (which count goes with which scenario, and
+       which scenario is decisive) next to the question. */
+    SITUATIONS.forEach(function (s) { if (covered[s.key] && foundOrder.indexOf(s.key) < 0) foundOrder.push(s.key); });
+    foundOrder.forEach(function (key) {
+      var s = SITUATIONS.filter(function (t) { return t.key === key; })[0];
+      n++;
+      var li = document.createElement("li");
+      li.className = "done";
+      li.innerHTML = "<span class='g' aria-hidden='true'>\u2713</span>" +
+        "<span>" + s.label + "</span><span class='when'>" + s.when + "</span>";
+      li.setAttribute("aria-label", s.label + ", " + s.when + ", covered");
+      ul.appendChild(li);
+    });
+    for (var j = n; j < SITUATIONS.length; j++) {
+      var li2 = document.createElement("li");
+      li2.className = "todo";
+      li2.innerHTML = "<span class='g' aria-hidden='true'>\u25CB</span><span>Not yet covered</span>";
+      ul.appendChild(li2);
+    }
+    document.getElementById("allDone").hidden = n < SITUATIONS.length;
+  }
+
+  document.getElementById("opts1").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (b) answer1(b.getAttribute("data-v"));
+  });
+  document.getElementById("opts2").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (b) answer2(b.getAttribute("data-v"));
+  });
+  document.getElementById("nextProb").addEventListener("click", function () {
+    newProblem(true);
+    document.getElementById("practiceTitle").focus({ preventScroll: true });
+    say("New problem. " + document.getElementById("probExpect").textContent);
+  });
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    stats = { done: 0, clean: 0 }; covered = {}; foundOrder = [];
+    newProblem(true);
+    say("Progress cleared. New problem. " + document.getElementById("probExpect").textContent);
+  });
+
+  /* ---------------- modes ---------------- */
+
+  var mode = "guided";
+  var TABS = ["guided", "explore", "practice"];
+
+  function selectMode(m, focusTab) {
+    mode = m;
+    TABS.forEach(function (t) {
+      var tab = document.getElementById("tab-" + t);
+      tab.setAttribute("aria-selected", t === m ? "true" : "false");
+      tab.tabIndex = t === m ? 0 : -1;
+      document.getElementById(t + "Panel").hidden = t !== m;
+    });
+    movedAway = false; backBtn.hidden = true;
+    if (m === "guided") renderGuided();
+    else if (m === "explore") renderExplore();
+    else { if (!prob) newProblem(false); else renderPracticeCard(); renderProgress(); }
+    if (focusTab) document.getElementById("tab-" + m).focus();
+    say(m === "guided" ? "Guided walkthrough, step " + (step + 1) + "."
+      : m === "explore" ? "Explore mode. The sliders change the payoff table."
+      : "Practice. " + document.getElementById("probExpect").textContent);
+  }
+
+  TABS.forEach(function (t) {
+    document.getElementById("tab-" + t).addEventListener("click", function () { selectMode(t, false); });
+  });
+  document.getElementById("tabs").addEventListener("keydown", function (e) {
+    var i = TABS.indexOf(mode), next = null;
+    if (e.key === "ArrowRight") next = TABS[(i + 1) % 3];
+    else if (e.key === "ArrowLeft") next = TABS[(i + 2) % 3];
+    else if (e.key === "Home") next = TABS[0];
+    else if (e.key === "End") next = TABS[2];
+    if (next) { e.preventDefault(); selectMode(next, true); }
+  });
+
+  /* ---------------- theme ---------------- */
+
+  var themeBtn = document.getElementById("themeToggle");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.textContent = t === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
+  applyTheme(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  themeBtn.addEventListener("click", function () {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  renderGuided();
+})();
+</script>
+</body>
+</html>
