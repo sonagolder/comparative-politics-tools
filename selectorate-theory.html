@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Selectorate theory</title>
+<style>
+  :root {
+    --bg: #FAFAFA;
+    --panel: #FFFFFF;
+    --border: #D0D0D0;
+    --text: #111111;
+    --text-2: #555555;
+    --hint: #999999;
+    --deemph: #707070;
+    --accent: #0072B2;
+    --on-accent: #FFFFFF;
+    --favorable: #0072B2;
+    --unfavorable: #B33E00;
+    --neutral: #5F5E5A;
+    --gold-ui: #B8860B;
+    --gold-text: #946B09;
+    --on-gold: #111111;
+    --cat-w: #009E73;
+    --cat-s: #CC79A7;
+    --structure-ink: #141414;
+    --structure-line: #8A8A8A;
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --data-font: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  html[data-theme="dark"] {
+    --bg: #1A1A1A;
+    --panel: #2A2A2A;
+    --border: #3A3A3A;
+    --text: #F2F2F2;
+    --text-2: #B3B3B3;
+    --hint: #7A7A7A;
+    --deemph: #9A9A9A;
+    --accent: #7FC7EE;
+    --on-accent: #0A1E28;
+    --favorable: #7FC7EE;
+    --unfavorable: #F08A4B;
+    --neutral: #A8A6A0;
+    --gold-ui: #E0B23D;
+    --gold-text: #E0B23D;
+    --on-gold: #141414;
+    --cat-w: #3FCFA0;
+    --cat-s: #E29FC4;
+    --structure-ink: #E8E8E8;
+    --structure-line: #7E7E7E;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  header { margin-bottom: 24px; }
+  h1 { font-size: 1.65rem; font-weight: 600; margin: 0 0 8px 0; line-height: 1.25; }
+  .standfirst { margin: 0; color: var(--text-2); max-width: 70ch; }
+
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .group-label { display: block; font-size: 11px; color: var(--text-2); margin-bottom: 8px; }
+
+  [role="tablist"] { display: flex; flex-wrap: wrap; gap: 8px; }
+  [role="tab"] {
+    font: inherit; font-size: 0.95rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 -3px 0 var(--accent);
+    font-weight: 600;
+  }
+
+  .theme-toggle, .look-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--accent);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .theme-toggle { color: var(--text); }
+  .looks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  button:focus-visible, input:focus-visible, h2[tabindex="-1"]:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- board ---------- */
+
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 809px) { .board { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    scroll-margin-top: 8px;
+  }
+  .card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .card h3 { font-size: 0.95rem; font-weight: 600; margin: 24px 0 8px 0; }
+
+  .situation {
+    margin: 0 0 16px 0; padding: 8px 16px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg); font-size: 0.95rem;
+  }
+
+  /* ---------- worksheet ---------- */
+
+  .table-scroll { overflow-x: auto; }
+  table.ws { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  table.ws caption { text-align: left; font-size: 0.85rem; color: var(--text-2); padding-bottom: 8px; }
+  table.ws th, table.ws td { border-bottom: 1px solid var(--border); padding: 8px; vertical-align: top; text-align: left; }
+  table.ws thead th { font-size: 0.85rem; font-weight: 600; border-bottom: 2px solid var(--structure-ink); }
+  table.ws tbody th { font-weight: 400; width: 46%; }
+  table.ws tbody tr:last-child th, table.ws tbody tr:last-child td { border-bottom: 0; }
+  .rl { display: block; }
+  .rf { display: block; font-family: var(--data-font); font-size: 0.76rem; color: var(--text-2); margin-top: 2px; }
+  .rv { font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .rv.unknown { color: var(--deemph); font-weight: 400; }
+  .rv.na { color: var(--deemph); font-weight: 400; }
+  .rsub { display: block; font-family: var(--data-font); font-size: 0.76rem; color: var(--text-2); margin-top: 2px; }
+  td.fresh { box-shadow: inset 3px 0 0 var(--gold-ui); }
+  .sym-w { color: var(--cat-w); font-weight: 700; }
+  .sym-s { color: var(--cat-s); font-weight: 700; }
+  .rkey { font-family: var(--data-font); font-weight: 700; }
+  .ws-note { margin: 16px 0 0 0; font-size: 0.88rem; color: var(--text-2); }
+
+  /* ---------- figure ---------- */
+
+  .fig-title { font-size: 1rem; font-weight: 600; margin: 0 0 8px 0; }
+  .fig-wrap { max-width: 560px; }
+  svg.fig { display: block; width: 100%; height: auto; }
+  .fig .axis { stroke: var(--structure-ink); stroke-width: 2; fill: none; }
+  .fig .diag { stroke: var(--deemph); stroke-width: 2; stroke-dasharray: 4 6; fill: none; }
+  .fig text { font-family: var(--body-font); fill: var(--text); }
+  .fig .lab text {
+    font-size: 11px;
+    paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round;
+  }
+  .fig .lab .t1 { font-weight: 600; }
+  .fig .lab .t2 { fill: var(--text-2); }
+  .fig .axt { font-size: 13px; }
+  .fig .axend { font-size: 11px; fill: var(--text-2); }
+  .fig-cap { margin: 8px 0 0 0; font-size: 0.85rem; color: var(--text-2); }
+  .fig-note { margin: 4px 0 0 0; font-size: 0.82rem; color: var(--text-2); font-style: italic; }
+
+  /* ---------- case card ---------- */
+
+  .case-group { font-size: 0.85rem; color: var(--text-2); margin: 0 0 8px 0; }
+  .case-body p { margin: 0 0 8px 0; }
+
+  /* ---------- panel: guided ---------- */
+
+  .step-label { font-size: 11px; color: var(--text-2); margin: 0 0 8px 0; }
+  .step-title { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .step-body p { margin: 0 0 8px 0; }
+  .nav { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .dots { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .dot.on { background: var(--accent); }
+
+  .btn {
+    font: inherit; font-size: 0.95rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .btn:disabled { color: var(--deemph); cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+  /* ---------- panel: explore ---------- */
+
+  .cgroup { border: 1px solid var(--border); border-radius: 4px; padding: 16px; margin-bottom: 16px; }
+  .cgroup h3 { margin: 0 0 8px 0; font-size: 0.92rem; }
+  .ctrl { margin-bottom: 16px; }
+  .ctrl:last-of-type { margin-bottom: 0; }
+  .ctrl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .ctrl-head label { font-size: 0.9rem; font-weight: 600; }
+  .ctrl-val { font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .ctrl-help { margin: 0 0 4px 0; font-size: 0.82rem; color: var(--text-2); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+  .scale { display: flex; justify-content: space-between; font-family: var(--data-font); font-size: 0.72rem; color: var(--text-2); margin-top: 2px; }
+  .cnote { margin: 8px 0 0 0; font-size: 0.85rem; color: var(--text-2); }
+
+  .verdict-box { border: 1px solid var(--border); border-radius: 4px; padding: 8px 16px; margin-bottom: 16px; }
+  .verdict-box .who { font-size: 11px; color: var(--text-2); margin: 0 0 2px 0; }
+  .verdict { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .why { margin: 0 0 8px 0; font-size: 0.92rem; }
+  .why:last-child { margin-bottom: 0; }
+
+  /* ---------- panel: practice ---------- */
+
+  .seg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .seg button, .chip {
+    font: inherit; font-size: 0.9rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"], .chip[aria-pressed="true"] {
+    border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); font-weight: 600;
+  }
+  .chips-group { margin-bottom: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip .done-mark { font-family: var(--data-font); color: var(--favorable); margin-left: 4px; }
+
+  .problem p { margin: 0 0 8px 0; }
+  .task { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+  .task-q { font-weight: 600; margin: 0 0 8px 0; }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opts.row { flex-direction: row; flex-wrap: wrap; }
+  .opt {
+    font: inherit; font-size: 0.95rem; text-align: left;
+    padding: 8px 16px; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .opt.num { font-family: var(--data-font); font-variant-numeric: tabular-nums; }
+  .opt:hover { border-color: var(--accent); }
+  .opt[aria-disabled="true"] { cursor: default; color: var(--deemph); }
+  .opt[aria-disabled="true"]:hover { border-color: var(--border); }
+  .opt.chosen[aria-disabled="true"] { color: var(--text); border-color: var(--gold-ui); }
+
+  .result-note {
+    margin: 8px 0 0 0; padding: 8px 16px; border-radius: 4px;
+    border: 1px solid var(--border); font-size: 0.92rem;
+  }
+  .result-note.ok { box-shadow: inset 4px 0 0 var(--favorable); }
+  .result-note.no { box-shadow: inset 4px 0 0 var(--unfavorable); }
+  .result-note .head { font-weight: 600; }
+  .result-note.ok .head { color: var(--favorable); }
+  .result-note.no .head { color: var(--unfavorable); }
+
+  .finished { margin-top: 16px; padding: 8px 16px; border: 2px solid var(--gold-ui); border-radius: 4px; font-size: 0.92rem; }
+  .finished p { margin: 0 0 8px 0; }
+  .finished p:last-child { margin-bottom: 0; }
+  .score { font-family: var(--data-font); font-size: 0.85rem; color: var(--text-2); margin: 16px 0 0 0; }
+
+  .back-btn {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
+  }
+
+  footer { margin-top: 32px; font-size: 0.82rem; color: var(--text-2); max-width: 70ch; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .opt, .btn, [role="tab"], .chip { transition: border-color 120ms ease, background-color 120ms ease; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Selectorate theory</h1>
+    <p class="standfirst">
+      If every leader wants to stay in power, why do some govern well and others steal? Selectorate theory
+      answers with two numbers: the size of the winning coalition and the size of the selectorate. This tool
+      works through the chapter&rsquo;s example of two societies, lets you change the numbers yourself, and
+      then gives you calculations and regimes to work on.
+    </p>
+  </header>
+
+  <div class="topbar">
+    <div>
+      <span class="group-label" id="modeLabel">Mode</span>
+      <div role="tablist" aria-labelledby="modeLabel" id="tabs">
+        <button role="tab" id="tab-guided" aria-selected="true" aria-controls="guidedPanel" type="button">Guided walkthrough</button>
+        <button role="tab" id="tab-explore" aria-selected="false" aria-controls="explorePanel" tabindex="-1" type="button">Explore</button>
+        <button role="tab" id="tab-practice" aria-selected="false" aria-controls="practicePanel" tabindex="-1" type="button">Practice</button>
+      </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Switch to dark mode</button>
+  </div>
+
+  <div class="board">
+
+    <!-- ============ content column ============ -->
+    <div class="col">
+
+      <section class="card" id="caseCard" aria-labelledby="caseTitle" hidden>
+        <h2 id="caseTitle"></h2>
+        <p class="case-group" id="caseGroup"></p>
+        <div class="case-body" id="caseBody"></div>
+      </section>
+
+      <section class="card" id="calcCard" aria-labelledby="calcTitle">
+        <h2 id="calcTitle">The worksheet</h2>
+        <p class="situation" id="situation"></p>
+        <div class="table-scroll">
+          <table class="ws" id="ws">
+            <caption id="wsCap">What a supporter could get, what defecting is worth, and what the leader keeps.</caption>
+            <thead><tr id="wsHead"></tr></thead>
+            <tbody id="wsBody"></tbody>
+          </table>
+        </div>
+        <p class="ws-note" id="wsNote"></p>
+      </section>
+
+      <section class="card" id="figCard" aria-labelledby="figTitle" hidden>
+        <h2 class="fig-title" id="figTitle">Selectorate Theory and Government Performance</h2>
+        <div class="fig-wrap">
+          <svg class="fig" id="fig" viewBox="0 0 480 360" aria-hidden="true" focusable="false">
+            <line class="diag" x1="48" y1="312" x2="464" y2="16"></line>
+            <g class="lab" id="lab-poor">
+              <text x="60" y="32" class="t1">Dominant-party and personalist dictatorships</text>
+              <text x="60" y="46" class="t2">(Poor policy performance:</text>
+              <text x="60" y="60" class="t2">W and W/S are both small.)</text>
+            </g>
+            <g class="lab" id="lab-good">
+              <text x="456" y="108" text-anchor="end" class="t1">Democracies</text>
+              <text x="456" y="122" text-anchor="end" class="t2">(Good policy performance:</text>
+              <text x="456" y="136" text-anchor="end" class="t2">W and W/S are both large.)</text>
+            </g>
+            <g class="lab" id="lab-mid">
+              <text x="60" y="196" class="t1">Monarchies and military juntas</text>
+              <text x="60" y="210" class="t2">(Middling policy performance:</text>
+              <text x="60" y="224" class="t2">W is small but W/S is large.)</text>
+            </g>
+            <polyline class="axis" points="48,16 48,312 464,312"></polyline>
+            <text class="axend" x="40" y="24" text-anchor="end">Large</text>
+            <text class="axend" x="40" y="312" text-anchor="end">Small</text>
+            <text class="axend" x="56" y="332">Small</text>
+            <text class="axend" x="464" y="332" text-anchor="end">Large</text>
+            <text class="axt" x="256" y="352" text-anchor="middle">Winning coalition (W)</text>
+            <text class="axt" x="0" y="0" text-anchor="middle" transform="translate(20 164) rotate(-90)">Selectorate (S)</text>
+          </svg>
+        </div>
+        <p class="fig-note">Note: W/S is large (and the loyalty norm is weak) along the dotted line. Every position lies on or above it, because the winning coalition is drawn from the selectorate.</p>
+        <p class="fig-cap" id="figCap"></p>
+      </section>
+    </div>
+
+    <!-- ============ the panel ============ -->
+    <div>
+
+      <!-- guided -->
+      <section class="card" id="guidedPanel" role="tabpanel" aria-labelledby="tab-guided">
+        <p class="step-label" id="stepLabel"></p>
+        <div aria-live="polite" id="stepLive">
+          <h2 class="step-title" id="stepTitle" tabindex="-1"></h2>
+          <div class="step-body" id="stepBody"></div>
+          <div class="looks" id="stepLook"></div>
+        </div>
+        <div class="nav" id="guidedNav">
+          <button class="btn" type="button" id="prevBtn">Back</button>
+          <button class="btn primary" type="button" id="nextBtn">Next</button>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- explore -->
+      <section class="card" id="explorePanel" role="tabpanel" aria-labelledby="tab-explore" hidden>
+        <h2 id="exploreTitle" tabindex="-1">Change the numbers</h2>
+        <p class="cnote">Imagine a country of 10 million residents. The worksheet follows the sliders.</p>
+
+        <div class="verdict-box" aria-live="polite" id="verdictBox">
+          <p class="who">What the leader keeps</p>
+          <p class="verdict" id="verdict"></p>
+          <p class="why" id="vWhy"></p>
+          <p class="who">Private or public goods?</p>
+          <p class="why" id="vGoods"></p>
+        </div>
+
+        <div class="cgroup">
+          <h3>The institutions</h3>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sW"><span class="sym-w">W</span> &mdash; winning coalition</label><span class="ctrl-val" id="oW"></span></div>
+            <p class="ctrl-help">The people whose support the leader needs to stay in power. Never more than S.</p>
+            <input type="range" id="sW" min="0" max="17" step="1" value="6">
+            <div class="scale"><span>10</span><span>5,000,000</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sS"><span class="sym-s">S</span> &mdash; selectorate</label><span class="ctrl-val" id="oS"></span></div>
+            <p class="ctrl-help">The people with a legitimate say, if they choose, in selecting the leader.</p>
+            <input type="range" id="sS" min="0" max="18" step="1" value="12">
+            <div class="scale"><span>10</span><span>10,000,000</span></div>
+          </div>
+        </div>
+
+        <div class="cgroup">
+          <h3>The money</h3>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sR">R &mdash; revenue to spend</label><span class="ctrl-val" id="oR"></span></div>
+            <p class="ctrl-help">Tax revenue the leader can hand out or keep.</p>
+            <input type="range" id="sR" min="0" max="4" step="1" value="3">
+            <div class="scale"><span>$1,000,000</span><span>$10,000,000,000</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sG">Public goods per person</label><span class="ctrl-val" id="oG"></span></div>
+            <p class="ctrl-help">What the public goods are worth to each person if all the revenue goes to them.</p>
+            <input type="range" id="sG" min="0" max="15" step="1" value="6">
+            <div class="scale"><span>$10</span><span>$1,000,000</span></div>
+          </div>
+        </div>
+        <p class="cnote">
+          W cancels out of what a defector can expect: (W&nbsp;&divide;&nbsp;S)&nbsp;&times;&nbsp;(R&nbsp;&divide;&nbsp;W)
+          is just R&nbsp;&divide;&nbsp;S. It does not cancel out of what the leader keeps, which is
+          (R&nbsp;&divide;&nbsp;W)&nbsp;&minus;&nbsp;(R&nbsp;&divide;&nbsp;S).
+        </p>
+      </section>
+
+      <!-- practice -->
+      <section class="card" id="practicePanel" role="tabpanel" aria-labelledby="tab-practice" hidden>
+        <h2 id="practiceTitle" tabindex="-1">Practice</h2>
+        <div class="seg" role="group" aria-label="Kind of practice">
+          <button type="button" id="segCalc" aria-pressed="true">Calculations</button>
+          <button type="button" id="segRegime" aria-pressed="false">Reading a regime</button>
+        </div>
+
+        <!-- calculations -->
+        <div id="calcPractice">
+          <div class="problem" id="probText"></div>
+
+          <div class="task" id="ct1">
+            <p class="task-q">1. If the leader spent all the revenue on private goods, shared equally, what is the most each member of the winning coalition could receive?</p>
+            <div class="opts" id="co1"></div>
+            <div id="cf1"></div>
+          </div>
+          <div class="task" id="ct2" hidden>
+            <p class="task-q">2. What is the chance that a member of the selectorate ends up in a winning coalition &mdash; and so the chance that a defector makes it into the next leader&rsquo;s coalition?</p>
+            <div class="opts" id="co2"></div>
+            <div id="cf2"></div>
+          </div>
+          <div class="task" id="ct3" hidden>
+            <p class="task-q">3. What is the most a member could expect in private goods by defecting to a challenger?</p>
+            <div class="opts" id="co3"></div>
+            <div id="cf3"></div>
+          </div>
+          <div class="task" id="ct4" hidden>
+            <p class="task-q">4. The leader pays each member just over what defecting is worth. Out of each member&rsquo;s possible share, how much can the leader keep?</p>
+            <div class="opts" id="co4"></div>
+            <div id="cf4"></div>
+          </div>
+          <div class="task" id="ct5" hidden>
+            <p class="task-q">5. Which would give each member of the winning coalition more: spending all the revenue on private goods, or all of it on public goods?</p>
+            <div class="opts row" id="co5">
+              <button class="opt" type="button" data-v="private">Private goods</button>
+              <button class="opt" type="button" data-v="public">Public goods</button>
+            </div>
+            <div id="cf5"></div>
+          </div>
+
+          <div class="nav">
+            <button class="btn primary" type="button" id="nextProb" hidden>Next problem</button>
+          </div>
+          <p class="score" id="score"></p>
+        </div>
+
+        <!-- regimes -->
+        <div id="regimePractice" hidden>
+          <div id="casePicker"></div>
+
+          <div class="task" id="rt1">
+            <p class="task-q">1. How large is the winning coalition?</p>
+            <div class="opts" id="ro1"></div>
+            <div id="rf1"></div>
+          </div>
+          <div class="task" id="rt2" hidden>
+            <p class="task-q">2. How strong is the loyalty norm?</p>
+            <div class="opts" id="ro2"></div>
+            <div id="rf2"></div>
+          </div>
+          <div class="task" id="rt3" hidden>
+            <p class="task-q">3. What does selectorate theory predict about government performance?</p>
+            <div class="opts" id="ro3"></div>
+            <div id="rf3"></div>
+          </div>
+          <div class="finished" id="caseDone" hidden></div>
+          <div class="nav">
+            <button class="btn primary" type="button" id="nextCase" hidden>Next country</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    Accompanies Chapter 9 of <em>Principles of Comparative Politics</em>, 4th edition (Clark, Golder, and
+    Golder 2024). Societies A and B, and the figure, are the chapter&rsquo;s. The countries in practice mode are
+    hypothetical, and the numbers in the explore and practice modes are illustrations, not measurements.
+  </footer>
+
+  <button class="back-btn" type="button" id="backBtn" hidden>Back to the steps</button>
+  <div class="sr-only" role="status" aria-live="polite" id="live"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MINUS = "−", TIMES = "×", DIVIDE = "÷";
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var liveEl = document.getElementById("live");
+  function say(msg) { liveEl.textContent = ""; setTimeout(function () { liveEl.textContent = msg; }, 30); }
+  function $(id) { return document.getElementById(id); }
+
+  /* ---------------- number formatting ---------------- */
+
+  function isWhole(v) { return Math.abs(v - Math.round(v)) < 1e-9; }
+  function num(v) {
+    if (isWhole(v)) return Math.round(v).toLocaleString("en-US");
+    return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+  function money(v) {
+    if (isWhole(v)) return "$" + Math.round(v).toLocaleString("en-US");
+    return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function prob(v) {
+    /* three significant figures, never in exponent form */
+    var s = Number(v.toPrecision(3)).toFixed(8);
+    s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s;
+  }
+  function oneIn(w, s) { return "1 in " + num(s / w); }
+
+  /* ---------------- the model ---------------- */
+
+  function maxPriv(c) { return c.R / c.W; }
+  function pNext(c) { return c.W / c.S; }
+  function evDefect(c) { return c.R / c.S; }
+  function keepPer(c) { return c.R / c.W - c.R / c.S; }
+
+  /* ---------------- moving the reader ---------------- */
+
+  var CARDS = { calc: "calcCard", fig: "figCard", case: "caseCard" };
+  var CARD_NAMES = { calc: "the worksheet", fig: "the figure", case: "the case card" };
+  var backBtn = $("backBtn");
+  var movedAway = false, autoScrollUntil = 0;
+  function markMoved() { movedAway = true; autoScrollUntil = Date.now() + (reduceMotion ? 100 : 900); }
+
+  function isEnoughOnScreen(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    if (r.top >= 0 && r.bottom <= vh) return true;
+    if (r.height > vh && r.top >= 0 && (vh - r.top) >= 0.6 * vh) return true;
+    return false;
+  }
+  function goTo(el) {
+    markMoved();
+    el.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    setTimeout(updateBack, reduceMotion ? 150 : 950);
+  }
+  function bring(key) {
+    var el = $(CARDS[key]);
+    if (!el || el.hidden || isEnoughOnScreen(el)) return;
+    goTo(el);
+  }
+  function lookButtons(container, keys) {
+    container.innerHTML = "";
+    (keys || []).forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "look-btn";
+      b.textContent = "Look at " + CARD_NAMES[k];
+      b.addEventListener("click", function () { goTo($(CARDS[k])); });
+      container.appendChild(b);
+    });
+  }
+
+  function anchorFor(m) {
+    if (m === "guided") return $("guidedNav");
+    if (m === "explore") return $("verdictBox");
+    if (m === "practice") {
+      var ids = practiceKind === "calc" ? ["ct5", "ct4", "ct3", "ct2", "ct1"] : ["rt3", "rt2", "rt1"];
+      for (var i = 0; i < ids.length; i++) if (!$(ids[i]).hidden) return $(ids[i]);
+    }
+    return null;
+  }
+  function anchorVisible(el) {
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+  function updateBack() {
+    var a = anchorFor(mode);
+    if (!a) { backBtn.hidden = true; return; }
+    if (anchorVisible(a)) {
+      if (Date.now() >= autoScrollUntil) movedAway = false;
+      backBtn.hidden = true; return;
+    }
+    backBtn.hidden = !movedAway;
+    backBtn.textContent = mode === "guided" ? "Back to the steps"
+      : mode === "explore" ? "Back to the sliders" : "Back to the question";
+  }
+  window.addEventListener("scroll", updateBack, { passive: true });
+  window.addEventListener("resize", updateBack);
+  backBtn.addEventListener("click", function () {
+    var a = anchorFor(mode);
+    if (!a) return;
+    a.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+    movedAway = false;
+    backBtn.hidden = true;
+  });
+
+  /* ---------------- the worksheet ---------------- */
+
+  var ROWS = {
+    R:    { label: "Revenue to spend", key: "R" },
+    W:    { label: "Winning coalition", key: "W", cls: "sym-w" },
+    S:    { label: "Selectorate", key: "S", cls: "sym-s" },
+    max:  { label: "The most a member of W could get", f: "R " + DIVIDE + " W" },
+    p:    { label: "Chance a defector is in the next coalition", f: "W " + DIVIDE + " S" },
+    ev:   { label: "Most a defector can expect", f: "(W " + DIVIDE + " S) " + TIMES + " (R " + DIVIDE + " W)" },
+    pay:  { label: "What the leader must give each member", f: "a little more than that" },
+    keep: { label: "What the leader keeps per member", f: "(R " + DIVIDE + " W) " + MINUS + " what a defector can expect" },
+    g:    { label: "Public goods per person, if all revenue goes to them" }
+  };
+  var ALL_ROWS = ["R", "W", "S", "max", "p", "ev", "pay", "keep"];
+
+  function cellContent(key, c) {
+    var needS = { S: 1, p: 1, ev: 1, pay: 1, keep: 1 };
+    if (needS[key] && !c.S) return { v: "—", na: true, aria: "not given" };
+    switch (key) {
+      case "R": return { v: money(c.R) };
+      case "W": return { v: num(c.W) };
+      case "S": return { v: num(c.S) };
+      case "max": return { v: money(maxPriv(c)), sub: money(c.R) + " " + DIVIDE + " " + num(c.W) };
+      case "p": return { v: prob(pNext(c)), sub: oneIn(c.W, c.S) };
+      case "ev": return { v: money(evDefect(c)), sub: prob(pNext(c)) + " " + TIMES + " " + money(maxPriv(c)) };
+      case "pay": return { v: "just over " + money(evDefect(c)) };
+      case "keep": return { v: "just under " + money(keepPer(c)), sub: money(maxPriv(c)) + " " + MINUS + " " + money(evDefect(c)) };
+      case "g": return c.g == null ? { v: "—", na: true, aria: "not given" } : { v: money(c.g) };
+    }
+    return { v: "" };
+  }
+
+  /* spec: { situation, cols:[{title,R,W,S,g}], rows:[keys], shown:{key:1}, fresh:{key:1}, note } */
+  function renderWorksheet(spec) {
+    $("situation").innerHTML = spec.situation || "";
+    var head = $("wsHead");
+    head.innerHTML = "";
+    var th0 = document.createElement("th"); th0.scope = "col";
+    th0.innerHTML = "<span class='sr-only'>Quantity</span>";
+    head.appendChild(th0);
+    spec.cols.forEach(function (c) {
+      var th = document.createElement("th"); th.scope = "col"; th.textContent = c.title || "Value";
+      head.appendChild(th);
+    });
+    var body = $("wsBody");
+    body.innerHTML = "";
+    spec.rows.forEach(function (key) {
+      var r = ROWS[key];
+      var tr = document.createElement("tr");
+      var th = document.createElement("th"); th.scope = "row";
+      var lab = document.createElement("span"); lab.className = "rl";
+      lab.textContent = r.label;
+      if (r.key) {
+        lab.appendChild(document.createTextNode(" ("));
+        var k = document.createElement("span"); k.className = "rkey " + (r.cls || ""); k.textContent = r.key;
+        lab.appendChild(k);
+        lab.appendChild(document.createTextNode(")"));
+      }
+      th.appendChild(lab);
+      if (r.f) { var f = document.createElement("span"); f.className = "rf"; f.textContent = r.f; th.appendChild(f); }
+      tr.appendChild(th);
+      spec.cols.forEach(function (c) {
+        var td = document.createElement("td");
+        var v = document.createElement("span");
+        if (!spec.shown[key]) {
+          v.className = "rv unknown"; v.textContent = "?";
+          v.setAttribute("aria-label", "not yet worked out");
+          td.appendChild(v);
+        } else {
+          var cc = cellContent(key, c);
+          v.className = "rv" + (cc.na ? " na" : "");
+          v.textContent = cc.v;
+          if (cc.aria) v.setAttribute("aria-label", cc.aria);
+          td.appendChild(v);
+          if (cc.sub) { var s = document.createElement("span"); s.className = "rsub"; s.textContent = cc.sub; td.appendChild(s); }
+          if (spec.fresh && spec.fresh[key]) td.className = "fresh";
+        }
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    $("wsNote").textContent = spec.note || "";
+  }
+
+  /* ---------------- the figure ---------------- */
+
+  /* The figure is the chapter's reference picture. Nothing is ever plotted on it: the cases give no
+     exact sizes, and placing them would suggest more precision about W and S than the measures carry. */
+  function renderFigure(caption) { $("figCap").textContent = caption || ""; }
+
+  function showCards(c) {
+    $("caseCard").hidden = !c.case;
+    $("calcCard").hidden = !c.calc;
+    $("figCard").hidden = !c.fig;
+  }
+
+  /* ---------------- guided walkthrough ---------------- */
+
+  var A = { title: "Society A", R: 1e9, W: 1000, S: 100000 };
+  var B = { title: "Society B", R: 1e9, W: 1000, S: 10000 };
+  var C = { title: "W of one million", R: 1e9, W: 1000000, S: null };
+  var SIT_NONE = "Societies A and B are introduced at step 4.";
+  var SIT_A = "Society A: the leader has $1 billion in tax revenue to distribute among the 1,000 members of the winning coalition and themself. The selectorate has 100,000 people.";
+  var SIT_AB = "Societies A and B are identical except for the size of the selectorate: 100,000 people in A, just 10,000 in B. Each leader has $1 billion and a winning coalition of 1,000.";
+  var SIT_C = "The same $1 billion, spread over a winning coalition of one million people instead of 1,000.";
+
+
+  var STEPS = [
+    { title: "The puzzle",
+      ws: { situation: SIT_NONE, cols: [A], shown: {} },
+      body: [
+        "Selectorate theory starts from one assumption: all political leaders behave as if they want to gain and keep office. Leaders who don’t try are replaced by competitors who do.",
+        "So why do some leaders produce good economic outcomes and others bad ones? Bueno de Mesquita, Smith, Siverson, and Morrow (BDM²S²) list the twenty-five best-performing leaders between 1955 and 2002 and the twenty-five longest-ruling. There is no overlap. The best performers lasted six years on average; the longest-ruling lasted 35.1."
+      ] },
+    { title: "Three groups of residents",
+      ws: { situation: SIT_NONE, cols: [A], shown: {} },
+      body: [
+        "The <strong>disenfranchised</strong> have no legal right to take part in choosing the government. The <strong>selectorate (S)</strong> is everyone with a legitimate say, if they choose, in selecting the leader. Selecting needn’t mean voting: in a monarchy the selectorate may be only the royal family.",
+        "The <strong>winning coalition (W)</strong> is the members of the selectorate whose support the leader needs to stay in power. A leader who can’t keep the winning coalition loyal loses office to a challenger."
+      ] },
+    { title: "Public goods and private goods",
+      ws: { situation: SIT_NONE, cols: [A], shown: {} },
+      body: [
+        "Leaders keep the winning coalition happy with <strong>public goods</strong>, which everyone enjoys whether or not they are in the coalition (education, health care, infrastructure), or <strong>private goods</strong>, which go only to coalition members (export licenses, private jets, villas in the South of France).",
+        "The leader also picks a tax rate, which sets how much there is to hand out. Meanwhile a challenger makes a rival offer to the selectorate. Whoever best meets the needs of a winning coalition wins."
+      ] },
+    { title: "Society A", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_A, cols: [A], shown: { R: 1, W: 1, S: 1 }, fresh: { R: 1, W: 1, S: 1 } },
+      body: [
+        "Here is the chapter’s first society. The leader has $1 billion in tax revenue, a winning coalition of 1,000, and a selectorate of 100,000.",
+        "The question is how little the leader can pay the coalition and still stay in power. The worksheet fills in one row at a time."
+      ] },
+    { title: "The most a supporter could get", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_A, cols: [A], shown: { R: 1, W: 1, S: 1, max: 1 }, fresh: { max: 1 } },
+      body: [
+        "If the leader spent every dollar on private goods and divided them equally, each of the 1,000 members would get $1 billion ÷ 1,000 = $1 million.",
+        "That is also the most a challenger could offer each member, since a challenger has the same revenue to promise."
+      ] },
+    { title: "The chance of making the next coalition", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_A, cols: [A], shown: { R: 1, W: 1, S: 1, max: 1, p: 1 }, fresh: { p: 1 } },
+      body: [
+        "A member who defects has no guarantee of a place in the challenger’s coalition: there are plenty of people in the selectorate who would like to be in it, and a challenger’s promise isn’t entirely credible.",
+        "W/S is the probability that a member of the selectorate ends up in any winning coalition. Here it is 1,000 ÷ 100,000 = 0.01. This ratio is the <strong>loyalty norm</strong>: the smaller W/S, the stronger the loyalty."
+      ] },
+    { title: "What defecting is worth", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_A, cols: [A], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1 }, fresh: { ev: 1 } },
+      body: [
+        "A defector has a 1 percent chance of at most $1 million and a 99 percent chance of nothing. The expected value is $1,000,000 × 0.01 + $0 × 0.99 = $10,000.",
+        "That is the most a member of Society A’s winning coalition can expect in private goods by switching sides."
+      ] },
+    { title: "What the leader pays, and what the leader keeps", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_A, cols: [A], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 }, fresh: { pay: 1, keep: 1 } },
+      body: [
+        "To stay in power, the leader only has to offer each member slightly more than $10,000 in private goods, and come close to matching any public goods a challenger promises.",
+        "The leader can skim off the difference between the $1 million per supporter they could have paid and the something over $10,000 they need to pay: just under $990,000 per supporter. If a challenger offers attractive public goods, this “slush fund” is there to buy continued loyalty."
+      ] },
+    { title: "Society B: a smaller selectorate", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_AB, cols: [A, B], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 }, fresh: { S: 1, p: 1, ev: 1, pay: 1, keep: 1 } },
+      body: [
+        "Society B is identical except that its selectorate is 10,000. Now W/S = 0.1, and the expected value of defecting is $1,000,000 × 0.1 = $100,000.",
+        "B’s leader must pay a little more than $100,000 per supporter and keeps just under $900,000. Still a lot of money, but considerably less than A’s leader. B has the weaker loyalty norm."
+      ] },
+    { title: "Loyalty norms and kleptocracy", look: ["calc"],
+      ws: { situation: SIT_AB, cols: [A, B], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 } },
+      body: [
+        "Leaders in small W/S systems have greater opportunities to engage in kleptocracy and corruption. Mobutu Sese Seko is estimated to have stolen $4 billion from Zaire; Ferdinand Marcos between $5 and $10 billion from the Philippines.",
+        "The same loyalty norm gives these leaders no reason to produce good public policy. As long as supporters are paid, they don’t care about the citizenry, and money spent on public goods is money a challenger could promise to the coalition instead."
+      ] },
+    { title: "The size of the winning coalition", changes: ["calc"], look: ["calc"],
+      ws: { situation: SIT_C, cols: [A, C], rows: ["R", "W", "max"], shown: { R: 1, W: 1, max: 1 }, fresh: { W: 1, max: 1 },
+            note: "With a winning coalition of one million, each member’s share of private goods falls to $1,000." },
+      body: [
+        "Leaders always prefer private goods, because an incumbent always beats a challenger on private goods: the challenger can’t credibly guarantee a place in the next coalition. So challengers campaign on public goods.",
+        "But as W grows, each member’s share of private goods shrinks. Spread $1 billion over one million people and each gets at most $1,000. At some point members get more from public goods, so leaders in large-W systems compete on education policy and health care plans."
+      ] },
+    { title: "Three levels of performance", changes: ["fig"], look: ["fig"],
+      ws: { situation: SIT_AB, cols: [A, B], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 } },
+      fig: "The three labels mark the three combinations of W and W/S the chapter discusses.",
+      body: [
+        "<strong>Good</strong> when W and W/S are both large (democracies): leaders provide public goods and the weak loyalty norm makes them work hard. <strong>Poor</strong> when both are small (dominant-party and personalist dictatorships): small amounts of private goods to a loyal coalition, and kleptocracy.",
+        "<strong>Middling</strong> when W is small but W/S is large (monarchies and military juntas): few public goods, but the weak loyalty norm forces leaders to care about the economy, since that is the only way to pay a not-so-loyal coalition."
+      ] },
+    { title: "Good performance, short tenure",
+      ws: { situation: SIT_AB, cols: [A, B], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 } },
+      fig: "",
+      body: [
+        "Large-W/S systems encourage good performance, but good performance doesn’t buy longevity. With a weak loyalty norm, leaders survive for shorter periods. That is why democratic leaders rarely last as long as even the poorest-performing dictators.",
+        "It also explains why challengers who rail against corruption often keep the system once they win, as Jomo Kenyatta did in Kenya."
+      ] },
+    { title: "Who prefers which institutions",
+      ws: { situation: SIT_AB, cols: [A, B], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 } },
+      fig: "",
+      body: [
+        "Leaders prefer a small W and a large S: few people to pay, and loyal ones. Members of the winning coalition prefer a small W and a large W/S, which means plenty of private goods to share among few people and a leader who has to keep paying.",
+        "Everyone else prefers a large W and a large W/S, since only then does the leader provide public goods and perform well. In other words, leaders prefer dominant-party or personalist dictatorships, coalition members prefer monarchies or juntas, and everyone else prefers democracy."
+      ] },
+    { title: "The tale of two Leopolds",
+      ws: { situation: SIT_AB, cols: [A, B], shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1 } },
+      fig: "",
+      body: [
+        "Leopold II gave Belgian workers the right to strike, limited child labor and expanded the suffrage. At the same time he ran the Congo Free State, his personal property, through slave labor and murder. In Belgium his winning coalition was large; in the Congo it was himself and the Force Publique.",
+        "A civic-minded leader is neither necessary nor sufficient for good public policy. What it takes is institutions that create a large W and a large W/S. The practice tab gives you regimes to read in exactly these terms."
+      ] }
+  ];
+
+  var step = 0;
+  var dotsEl = $("dots");
+  STEPS.forEach(function () { var d = document.createElement("span"); d.className = "dot"; dotsEl.appendChild(d); });
+
+  function renderGuided(prev) {
+    var s = STEPS[step];
+    showCards({ calc: true, fig: s.fig !== undefined });
+    renderWorksheet({ situation: s.ws.situation, cols: s.ws.cols, rows: s.ws.rows || ALL_ROWS,
+                      shown: s.ws.shown, fresh: s.ws.fresh, note: s.ws.note });
+    if (s.fig !== undefined) renderFigure(s.fig);
+    $("stepLabel").textContent = "Step " + (step + 1) + " of " + STEPS.length;
+    $("stepTitle").textContent = s.title;
+    $("stepBody").innerHTML = s.body.map(function (p) { return "<p>" + p + "</p>"; }).join("");
+    lookButtons($("stepLook"), s.look);
+    $("prevBtn").disabled = step === 0;
+    $("nextBtn").disabled = step === STEPS.length - 1;
+    var dots = dotsEl.children;
+    for (var i = 0; i < dots.length; i++) dots[i].className = "dot" + (i === step ? " on" : "");
+    if (prev !== undefined && prev !== step && step > prev && s.changes) bring(s.changes[0]);
+  }
+
+  $("prevBtn").addEventListener("click", function () {
+    if (step > 0) { var p = step; step--; renderGuided(p); }
+  });
+  $("nextBtn").addEventListener("click", function () {
+    if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); }
+  });
+
+  /* ---------------- explore ---------------- */
+
+  var SIZES = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000,
+               200000, 500000, 1000000, 2000000, 5000000, 10000000];
+  var REVS = [1e6, 1e7, 1e8, 1e9, 1e10];
+  var GOODS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000];
+  var ex = { w: 6, s: 12, r: 3, g: 6 };   /* opens on Society A */
+  var sW = $("sW"), sS = $("sS"), sR = $("sR"), sG = $("sG");
+
+  function setOut(el, outId, shown, spoken) {
+    $(outId).textContent = shown;
+    el.setAttribute("aria-valuetext", spoken || shown);
+  }
+
+  function renderExplore(changed) {
+    if (ex.w > ex.s) { if (changed === "s") ex.w = ex.s; else ex.s = ex.w; }
+    sW.value = ex.w; sS.value = ex.s; sR.value = ex.r; sG.value = ex.g;
+    var c = { title: "Your country", W: SIZES[ex.w], S: SIZES[ex.s], R: REVS[ex.r], g: GOODS[ex.g] };
+    setOut(sW, "oW", num(c.W), "winning coalition " + num(c.W));
+    setOut(sS, "oS", num(c.S), "selectorate " + num(c.S));
+    setOut(sR, "oR", money(c.R), "revenue " + money(c.R));
+    setOut(sG, "oG", money(c.g), "public goods worth " + money(c.g) + " per person");
+
+    showCards({ calc: true });
+    renderWorksheet({
+      situation: "A leader with " + money(c.R) + " to spend, a winning coalition of " + num(c.W) +
+                 " and a selectorate of " + num(c.S) + ".",
+      cols: [c], rows: ALL_ROWS.concat(["g"]),
+      shown: { R: 1, W: 1, S: 1, max: 1, p: 1, ev: 1, pay: 1, keep: 1, g: 1 }
+    });
+
+    var share = 1 - c.W / c.S;
+    var pct = Math.round(share * 1000) / 10;
+    var vText;
+    if (c.W === c.S) {
+      vText = "Nothing: with W equal to S, every member of the selectorate is in every coalition.";
+    } else {
+      vText = "About " + pct + " percent of each supporter’s possible share: just under " + money(keepPer(c)) +
+              " of " + money(maxPriv(c)) + ".";
+    }
+    $("verdict").textContent = vText;
+    $("vWhy").textContent = c.W === c.S
+      ? "A defector is certain of a place in the next coalition, so the leader has to pay the full share."
+      : "A defector has a " + oneIn(c.W, c.S) + " chance of a place in the next coalition, so defecting is worth at most " +
+        money(evDefect(c)) + ".";
+    var priv = maxPriv(c), gv = c.g, goods;
+    if (priv > gv) goods = "Private goods: up to " + money(priv) + " per member, against public goods worth " + money(gv) + " to each person. The leader can buy the coalition’s loyalty with private goods.";
+    else if (priv < gv) goods = "Public goods: worth " + money(gv) + " to each person, against at most " + money(priv) + " per member in private goods. The coalition gets more from public goods.";
+    else goods = "A tie: " + money(priv) + " either way.";
+    $("vGoods").textContent = goods;
+
+    if (changed) say(vText);
+  }
+  sW.addEventListener("input", function () { ex.w = parseInt(sW.value, 10); renderExplore("w"); });
+  sS.addEventListener("input", function () { ex.s = parseInt(sS.value, 10); renderExplore("s"); });
+  sR.addEventListener("input", function () { ex.r = parseInt(sR.value, 10); renderExplore("r"); });
+  sG.addEventListener("input", function () { ex.g = parseInt(sG.value, 10); renderExplore("g"); });
+
+  /* ---------------- shared option helpers ---------------- */
+
+  function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function shuffled(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+
+  function lockOpts(id, chosen) {
+    var bs = $(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute("aria-disabled", "true");
+      if (bs[i].getAttribute("data-v") === chosen) bs[i].classList.add("chosen");
+    }
+  }
+  function resetOpts(id) {
+    var bs = $(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) { bs[i].removeAttribute("aria-disabled"); bs[i].classList.remove("chosen"); }
+  }
+  function note(id, ok, head, text) {
+    var el = $(id);
+    el.innerHTML = "";
+    var d = document.createElement("div");
+    d.className = "result-note " + (ok ? "ok" : "no");
+    var h = document.createElement("span"); h.className = "head";
+    h.textContent = (ok ? "✓ " : "✕ ") + head + " ";
+    d.appendChild(h);
+    d.appendChild(document.createTextNode(text));
+    el.appendChild(d);
+    return d;
+  }
+
+  /* ---------------- practice: calculations ---------------- */
+
+  /* Problem sets kept clear of the chapter's Problems 7 and 8 (revenue of $10,000; coalitions of 20, 25
+     and 80; selectorates of 200 and 1,000) and of Societies A and B. */
+  var CW = [10, 30, 40, 50, 100, 150, 200, 250, 400, 500, 2000, 5000];
+  var CK = [4, 5, 8, 10, 20, 25, 40, 50, 100, 200];
+  var CM = [30, 60, 120, 240, 300, 450, 800, 1500, 2500, 4000];
+  function forbidden(W, S, R) {
+    if (R === 10000) return true;
+    if ([20, 25, 80].indexOf(W) >= 0) return true;
+    if (S === 200 || S === 1000) return true;
+    if (W === 1000 && (S === 10000 || S === 100000)) return true;
+    if (S > 10000000) return true;
+    return false;
+  }
+
+  var cp = null, cStage = 1, cFirst = true;
+  var cStats = { done: 0, clean: 0 };
+
+  function genProblem() {
+    var W, k, m, S, R;
+    do {
+      W = pick(CW); k = pick(CK); m = pick(CM);
+      S = W * k; R = S * m;
+    } while (forbidden(W, S, R));
+    var c = { W: W, S: S, R: R, k: k, m: m, g: null };
+    var max = k * m;
+    if (Math.random() < 0.5) {
+      var f = pick([0.1, 0.2, 5, 10]);
+      c.g = Math.round(max * f);
+    }
+    return c;
+  }
+
+  /* Draw three distractors from a pool of real mistakes, then list all four smallest first. */
+  function buildNumeric(correct, pool, fmt) {
+    var seen = {}, cands = [];
+    seen[fmt(correct)] = 1;
+    pool.forEach(function (d) {
+      if (!(d.v > 0) || !isFinite(d.v)) return;
+      var key = fmt(d.v);
+      if (seen[key]) return;
+      seen[key] = 1;
+      cands.push(d.v);
+    });
+    var chosen = shuffled(cands).slice(0, 3).concat([correct]);
+    chosen.sort(function (a, b) { return a - b; });
+    return chosen;
+  }
+
+  function renderOpts(containerId, values, fmt, correct) {
+    var box = $(containerId);
+    box.innerHTML = "";
+    values.forEach(function (v, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "opt num";
+      b.textContent = fmt(v);
+      b.setAttribute("data-v", String(i));
+      if (v === correct) b.setAttribute("data-c", "1");
+      box.appendChild(b);
+    });
+  }
+
+  function calcSituation(c) {
+    var s = "A leader has " + money(c.R) + " in tax revenue to spend. The winning coalition has " + num(c.W) +
+            " members and the selectorate has " + num(c.S) + " members.";
+    if (c.g != null) s += " Spending all of the revenue on public goods would give each person goods worth " + money(c.g) + ".";
+    return s;
+  }
+
+  var C_SHOWN = [
+    { R: 1, W: 1, S: 1, g: 1 },
+    { max: 1 }, { p: 1 }, { ev: 1 }, { pay: 1, keep: 1 }
+  ];
+  function calcShown() {
+    var s = {};
+    for (var i = 0; i < Math.min(cStage, 5); i++) for (var k in C_SHOWN[i]) s[k] = 1;
+    return s;
+  }
+  function renderCalcCard(freshKeys) {
+    var c = cp;
+    var rows = ALL_ROWS.slice();
+    if (c.g != null) rows.push("g");
+    renderWorksheet({ situation: calcSituation(c), cols: [{ title: "This problem", R: c.R, W: c.W, S: c.S, g: c.g }],
+                      rows: rows, shown: calcShown(), fresh: freshKeys || {},
+                      note: cStage < 5 ? "Each row fills in once you have worked it out." : "" });
+  }
+
+  function newCalc(moveReader) {
+    cp = genProblem();
+    cStage = 1; cFirst = true;
+    var c = cp, max = c.k * c.m, p = 1 / c.k, ev = c.m, keep = max - ev;
+    cp.opts = {
+      1: buildNumeric(max, [
+        { v: ev }, { v: max / 10 }, { v: max / 100 }, { v: max * 10 }, { v: c.R }
+      ], money),
+      2: buildNumeric(p, [
+        { v: p / 10 }, { v: 1 / c.S }, { v: 1 / c.W < p ? 1 / c.W : -1 },
+        { v: p * 10 <= 1 ? p * 10 : -1 }, { v: 1 - p }, { v: 1 / (c.k - 1) }
+      ], prob),
+      3: buildNumeric(ev, [
+        { v: ev / 10 }, { v: ev * p }, { v: max }, { v: max - ev }, { v: ev * 10 }
+      ], money),
+      4: buildNumeric(keep, [
+        { v: ev }, { v: keep / 10 }, { v: max - 2 * ev }, { v: max }, { v: max + ev }, { v: keep * 10 }
+      ], money)
+    };
+    cp.ans = { 1: max, 2: p, 3: ev, 4: keep };
+    $("probText").innerHTML = "<p>" + calcSituation(c) + "</p>";
+    renderOpts("co1", cp.opts[1], money, max);
+    renderOpts("co2", cp.opts[2], prob, p);
+    renderOpts("co3", cp.opts[3], money, ev);
+    renderOpts("co4", cp.opts[4], function (v) { return "Just under " + money(v); }, keep);
+    resetOpts("co5");
+    ["ct2", "ct3", "ct4", "ct5"].forEach(function (id) { $(id).hidden = true; });
+    ["cf1", "cf2", "cf3", "cf4", "cf5"].forEach(function (id) { $(id).innerHTML = ""; });
+    $("nextProb").hidden = true;
+    renderCalcCard();
+    renderScore();
+    if (moveReader) bring("calc");
+  }
+
+  var C_WRONG = {
+    1: function (c) { return "Divide the revenue among the members of the winning coalition only: " + money(c.R) + " " + DIVIDE + " " + num(c.W) + "."; },
+    2: function (c) { return "The chance is the share of the selectorate that a winning coalition takes up: compare " + num(c.W) + " with " + num(c.S) + "."; },
+    3: function (c) { return "Weight the most a defector could get by the chance of getting it, and add nothing for the chance of being left out."; },
+    4: function (c) { return "Start from each member’s possible share and take away what the leader has to pay them."; }
+  };
+
+  function calcFinishFirstTry() {
+    cStats.done++;
+    if (cFirst) cStats.clean++;
+    $("nextProb").hidden = false;
+    renderScore();
+  }
+
+  function answerCalc(task, btn) {
+    if (cStage !== task) return;
+    var c = cp, ok = btn.getAttribute("data-c") === "1";
+    var fb = "cf" + task;
+    if (!ok) {
+      cFirst = false;
+      var msg = C_WRONG[task](c) + " Try again.";
+      note(fb, false, "Not that one.", msg);
+      say("Not that one. " + msg);
+      return;
+    }
+    lockOpts("co" + task, btn.getAttribute("data-v"));
+    var max = c.k * c.m, p = 1 / c.k, ev = c.m, keep = max - ev;
+    var t, fresh = {};
+    if (task === 1) { t = money(c.R) + " " + DIVIDE + " " + num(c.W) + " = " + money(max) + "."; fresh = { max: 1 }; }
+    if (task === 2) { t = num(c.W) + " " + DIVIDE + " " + num(c.S) + " = " + prob(p) + ", or " + oneIn(c.W, c.S) + "."; fresh = { p: 1 }; }
+    if (task === 3) { t = money(max) + " " + TIMES + " " + prob(p) + " + $0 " + TIMES + " " + prob(1 - p) + " = " + money(ev) + "."; fresh = { ev: 1 }; }
+    if (task === 4) { t = money(max) + " " + MINUS + " " + money(ev) + " = " + money(keep) + ", so the leader keeps just under that."; fresh = { pay: 1, keep: 1 }; }
+    cStage = task + 1;
+    var d = note(fb, true, "Right.", t + " The worksheet now shows it.");
+    var lk = document.createElement("div"); lk.className = "looks"; d.appendChild(lk);
+    lookButtons(lk, ["calc"]);
+    renderCalcCard(fresh);
+    say("Right. " + t);
+    if (task < 4) { $("ct" + (task + 1)).hidden = false; }
+    else if (c.g != null) { $("ct5").hidden = false; }
+    else calcFinishFirstTry();
+    bring("calc");
+  }
+
+  function answerCalc5(v) {
+    if (cStage !== 5) return;
+    var c = cp, max = c.k * c.m;
+    var right = max > c.g ? "private" : "public";
+    var cmp = "Private goods give each member at most " + money(max) + "; public goods give each person " + money(c.g) + ".";
+    if (v !== right) {
+      cFirst = false;
+      note("cf5", false, "Not that one.", cmp + " Try again.");
+      say("Not that one. " + cmp + " Try again.");
+      return;
+    }
+    lockOpts("co5", v);
+    cStage = 6;
+    var why = right === "private"
+      ? " With a coalition this small, private goods are the better deal, so the leader will use them."
+      : " With a coalition this large, each member’s share of private goods is too small, so public goods are the more efficient way to keep its support.";
+    note("cf5", true, right === "private" ? "Private goods." : "Public goods.", cmp + why);
+    say("Right. " + cmp + why);
+    calcFinishFirstTry();
+  }
+
+  function renderScore() {
+    $("score").textContent = cStats.done === 0 ? "No problems finished yet."
+      : cStats.done + (cStats.done === 1 ? " problem" : " problems") + " finished, " + cStats.clean +
+        " with every task right the first time.";
+  }
+
+  ["co1", "co2", "co3", "co4"].forEach(function (id, i) {
+    $(id).addEventListener("click", function (e) {
+      var b = e.target.closest(".opt"); if (b) answerCalc(i + 1, b);
+    });
+  });
+  $("co5").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (b) answerCalc5(b.getAttribute("data-v"));
+  });
+  $("nextProb").addEventListener("click", function () {
+    newCalc(true);
+    $("practiceTitle").focus({ preventScroll: true });
+    say("New problem. " + calcSituation(cp));
+  });
+
+  /* ---------------- practice: reading a regime ---------------- */
+
+  var GROUPS = [
+    { id: "g1", label: "Who chooses, and whose support counts",
+      desc: "" },
+    { id: "g2", label: "The same leader, two sets of rules",
+      desc: "Countries E and F have the same leader. Work both and compare them." },
+    { id: "g3", label: "One rule changed",
+      desc: "Countries G and H differ in exactly one rule. Work both and compare them." },
+    { id: "g4", label: "Labels that can mislead",
+      desc: "Each of these has the outward form of one kind of regime. Read the rules, not the label." }
+  ];
+
+  /* w: size of the winning coalition. ws: W as a share of S. The performance answer is derived from these. */
+  var CASES = [
+    { id: "A", group: "g1", w: "small", ws: "large",
+      text: [
+        "Country A has about 6 million residents and is ruled by a king. When a king dies or is removed, a council of about 500 nobles and senior clerics chooses his successor from the royal family.",
+        "A king who loses the backing of most of the council can be replaced, and two kings have been in the last fifty years. There are no national elections, and nobody outside the council takes part in choosing the king."
+      ],
+      whyW: "The king needs the backing of a few hundred people in a country of 6 million.",
+      whyS: "Only the council has a say, and the king needs most of it, so a council member who turned on him would have a good chance of being needed by the next king too.",
+      note: "Few public goods, but a king who cannot ignore the economy: his council is not especially loyal, and paying it well takes revenue that only a productive economy produces." },
+    { id: "B", group: "g1", w: "large", ws: "large",
+      text: [
+        "Country B has about 40 million residents. Every adult citizen may vote, and the president is elected every five years in a contest that several parties enter and that incumbents have lost.",
+        "To win, a candidate needs more votes than anyone else, which in practice has meant around half of those cast."
+      ],
+      whyW: "Winning takes millions of votes.",
+      whyS: "Every adult has a say, and the president needs about half of those who vote.",
+      note: "No president can buy millions of votes with private goods, so the contest is over public goods: who has the better schools, health care or roads. And with a weak loyalty norm, a president who performs badly is easily replaced." },
+    { id: "C", group: "g1", w: "small", ws: "small",
+      text: [
+        "Country C has about 25 million residents. Every adult citizen may vote for president, and turnout is reported above 90 percent. Opposition parties are banned, and the ruling party’s candidate has won every election with more than 95 percent of the vote.",
+        "The president stays in office as long as the roughly 40 commanders of the presidential guard and the security services stand with him. The two presidents before him fell when those commanders turned against them."
+      ],
+      whyW: "The president needs about 40 commanders, not the millions who vote.",
+      whyS: "Everyone has a formal say, but only about 40 people matter, so a commander who defected would have almost no chance of being one of the next president’s few.",
+      note: "BDM²S² call systems like this rigged election systems. Universal voting makes the selectorate large, the commanders make the winning coalition small, and the result is the strongest loyalty norm of all: a leader who can pay a little and keep the rest." },
+    { id: "D", group: "g1", w: "small", ws: "large",
+      text: [
+        "Country D has about 15 million residents and has been under military rule since a coup nine years ago. The head of state was chosen by a ruling council made up of the commanders of the army, navy, air force and national police, and about 70 senior officers.",
+        "He keeps his post as long as most of the council supports him. Civilians and junior officers have no part in choosing him."
+      ],
+      whyW: "The head of state needs a majority of a council of about 75 officers.",
+      whyS: "Only the council has a say, and he needs most of it.",
+      note: "A typical junta: a small selectorate of officers, a winning coalition that is a large part of it, and a leader who has to keep the economy producing in order to keep a not-so-loyal council paid." },
+    { id: "K", group: "g1", w: "small", ws: "small",
+      text: [
+        "Country K has about 12 million residents. Its president came to power in a coup twenty years ago. Every seven years all adult citizens may vote in a referendum to confirm him, and no other name appears.",
+        "He keeps power as long as about two dozen men remain loyal: relatives and old comrades who command the army’s key units and run the oil ministry."
+      ],
+      whyW: "About two dozen men out of 12 million residents.",
+      whyS: "Every adult has a formal say, but the president needs only a couple of dozen of them.",
+      note: "A personalist dictatorship with a referendum attached. The referendum makes the selectorate large without making the winning coalition any larger, which is exactly the combination that lets a leader pay little and keep much." },
+    { id: "L", group: "g1", w: "large", ws: "large",
+      text: [
+        "Country L has about 10 million residents. All adult citizens vote in parliamentary elections that several parties contest.",
+        "The prime minister holds office as long as a majority of parliament supports the government. The parties in that majority between them need the votes of well over a third of the electorate."
+      ],
+      whyW: "The governing parties need millions of votes.",
+      whyS: "Every adult has a say, and the government needs well over a third of them.",
+      note: "A parliamentary democracy: a large winning coalition that is a large share of a large selectorate. The prime minister competes on public goods and can be removed by a shift of votes." },
+    { id: "E", group: "g2", w: "small", ws: "small",
+      text: [
+        "Country E has about 300 million residents and one legal party. The party’s 2 million members formally elect its leadership at a national congress, and the party leader is head of state.",
+        "In practice the leader holds power as long as about 30 men at the top of the army and the party stand behind him."
+      ],
+      whyW: "About 30 men in a country of 300 million.",
+      whyS: "Two million party members have a formal say, and the leader needs about 30 of them.",
+      note: "Compare Country F. Here the leader can satisfy a tiny, very loyal group with private goods and has no reason to provide much else." },
+    { id: "F", group: "g2", w: "large", ws: "large",
+      text: [
+        "Years later, the man who led Country E becomes head of government of Country F, which has about 20 million residents.",
+        "In Country F every adult citizen votes in competitive parliamentary elections, and the head of government holds office only while his party commands a majority of the seats in parliament, which takes the votes of several million people."
+      ],
+      whyW: "Staying in office takes several million votes.",
+      whyS: "Every adult has a say, and the government needs millions of them.",
+      note: "The same man, different rules, different behavior. Selectorate theory predicts he will provide more public goods in Country F than he did in Country E, as the chapter reports of Chiang Kai-shek in China and then Taiwan, and of Leopold II in the Congo and Belgium." },
+    { id: "G", group: "g3", w: "small", ws: "large",
+      text: [
+        "Country G has about 4 million residents and is ruled by an emir. A council of about 400 members of the ruling family chooses each emir and can remove him by a majority vote, which it has done once.",
+        "No one outside the ruling family takes part in choosing the emir."
+      ],
+      whyW: "The emir needs about 200 of the council’s members, in a country of 4 million.",
+      whyS: "Only the council has a say, and the emir needs a majority of it.",
+      note: "Compare Country H, which differs in one rule." },
+    { id: "H", group: "g3", w: "small", ws: "small",
+      text: [
+        "Country H was identical to Country G until last year, when a new constitution gave every adult citizen a vote to confirm each new emir.",
+        "The ruling family’s council still decides who appears on the ballot, there is only ever one name, and the council can still remove the emir by a majority vote. Nothing else has changed."
+      ],
+      whyW: "The emir still needs a majority of the 400-member council.",
+      whyS: "Now millions have a formal say, while the emir still needs only about 200 of them.",
+      note: "Adding a vote for everyone made Country H worse governed, not better, according to the theory. The winning coalition is unchanged, the selectorate is far larger, and so the council is more loyal and cheaper to keep. This is why leaders prefer a large selectorate." },
+    { id: "I", group: "g4", w: "small", ws: "large",
+      text: [
+        "Country I is a republic with about 8 million residents. Its president and legislature are chosen in competitive elections that incumbents regularly lose.",
+        "Only men who own a substantial amount of land may vote, which comes to about 150,000 people. A candidate needs a majority of their votes to win."
+      ],
+      whyW: "About 75,000 votes in a country of 8 million: around 1 percent of residents.",
+      whyS: "Voters are few, but the winner needs half of them.",
+      note: "Competitive elections, but the theory places Country I with monarchies and juntas, not with modern democracies: what matters is how many people the winner needs, and here it is a small share of the residents." },
+    { id: "J", group: "g4", w: "small", ws: "large",
+      text: [
+        "Country J has about 50 million residents and one legal party, and holds no national elections. The party leader, who is also head of state, is chosen by secret ballot of the party’s central committee of about 200 members.",
+        "The committee can vote the leader out by a majority, and has done so twice. Ordinary party members and other citizens have no part in choosing the leader."
+      ],
+      whyW: "A majority of a 200-member committee, in a country of 50 million.",
+      whyS: "Only the committee has a say, and the leader needs most of it.",
+      note: "A one-party state, but not the usual dominant-party case. Most such regimes hold elections that make the selectorate large; here only the committee chooses, so the selectorate is small and the leader’s backers are not especially loyal." }
+  ];
+
+  var R1 = [
+    { v: "small", t: "Small — the leader needs the backing of only a few people, relative to the whole population" },
+    { v: "large", t: "Large — the leader needs the backing of a sizable share of the population" }
+  ];
+  var R2 = [
+    { v: "small", t: "Strong — those whose backing the leader needs are a small fraction of those with a say, so a defector would have little chance of a place in the next leader’s coalition" },
+    { v: "large", t: "Weak — those whose backing the leader needs are a large fraction of those with a say, so a defector would have a fair chance of a place in the next leader’s coalition" }
+  ];
+  var R3 = [
+    { v: "good", t: "Good — the leader relies on public goods and has to perform well to stay in office" },
+    { v: "middling", t: "Middling — few public goods, but the leader needs a productive economy to pay a not-so-loyal coalition" },
+    { v: "poor", t: "Poor — small amounts of private goods to a loyal few, and plenty left over to steal" }
+  ];
+  function perfOf(cs) { return cs.w === "large" ? "good" : (cs.ws === "large" ? "middling" : "poor"); }
+
+  var rc = null, rStage = 1, rFirst = true, rDone = {};
+
+  function buildPicker() {
+    var host = $("casePicker");
+    host.innerHTML = "";
+    GROUPS.forEach(function (g) {
+      var wrap = document.createElement("div"); wrap.className = "chips-group";
+      var lab = document.createElement("span"); lab.className = "group-label"; lab.textContent = g.label;
+      lab.id = "glab-" + g.id;
+      wrap.appendChild(lab);
+      var row = document.createElement("div"); row.className = "chips"; row.setAttribute("role", "group");
+      row.setAttribute("aria-labelledby", lab.id);
+      CASES.filter(function (c) { return c.group === g.id; }).forEach(function (c) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.setAttribute("data-id", c.id);
+        b.setAttribute("aria-pressed", rc && rc.id === c.id ? "true" : "false");
+        b.appendChild(document.createTextNode("Country " + c.id));
+        if (rDone[c.id]) {
+          var m = document.createElement("span"); m.className = "done-mark"; m.textContent = "✓";
+          m.setAttribute("aria-hidden", "true");
+          b.appendChild(m);
+          b.setAttribute("aria-label", "Country " + c.id + ", finished");
+        }
+        b.addEventListener("click", function () { selectCase(c.id, true); });
+        row.appendChild(b);
+      });
+      wrap.appendChild(row);
+      host.appendChild(wrap);
+    });
+  }
+
+  function regimeOpts(id, list) {
+    var box = $(id); box.innerHTML = "";
+    list.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "opt"; b.setAttribute("data-v", o.v); b.textContent = o.t;
+      box.appendChild(b);
+    });
+  }
+
+  function renderRegimeCards() {
+    var cs = rc, g = GROUPS.filter(function (x) { return x.id === cs.group; })[0];
+    showCards({ case: true });
+    $("caseTitle").textContent = "Country " + cs.id;
+    $("caseGroup").textContent = g.label + (g.desc ? ". " + g.desc : "");
+    $("caseBody").innerHTML = cs.text.map(function (p) { return "<p>" + p + "</p>"; }).join("");
+  }
+
+  function selectCase(id, moveReader) {
+    rc = CASES.filter(function (c) { return c.id === id; })[0];
+    rStage = 1; rFirst = true;
+    regimeOpts("ro1", R1); regimeOpts("ro2", R2); regimeOpts("ro3", R3);
+    ["rf1", "rf2", "rf3"].forEach(function (x) { $(x).innerHTML = ""; });
+    $("rt2").hidden = true; $("rt3").hidden = true;
+    $("caseDone").hidden = true; $("nextCase").hidden = true;
+    buildPicker();
+    renderRegimeCards();
+    if (moveReader) bring("case");
+  }
+
+  var R_WRONG = {
+    1: "Look past who takes part in the formalities. Ask whose backing the leader needs to keep office, and how many people that is out of the country’s residents.",
+    2: "Compare two groups in the case: those with a say in choosing the leader, and those whose backing the leader actually needs. How big is the second as a share of the first?",
+    3: "Use your two answers: the size of the winning coalition decides between public and private goods, and the loyalty norm decides how much the leader can keep."
+  };
+
+  function answerRegime(task, v) {
+    if (rStage !== task) return;
+    var cs = rc;
+    var right = task === 1 ? cs.w : task === 2 ? cs.ws : perfOf(cs);
+    var fb = "rf" + task;
+    if (v !== right) {
+      rFirst = false;
+      note(fb, false, "Not that one.", R_WRONG[task] + " Try again.");
+      say("Not that one. " + R_WRONG[task] + " Try again.");
+      return;
+    }
+    lockOpts("ro" + task, v);
+    rStage = task + 1;
+    var text = task === 1 ? cs.whyW : task === 2 ? cs.whyS
+      : ({ good: "Large W and large W/S.", middling: "Small W, but large W/S.", poor: "Small W and small W/S." })[right];
+    note(fb, true, "Right.", text);
+    say("Right. " + text + (task === 3 ? " " + cs.note : ""));
+    renderRegimeCards();
+    if (task < 3) {
+      $("rt" + (task + 1)).hidden = false;
+    } else {
+      if (rFirst) rDone[cs.id] = true;
+      buildPicker();
+      var done = $("caseDone");
+      done.innerHTML = "<p>" + cs.note + "</p>" +
+        (rFirst ? "" : "<p>Finish a country with every answer right the first time to mark it with a check.</p>");
+      done.hidden = false;
+      $("nextCase").hidden = false;
+    }
+  }
+
+  ["ro1", "ro2", "ro3"].forEach(function (id, i) {
+    $(id).addEventListener("click", function (e) {
+      var b = e.target.closest(".opt"); if (b) answerRegime(i + 1, b.getAttribute("data-v"));
+    });
+  });
+  $("nextCase").addEventListener("click", function () {
+    var order = [];
+    GROUPS.forEach(function (g) { CASES.forEach(function (c) { if (c.group === g.id) order.push(c.id); }); });
+    var i = order.indexOf(rc.id);
+    selectCase(order[(i + 1) % order.length], true);
+    $("practiceTitle").focus({ preventScroll: true });
+    say("Country " + rc.id + ".");
+  });
+
+  /* ---------------- practice switch ---------------- */
+
+  var practiceKind = "calc";
+  function setPractice(kind) {
+    practiceKind = kind;
+    $("segCalc").setAttribute("aria-pressed", kind === "calc" ? "true" : "false");
+    $("segRegime").setAttribute("aria-pressed", kind === "regime" ? "true" : "false");
+    $("calcPractice").hidden = kind !== "calc";
+    $("regimePractice").hidden = kind !== "regime";
+    if (kind === "calc") {
+      showCards({ calc: true });
+      if (!cp) newCalc(false); else renderCalcCard();
+    } else {
+      if (!rc) selectCase("A", false); else { buildPicker(); renderRegimeCards(); }
+    }
+  }
+  $("segCalc").addEventListener("click", function () { setPractice("calc"); say("Calculations. " + calcSituation(cp)); });
+  $("segRegime").addEventListener("click", function () { setPractice("regime"); say("Reading a regime. Country " + rc.id + "."); });
+
+  /* ---------------- modes ---------------- */
+
+  var mode = "guided";
+  var TABS = ["guided", "explore", "practice"];
+
+  function selectMode(m, focusTab) {
+    mode = m;
+    TABS.forEach(function (t) {
+      var tab = $("tab-" + t);
+      tab.setAttribute("aria-selected", t === m ? "true" : "false");
+      tab.tabIndex = t === m ? 0 : -1;
+      $(t + "Panel").hidden = t !== m;
+    });
+    movedAway = false; backBtn.hidden = true;
+    if (m === "guided") renderGuided();
+    else if (m === "explore") renderExplore();
+    else setPractice(practiceKind);
+    if (focusTab) $("tab-" + m).focus();
+    say(m === "guided" ? "Guided walkthrough, step " + (step + 1) + "."
+      : m === "explore" ? "Explore mode. The sliders change the worksheet."
+      : "Practice.");
+  }
+
+  TABS.forEach(function (t) {
+    $("tab-" + t).addEventListener("click", function () { selectMode(t, false); });
+  });
+  $("tabs").addEventListener("keydown", function (e) {
+    var i = TABS.indexOf(mode), next = null;
+    if (e.key === "ArrowRight") next = TABS[(i + 1) % 3];
+    else if (e.key === "ArrowLeft") next = TABS[(i + 2) % 3];
+    else if (e.key === "Home") next = TABS[0];
+    else if (e.key === "End") next = TABS[2];
+    if (next) { e.preventDefault(); selectMode(next, true); }
+  });
+
+  /* ---------------- theme ---------------- */
+
+  var themeBtn = $("themeToggle");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.textContent = t === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
+  applyTheme(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  themeBtn.addEventListener("click", function () {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  /* test hook for automated checks; harmless in use */
+  window.__sel = { CASES: CASES, perfOf: perfOf, genProblem: genProblem, buildNumeric: buildNumeric };
+
+  renderGuided();
+})();
+</script>
+</body>
+</html>
