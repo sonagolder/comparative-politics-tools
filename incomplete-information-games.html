@@ -555,6 +555,7 @@ const GAMES = [
     ] },
 
   { id:'successor', group:'short', title:'Naming a successor',
+    askAction:1,
     refs:['the ruler','the heir'],
     players:['Ruler','Heir'],
     worlds:[ { label:'Heir is patient', phrase:'the heir is patient', short:'patient' },
@@ -1208,10 +1209,53 @@ function epFormula(a, filled){
   const res = linStr(v1, v0 - v1);
   return head + (exp !== res ? ` = ${exp}` : '') + ` = <span class="res">${res}</span>`;
 }
+// In practice mode the inequality is written for the action the task asks about, so the
+// worksheet shows the student's own working; the walkthrough follows the chapter.
+function askedAction(){
+  const g = game(), p = P();
+  if (g.askAction !== undefined) return g.askAction;
+  if (p.cutoff) return g.dirAsk === 'below' ? p.below : p.above;
+  return p.always;
+}
 function compareOrder(){
   const g = game(), p = P();
-  const first = (g.compareFirst !== undefined) ? g.compareFirst : (p.cutoff ? p.above : p.always);
+  const first = mode === 'practice' ? askedAction()
+    : (g.compareFirst !== undefined) ? g.compareFirst : (p.cutoff ? p.above : p.always);
   return [first, 1 - first];
+}
+// Options for "when does the player choose this action?": the right inequality, the same
+// value with the sign the wrong way round, and two values from real solving mistakes, listed
+// by value; then the two answers for payoffs that never cross, always last.
+function inequalityOptions(){
+  const p = P(), a = askedAction();
+  const c = p.cutoff;
+  const dist = p.options.filter(f => !c || f.n !== c.n || f.d !== c.d);
+  const right = c ? (a === p.above ? '>' : '<') : null;
+  let items;
+  if (c){
+    // Two distractor values, chosen so the right answer's position varies across games:
+    // both below the critical probability, one either side, or both above, in turn.
+    // Values from real mistakes come first; simple fractions fill any gap.
+    const pad = [[1,5],[1,4],[1,3],[2,5],[1,2],[3,5],[2,3],[3,4],[4,5]].map(([n, d]) => frac(n, d));
+    const pool = dist.concat(pad).filter((f, i, arr) => f.v > 0 && f.v < 1 && f.v !== c.v &&
+      arr.findIndex(h => h.v === f.v) === i);
+    const lo = pool.filter(f => f.v < c.v), hi = pool.filter(f => f.v > c.v);
+    const pattern = GAMES.indexOf(game()) % 3;
+    let pick;
+    if (pattern === 0 && lo.length >= 2) pick = [lo[0], lo[1]];
+    else if (pattern === 2 && hi.length >= 2) pick = [hi[0], hi[1]];
+    else if (lo.length && hi.length) pick = [lo[0], hi[0]];
+    else pick = (lo.length >= 2 ? lo : hi).slice(0, 2);
+    items = [{ f:c, dir:right, ok:true }, { f:c, dir:right === '>' ? '<' : '>' },
+             { f:pick[0], dir:right }, { f:pick[1], dir:right }];
+  } else {
+    items = [{ f:dist[0], dir:'>' }, { f:dist[0], dir:'<' }, { f:dist[1], dir:'>' }, { f:dist[2] || dist[1], dir:'<' }];
+  }
+  items.sort((x, y) => x.f.v - y.f.v || (x.dir === '>' ? -1 : 1));
+  const opts = items.map(it => ({ label:`p ${it.dir} ${fracStr(it.f)}`, num:true, ok:!!it.ok }));
+  opts.push({ label:'For every value of p', ok: !c && a === p.always });
+  opts.push({ label:'For no value of p', ok: !c && a !== p.always });
+  return opts;
 }
 // The inequality for "first is chosen over second", solved for p as the chapter does.
 function algebraLines(){
@@ -1248,7 +1292,7 @@ function ruleSentence(){
    flags, and one renderer draws every card from those flags.
    --------------------------------------------------------------- */
 const GUIDED = ['intro','sep','solve0','solve1','complete','combine','ep0','ep1','cut','belief','nature'];
-const TASKS = ['solve0','solve1','infoset','ep0','ep1','cutoff','direction','belief','outcome','complete'];
+const TASKS = ['solve0','solve1','ep0','ep1','inequality','belief','outcome','complete'];
 
 function guidedSteps(){ return game().close ? GUIDED.concat(['close']) : GUIDED; }
 
@@ -1275,8 +1319,8 @@ function progressPractice(){
   const done = t => { const k = TASKS.indexOf(t); return k < taskIdx || (k === taskIdx && checked); };
   const reached = t => TASKS.indexOf(t) <= taskIdx;
   return { step:TASKS[taskIdx],
-    solved:[done('solve0'), done('solve1')], combined:reached('infoset'), dashed:done('infoset'),
-    ep:[done('ep0'), done('ep1')], cutoff:done('cutoff'), direction:done('direction'), belief:done('belief'),
+    solved:[done('solve0'), done('solve1')], combined:reached('ep0'), dashed:reached('ep0'),
+    ep:[done('ep0'), done('ep1')], cutoff:done('inequality'), direction:done('inequality'), belief:done('belief'),
     revealed:reached('outcome'), outcome:done('outcome'), complete:done('complete') };
 }
 function progress(){ return mode === 'guided' ? progressGuided() : progressPractice(); }
@@ -1311,7 +1355,6 @@ function treeStates(pr){
     st.gold = gold; st.goldLeaf = p.outcomeLeaf.pid;
   }
   if (interactive){
-    if (step === 'infoset') st.clickNodes = true;
     if (step === 'ep0' || step === 'ep1' || step === 'outcome') st.clickLeaves = true;
   }
   return [{ v, st, cap:null }];
@@ -1390,11 +1433,10 @@ function renderWorksheet(pr){
     h += `<div class="ws-row"><span class="ws-name">Expected payoff (${esc(actName(a))})</span> = ${epFormula(a, pr.ep[a])}</div>`;
   }
   if (pr.cutoff){
-    h += `<div class="ws-crit">`;
+    h += `<div class="ws-crit"><div><span class="k">When does ${esc(U())} choose ${esc(actName(compareOrder()[0]))}?</span></div>` +
+      `<div class="alg">${algebraHtml()}</div>`;
     if (p.cutoff) h += `<div><span class="k">Critical probability:</span> <span class="alg">p = ${fracStr(p.cutoff)}</span></div>`;
-    else h += `<div><span class="k">Critical probability:</span> none — the expected payoffs don’t cross between 0 and 1.</div>`;
-    if (pr.direction) h += `<div class="alg">${algebraHtml()}</div>` +
-      (p.cutoff ? '' : `<div>Every probability between 0 and 1 satisfies this, so ${esc(actName(p.always))} is always the better choice.</div>`);
+    else h += `<div>${compareOrder()[0] === p.always ? 'Every' : 'No'} probability between 0 and 1 satisfies this, so there is no critical probability: ${esc(actName(p.always))} is always the better choice.</div>`;
     h += `</div>`;
   }
   el.innerHTML = h;
@@ -1583,32 +1625,20 @@ function taskInfo(){
       `Step 2: solve the separate game in which ${esc(worldPhrase(w))}. Start at the end of the game tree and work backward. ` +
       `At each choice node in this game, click the branch the player making the choice will take; picking another branch at the same node replaces your pick. Then check your answer.` };
   }
-  if (id === 'infoset') return { id, kind:'tree', text:
-    `Step 3: the two games are now joined under Nature. A dashed line joins the choice nodes at which a player doesn’t know which world Nature has chosen. ` +
-    `Click every choice node the dashed line should join, then check your answer.` };
   if (id === 'ep0' || id === 'ep1'){
     const a = Number(id.charAt(2));
-    return { id, kind:'tree', text:
+    const joined = id === 'ep0'
+      ? `Step 3: the two games are now joined under Nature, and the dashed line joining nodes ${badge('w0')} and ${badge('w1')} shows that ${u} ${vb(0,'doesn’t','don’t')} know which world ${vb(0,'it is','they are')} in. ` : '';
+    return { id, kind:'tree', text: joined +
       `Step 4: what is ${u}’${plural(0) ? '' : 's'} expected payoff from <b>${esc(actName(a))}</b>? ` +
       `Suppose ${u} ${vb(0,'chooses','choose')} ${esc(actName(a))}. In each world, look down the game tree (follow the bold lines) and click the outcome the game reaches — ` +
       `one outcome where ${esc(worldPhrase(0))}, and one where ${esc(worldPhrase(1))}. The worksheet fills in once both are right.` };
   }
-  if (id === 'cutoff'){
-    const opts = p.options.map(f => ({ label:fracStr(f), num:true, ok: !!p.cutoff && f.n === p.cutoff.n && f.d === p.cutoff.d }));
-    opts.push({ label:'Nowhere between 0 and 1: the same choice is best whatever p is', ok: !p.cutoff });
-    return { id, kind:'opts', opts, text:
-      `Using the two expected payoffs in the worksheet, find the <b>critical probability</b>: the value of p at which ${u} ${vb(0,'is','are')} indifferent between ${esc(actName(0))} and ${esc(actName(1))}.` };
-  }
-  if (id === 'direction'){
-    const opts = [0,1].map(a => ({ label:actName(a) }));
-    if (!p.cutoff){
-      opts.forEach((o, a) => o.ok = a === p.always);
-      return { id, kind:'opts', opts, text:`The expected payoffs never cross between 0 and 1. Whatever the value of p, which does ${u} choose?` };
-    }
-    const askBelow = g.dirAsk === 'below';
-    opts.forEach((o, a) => o.ok = a === (askBelow ? p.below : p.above));
-    return { id, kind:'opts', opts, text:
-      `When p is ${askBelow ? 'less' : 'greater'} than <span class="pay">${fracStr(p.cutoff)}</span>, which does ${u} choose?` };
+  if (id === 'inequality'){
+    const [x, y] = compareOrder();
+    return { id, kind:'opts', opts:inequalityOptions(), text:
+      `${cap(u)} ${vb(0,'chooses','choose')} <b>${esc(actName(x))}</b> when the expected payoff from ${esc(actName(x))} is greater than the expected payoff from ${esc(actName(y))}. ` +
+      `Using the worksheet, set up that inequality and solve it for p. When does ${u} choose ${esc(actName(x))}?` };
   }
   if (id === 'belief'){
     const opts = [0,1].map(a => ({ label:actName(a), ok: a === p.beliefChoice }));
@@ -1632,7 +1662,6 @@ function taskCorrect(t){
     const want = new Set(nodesOfWorld(w).map(n => bKey(n.pid, CH(w, n.pid))));
     return sameSet(pending, want);
   }
-  if (t.id === 'infoset') return sameSet(pending, new Set([nKey('w0'), nKey('w1')]));
   if (t.id === 'ep0' || t.id === 'ep1'){
     const a = Number(t.id.charAt(2));
     return sameSet(pending, new Set(p.epLeaf[a].map(l => lKey(l.pid))));
@@ -1653,22 +1682,14 @@ function wrongMessage(t){
   switch (t.id){
     case 'solve0': case 'solve1':
       return `At least one of those isn’t the branch that player would choose. Start at the end of the game tree and work backward: at each choice node, follow the branches you picked further down and compare the payoffs of the player making the choice. Try the task again.`;
-    case 'infoset': {
-      const extra = [...pending].some(k => p.later.indexOf(k.split('|')[1]) >= 0);
-      return extra
-        ? `Not quite. By the time ${u} ${vb(0,'moves','move')} again, the other player’s response has revealed which world Nature chose, so no dashed line is needed there. Try the task again.`
-        : `Not quite. The dashed line joins the nodes where the player who doesn’t know the world has to choose without knowing it — one node in each world. Try the task again.`;
-    }
     case 'ep0': case 'ep1':
       return `Not quite. In each world, start at ${u}’${plural(0) ? '' : 's'} choice of ${esc(actName(Number(t.id.charAt(2))))} and follow the bold lines until you reach an outcome. Try the task again.`;
-    case 'cutoff':
-      return p.cutoff || optPick === t.opts.length - 1
-        ? `Not quite. Write the inequality the chapter uses — one expected payoff greater than the other — and solve it for p. Check that p is the probability that ${esc(worldPhrase(0))}. Try the task again.`
-        : `Not quite. Check whether the two expected payoffs actually cross: compare them at p = 0 and at p = 1. Try the task again.`;
-    case 'direction':
+    case 'inequality': {
+      const [x, y] = compareOrder();
       return p.cutoff
-        ? `Not quite. Pick a value of p on that side of the critical probability — ${g.dirAsk === 'below' ? '0' : '1'} is the easiest — and compare the two expected payoffs there. Try the task again.`
-        : `Not quite. Compare the two expected payoffs at any value of p, such as 0 or 1. Try the task again.`;
+        ? `Not quite. Write Expected payoff (${esc(actName(x))}) &gt; Expected payoff (${esc(actName(y))}) using the two rows of the worksheet, then solve for p one step at a time, as the chapter does. Check which side the p terms end up on. Try the task again.`
+        : `Not quite. Write Expected payoff (${esc(actName(x))}) &gt; Expected payoff (${esc(actName(y))}) and solve it for p, then ask whether any probability between 0 and 1 satisfies it. Try the task again.`;
+    }
     case 'belief':
       return p.cutoff
         ? `Not quite. Compare the belief, ${fmtBelief(g.belief)}, with the critical probability, ${fracStr(p.cutoff)}, and use the decision rule. Try the task again.`
@@ -1687,15 +1708,12 @@ function rightMessage(t){
       const w = Number(t.id.charAt(5));
       return `Correct. If ${u} knew that ${esc(worldPhrase(w))}, the subgame perfect equilibrium would be <span class="pay">${esc(speString(w))}</span> and the expected outcome ${esc(ciLeaf(w).name)}.`;
     }
-    case 'infoset':
-      return `Correct. When ${u} ${vb(0,'chooses','choose')} at nodes ${badge('w0')} and ${badge('w1')}, ${vb(0,'it doesn’t','they don’t')} know which of the two ${vb(0,'it is','they are')} at, so backward induction can’t settle those choices and their bold lines are gone.` +
-        (p.later.length ? ` Later nodes need no dashed line: by then the other player’s response has revealed the world.` : '');
     case 'ep0': case 'ep1':
       return `Correct. The worksheet now shows the expected payoff from ${esc(actName(Number(t.id.charAt(2))))}.`;
-    case 'cutoff':
-      return p.cutoff ? `Correct: the critical probability is ${fracStr(p.cutoff)}.` : `Correct: the expected payoffs don’t cross between 0 and 1, so there is no critical probability.`;
-    case 'direction':
-      return `Correct. ${ruleSentence()}`;
+    case 'inequality':
+      return p.cutoff
+        ? `Correct. ${cap(U())} ${vb(0,'chooses','choose')} ${esc(actName(askedAction()))} when <span class="pay">p ${askedAction() === p.above ? '&gt;' : '&lt;'} ${fracStr(p.cutoff)}</span>, so the critical probability is ${fracStr(p.cutoff)}.`
+        : `Correct. The expected payoffs never cross between 0 and 1, so there is no critical probability. ${ruleSentence()}`;
     case 'belief':
       return `Correct. The same branch is now bold at both of the nodes joined by the dashed line, since ${u} can’t tell them apart.`;
     case 'outcome':
@@ -1712,9 +1730,8 @@ function rightMessage(t){
 function taskCards(id){
   const map = {
     solve0:{ look:['treeCard'], done:'findingsCard' }, solve1:{ look:['treeCard'], done:'findingsCard' },
-    infoset:{ look:['treeCard'], done:'treeCard' },
     ep0:{ look:['treeCard','worksheet'], done:'worksheet' }, ep1:{ look:['treeCard','worksheet'], done:'worksheet' },
-    cutoff:{ look:['worksheet'], done:'worksheet' }, direction:{ look:['worksheet'], done:'ruleCard' },
+    inequality:{ look:['worksheet'], done:'ruleCard' },
     belief:{ look:['ruleCard'], done:'ruleCard' }, outcome:{ look:['treeCard'], done:'findingsCard' },
     complete:{ look:['findingsCard'], done:'findingsCard' }
   };
