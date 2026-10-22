@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Winsets in two dimensions</title>
+<style>
+  :root{
+    --ink:#111111;
+    --secondary:#555555;
+    --hint:#999999;
+    --border:#D0D0D0;
+    --bg:#FAFAFA;
+    --panel-bg:#FFFFFF;
+    --accent:#0072B2;
+
+    /* categorical: the three members. Vermillion is the house style's
+       third-category exception; the semantic pair never appears on the
+       figure, only on the result-note background. */
+    --pA:#009E73;   /* bluish green   — member A */
+    --pB:#CC79A7;   /* reddish purple — member B */
+    --pC:#B33E00;   /* vermillion, text-safe — member C */
+
+    /* semantic: correct / incorrect — messaging surfaces only */
+    --correct:#0072B2;
+    --wrong:#B33E00;
+
+    /* gold: scoped "found it" state */
+    --gold-ui:#B8860B;
+    --gold-text:#946B09;
+
+    --deemph:#707070;
+    --structure-ink:#141414;
+    --structure-line:#8A8A8A;
+    --on-accent:#FFFFFF;
+
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-data:"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  html[data-theme="dark"]{
+    --ink:#F2F2F2;
+    --secondary:#B3B3B3;
+    --hint:#7A7A7A;
+    --border:#3A3A3A;
+    --bg:#1A1A1A;
+    --panel-bg:#2A2A2A;
+    --accent:#7FC7EE;
+
+    --pA:#3FCFA0;
+    --pB:#E29FC4;
+    --pC:#F08A4B;
+
+    --correct:#7FC7EE;
+    --wrong:#F08A4B;
+
+    --gold-ui:#E0B23D;
+    --gold-text:#E0B23D;
+
+    --deemph:#9A9A9A;
+    --structure-ink:#E8E8E8;
+    --structure-line:#7E7E7E;
+    --on-accent:#0A1E28;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1080px; margin:0 auto;}
+
+  .top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  h1{font-size:clamp(21px,3vw,26px); font-weight:700; margin:0 0 8px;}
+  .lede{font-size:14px; color:var(--secondary); max-width:680px; line-height:1.6; margin:0 0 16px;}
+  .lede:last-of-type{margin-bottom:24px;}
+  .lede b{color:var(--ink);}
+
+  .theme-toggle{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:600; color:var(--secondary);
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .theme-toggle:hover{border-color:var(--accent);}
+  .theme-toggle:focus-visible, button:focus-visible, .chip:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  .group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary); margin:0 0 8px;}
+  .group-sub{font-size:12.5px; color:var(--secondary); margin:0 0 8px; line-height:1.5; max-width:680px;}
+  .picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .picker:last-of-type{margin-bottom:24px;}
+  .chip{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--ink); cursor:pointer;
+    text-align:left;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .chip:disabled{opacity:.5; cursor:not-allowed;}
+  .chip.wide{border-radius:8px; display:block; width:100%; line-height:1.5; padding:8px 16px; font-weight:500;}
+  .chip.wide.active{font-weight:600;}
+
+  .tabs{display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px; flex-wrap:wrap;}
+  .tab{
+    font-family:var(--font-body);
+    font-size:14px; font-weight:600; padding:8px 16px 16px;
+    background:none; border:none; color:var(--secondary); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+
+  .layout{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;}
+  .content-col{flex:1 1 520px; min-width:300px;}
+  .panel-col{flex:1 1 320px; min-width:290px;}
+
+  .card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .card-head{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--secondary); margin-bottom:8px;
+  }
+  .field + .field{margin-top:16px;}
+  .field-label{
+    font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--secondary); margin-bottom:2px;
+  }
+  .field-text{font-size:14.5px; line-height:1.6; color:var(--ink);}
+  .who{font-weight:700;}
+  .who.A{color:var(--pA);}
+  .who.B{color:var(--pB);}
+  .who.C{color:var(--pC);}
+
+  /* ---- the figure ---- */
+  .fig-card{
+    background:var(--panel-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; margin-bottom:16px;
+  }
+  .fig-title{font-size:13.5px; font-weight:700; color:var(--ink);}
+  .fig-svg{width:100%; max-width:520px; height:auto; display:block; margin:8px auto 0; touch-action:none;}
+  .fig-caption{font-size:12.5px; color:var(--secondary); line-height:1.6; margin:8px 0 0;}
+  .fig-caption b{color:var(--ink);}
+  .legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:8px; font-size:12px; color:var(--secondary);}
+  .legend span{display:inline-flex; align-items:center; gap:4px;}
+
+  .axis-line{stroke:var(--structure-ink); stroke-width:1.5;}
+  .axis-num{font-family:var(--font-data); font-size:11px; fill:var(--secondary);}
+  .axis-title{font-family:var(--font-body); font-size:13px; font-weight:600; fill:var(--secondary);}
+  .ic{fill:none; stroke-width:2;}
+  .ic.A{stroke:var(--pA);}
+  .ic.B{stroke:var(--pB);}
+  .ic.C{stroke:var(--pC);}
+  .ic.old{stroke-dasharray:3 4; opacity:.55;}
+  .win{fill:var(--deemph); fill-opacity:.22;}
+  .ideal.A{fill:var(--pA);}
+  .ideal.B{fill:var(--pB);}
+  .ideal.C{fill:var(--pC);}
+  .vlabel{font-family:var(--font-data); font-size:19px; font-weight:700;
+          paint-order:stroke; stroke:var(--panel-bg); stroke-width:4px; stroke-linejoin:round;}
+  .vlabel.A{fill:var(--pA);}
+  .vlabel.B{fill:var(--pB);}
+  .vlabel.C{fill:var(--pC);}
+  .sq-mark{fill:var(--structure-ink);}
+  .sq-old{fill:none; stroke:var(--deemph); stroke-width:1.5;}
+  .plabel{font-family:var(--font-data); font-size:13px; font-weight:700; fill:var(--ink);
+          paint-order:stroke; stroke:var(--panel-bg); stroke-width:4px; stroke-linejoin:round;}
+  .plabel.old{fill:var(--deemph);}
+  .prop-mark{fill:var(--panel-bg); stroke:var(--structure-ink); stroke-width:2;}
+  .opt-mark{fill:var(--panel-bg); stroke:var(--structure-ink); stroke-width:1.5;}
+  .opt-num{font-family:var(--font-data); font-size:11px; font-weight:700; fill:var(--ink);}
+  .wlabel{font-family:var(--font-data); font-size:11.5px; font-weight:700; fill:var(--ink);
+          paint-order:stroke; stroke:var(--panel-bg); stroke-width:3px; stroke-linejoin:round;}
+  .path-line{stroke:var(--structure-ink); stroke-width:1.5; fill:none; stroke-dasharray:5 4;}
+  .gold-ring{fill:none; stroke:var(--gold-ui); stroke-width:3;}
+  .gold-casing{fill:none; stroke:var(--structure-ink); stroke-width:1;}
+  .line-guide{stroke:var(--deemph); stroke-width:1.5; stroke-dasharray:4 4;}
+  .drag{cursor:grab;}
+  .drag:focus{outline:none;}
+  .drag:focus-visible .focus-halo{stroke:var(--accent); stroke-width:2; stroke-dasharray:3 3; fill:none;}
+  .focus-halo{fill:none; stroke:none;}
+
+  /* ---- findings ---- */
+  .findings{
+    margin-top:16px; padding:8px 16px; background:var(--panel-bg);
+    border:1px solid var(--gold-ui); border-radius:8px; font-size:13.5px; color:var(--ink);
+  }
+  .findings div{margin:8px 0; line-height:1.5;}
+  .findings .k{font-weight:700; color:var(--gold-text); margin-right:4px;}
+
+  /* ---- panel ---- */
+  .panel{
+    background:var(--panel-bg); color:var(--ink); border:1px solid var(--border);
+    border-radius:8px; padding:24px; min-height:340px; display:flex; flex-direction:column;
+  }
+  .panel .step-label{
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--accent); font-weight:700; margin-bottom:8px;
+  }
+  .panel .step-text{font-size:14.5px; line-height:1.65; color:var(--ink);}
+  .panel .step-text p{margin:0 0 8px;}
+  .panel .step-text p:last-child{margin-bottom:0;}
+
+  .look{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--border);
+  }
+  .look-lead{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--secondary);}
+  .look-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:600;
+    color:var(--accent); background:var(--panel-bg);
+    border:1px solid var(--accent); border-radius:16px;
+    padding:8px 16px; cursor:pointer;
+  }
+  .look-btn:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel-bg));}
+
+  .back-to-step{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    font-family:var(--font-body); font-size:13px; font-weight:600;
+    background:var(--accent); border:1px solid var(--accent); color:var(--on-accent);
+    border-radius:16px; padding:8px 16px; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+  .back-to-step[hidden]{display:none;}
+
+  #figCard, #caseCard, #findings{scroll-margin-top:8px;}
+
+  .opts{margin-top:16px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .panel-controls{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:var(--font-body);
+    font-size:13px; font-weight:600; padding:8px 16px;
+    border-radius:4px; border:1px solid var(--border);
+    background:var(--panel-bg); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .progress-dots{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .progress-dots span{width:8px; height:8px; border-radius:50%; background:var(--border);}
+  .progress-dots span.done{background:var(--accent);}
+  .progress-dots span.current{background:var(--ink);}
+
+  .result-note{font-size:13px; margin-top:8px; padding:8px 16px; border-radius:4px; display:none; line-height:1.6;}
+  .result-note.show{display:block;}
+  .result-note.ok{background:color-mix(in srgb, var(--correct) 18%, transparent); color:var(--ink);}
+  .result-note.no{background:color-mix(in srgb, var(--wrong) 18%, transparent); color:var(--ink);}
+
+  .explore-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+  .toggle{display:flex; align-items:center; gap:8px; font-size:13.5px; margin-top:8px; cursor:pointer;}
+  .toggle input{accent-color:var(--accent); width:16px; height:16px;}
+  .readout{font-size:13.5px; line-height:1.6; margin-top:16px; padding-top:16px; border-top:1px dashed var(--border);}
+  .readout p{margin:0 0 8px;}
+  .kbd-note{font-size:12.5px; color:var(--secondary); line-height:1.5; margin-top:8px;}
+
+  .site-foot{margin-top:32px; font-size:13px; line-height:1.6; color:var(--secondary); max-width:680px;}
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media (max-width:820px){
+    .fig-card{padding:16px;}
+    .card{padding:16px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Winsets in two dimensions</h1>
+      <p class="lede">A committee is deciding two issues at once, so a policy is a point in a two-dimensional space. Each member has an ideal point and prefers policies that are closer to it. Both issues matter equally to every member, so a member is indifferent between all the policies the same distance away.</p>
+      <p class="lede">That makes each member&rsquo;s <b>indifference curve</b> with respect to the status quo a circle, centered on their ideal point and passing through the status quo. Anything inside the circle is preferred to the status quo. The <b>winset</b> of the status quo is every policy that a majority prefers to it: here, the places where at least two circles overlap.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span id="themeIcon" aria-hidden="true">&#9789;</span>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-mode="guided" role="tab" aria-selected="true">Guided walkthrough</button>
+    <button class="tab" data-mode="explore" role="tab" aria-selected="false">Explore</button>
+    <button class="tab" data-mode="practice" role="tab" aria-selected="false">Practice mode</button>
+  </div>
+
+  <div id="pickerZone"></div>
+
+  <div class="layout">
+    <div class="content-col">
+      <div class="fig-card" id="figCard"></div>
+      <div class="card" id="caseCard"></div>
+      <div class="findings" id="findings"></div>
+    </div>
+    <div class="panel-col">
+      <div class="panel">
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="step-label" id="stepLabel"></div>
+        <div class="step-text" id="stepText" aria-live="polite"></div>
+        <div class="opts" id="opts"></div>
+        <div class="result-note" id="resultNote"></div>
+        <div class="panel-controls" id="panelControls"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-foot">
+    Accompanies Chapter 10 of <em>Principles of Comparative Politics</em>, 4th edition (Clark, Golder, and
+    Golder 2024). The committees, ideal points and policies are illustrations written for this tool; none is
+    taken from the chapter or its problems.
+  </footer>
+</div>
+
+<div class="sr-only" id="liveRegion" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   Geometry
+
+   Policies are points in a 0-100 square. Every member weighs the
+   two issues equally, so preferences are Euclidean: a member
+   prefers whichever policy is closer to their ideal point, and the
+   indifference curve through the status quo is the circle centered
+   on the ideal point with radius equal to the distance to it.
+
+   Every answer in the tool is computed from these coordinates.
+   Nothing about who prefers what, or which majorities can beat
+   the status quo, is authored by hand.
+   ============================================================ */
+const MEMBERS = ['A', 'B', 'C'];
+const PAIRS = [['A','B'], ['A','C'], ['B','C']];
+
+const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+
+/* How much closer a policy is to a member than the status quo is.
+   Positive means the member prefers the policy. */
+const gain = (v, p, sq) => dist(v, sq) - dist(v, p);
+
+function prefersOf(V, p, sq){
+  return MEMBERS.filter(k => gain(V[k], p, sq) > 1e-9);
+}
+const beats = (V, p, sq) => prefersOf(V, p, sq).length >= 2;
+
+/* Which groups of members share some policy they all prefer to the
+   status quo, inside the square. Sampled on a half-unit grid; a
+   region smaller than about two square units is treated as empty,
+   since nothing that small can be seen or proposed on purpose. */
+function winsetInfo(V, sq){
+  const r = {};
+  MEMBERS.forEach(k => r[k] = dist(V[k], sq));
+  const count = { AB:0, AC:0, BC:0, ABC:0 };
+  const best = { AB:null, AC:null, BC:null, ABC:null };
+  const step = 0.5;
+  for (let x = 0; x <= 100; x += step){
+    for (let y = 0; y <= 100; y += step){
+      const inside = MEMBERS.filter(k => dist(V[k], [x, y]) < r[k] - 1e-9);
+      if (inside.length < 2) continue;
+      const key = inside.join('');
+      /* Clearance: how far the point sits from the nearest circle and
+         from the edge of the square. Used to place each region's label. */
+      let clear = Math.min(x, 100 - x, y, 100 - y);
+      MEMBERS.forEach(k => { clear = Math.min(clear, Math.abs(r[k] - dist(V[k], [x, y]))); });
+      inside.length === 3 ? count.ABC++ : count[key]++;
+      if (!best[key] || clear > best[key].clear) best[key] = { p:[x, y], clear };
+      if (inside.length === 3){
+        PAIRS.forEach(pr => { const pk = pr.join(''); count[pk + '_viaABC'] = (count[pk + '_viaABC'] || 0) + 1; });
+      }
+    }
+  }
+  const area = k => count[k] * step * step;
+  const sampled = pr => {
+    const k = pr.join('');
+    return (count[k] + (count[k + '_viaABC'] || 0)) * step * step;
+  };
+  /* Whether two members share any preferred policy is settled exactly:
+     both circles pass through the status quo, so their insides overlap
+     unless one member is at the status quo or the status quo lies on the
+     straight line between their two ideal points. The sampled area only
+     says whether the overlap is big enough to see. */
+  const pairOK = ([a, b]) => {
+    const u = [V[a][0] - sq[0], V[a][1] - sq[1]], v = [V[b][0] - sq[0], V[b][1] - sq[1]];
+    const nu = Math.hypot(...u), nv = Math.hypot(...v);
+    if (nu < 1e-6 || nv < 1e-6) return false;
+    const cross = (u[0] * v[1] - u[1] * v[0]) / (nu * nv);
+    const dot = u[0] * v[0] + u[1] * v[1];
+    return !(Math.abs(cross) < 1e-9 && dot < 0);
+  };
+  const pairs = PAIRS.filter(pairOK);
+  return {
+    pairs: pairs.map(pr => pr.join('')),
+    thin: pairs.filter(pr => sampled(pr) < 10).map(pr => pr.join('')),
+    unanimous: outsideHull(V, sq) || area('ABC') >= 2,
+    labels: best,
+    empty: pairs.length === 0
+  };
+}
+
+/* Every member can be made better off at once exactly when the status
+   quo lies strictly outside the triangle formed by the ideal points. */
+function outsideHull(V, p){
+  const s = (a, b) => (a[0] - p[0]) * (b[1] - p[1]) - (b[0] - p[0]) * (a[1] - p[1]);
+  const d1 = s(V.A, V.B), d2 = s(V.B, V.C), d3 = s(V.C, V.A);
+  const eps = 1e-9;
+  const neg = d1 < -eps || d2 < -eps || d3 < -eps, pos = d1 > eps || d2 > eps || d3 > eps;
+  return neg && pos;
+}
+
+/* Where to put each region's label: the sample point with the most
+   clearance from the circles, the edge of the square and any marker
+   (a marker counts as a disc of about seven units). */
+function placeLabels(V, sq, avoid){
+  const r = {};
+  MEMBERS.forEach(k => r[k] = dist(V[k], sq));
+  const best = {};
+  for (let x = 1; x <= 99; x += 1){
+    for (let y = 1; y <= 99; y += 1){
+      const p = [x, y];
+      const inside = MEMBERS.filter(k => dist(V[k], p) < r[k] - 1e-9);
+      if (inside.length < 2) continue;
+      const key = inside.join('');
+      let clear = Math.min(x, 100 - x, y, 100 - y);
+      MEMBERS.forEach(k => { clear = Math.min(clear, Math.abs(r[k] - dist(V[k], p))); });
+      avoid.forEach(q => { clear = Math.min(clear, dist(q, p) - 7); });
+      if (!best[key] || clear > best[key].clear) best[key] = { p, clear };
+    }
+  }
+  return best;
+}
+
+/* ============================================================
+   Guided walkthrough: a new example
+   ============================================================ */
+/* The best a proposer can do: the policy closest to their own ideal point
+   that still wins. If the proposer's ideal point already beats the status
+   quo, that is it. Otherwise it lies on the straight line between the
+   proposer and the partner whose vote is cheapest to win, just inside the
+   partner's circle (one unit, so the partner strictly prefers it). Lying on
+   that line is what leaves the two of them with no petal afterward. */
+function bestProposal(V, sq, w){
+  if (beats(V, V[w], sq)) return V[w].slice();
+  let best = null;
+  MEMBERS.filter(k => k !== w).forEach(k => {
+    const r = dist(V[k], sq), L = dist(V[w], V[k]);
+    if (r < 1e-6) return;
+    const t = (r - 1) / L;
+    const p = [V[k][0] + (V[w][0] - V[k][0]) * t, V[k][1] + (V[w][1] - V[k][1]) * t];
+    if (gain(V[w], p, sq) <= 0) return;
+    if (!best || dist(p, V[w]) < dist(best, V[w])) best = p;
+  });
+  return best;
+}
+
+const G = {
+  x:'Spending on public transit', y:'Spending on housing assistance',
+  V:{ A:[22,30], B:[45,78], C:[82,42] },
+  sq:[52,50],
+  /* A stable arrangement: B is the median on both issues, and A and C
+     lie on one straight line through B on opposite sides. */
+  R:{ A:[24,28], B:[48,50], C:[78,77.5] },
+  Rn:{ A:[24,28], B:[48,50], C:[88,52] },
+  Rp:[52,40]
+};
+/* Each proposal is the proposer's best, computed rather than authored:
+   A first, then C, then B, then C replying to B. */
+G.P1 = bestProposal(G.V, G.sq, 'A');
+G.P2 = bestProposal(G.V, G.P1, 'C');
+G.P3 = bestProposal(G.V, G.P2, 'B');
+G.P4 = bestProposal(G.V, G.P3, 'C');
+
+const GUIDED = [
+  { label:'Two issues at once',
+    fig:{ V:'V', sq:null },
+    text:`<p>A city council of three members, A, B and C, is setting spending on two things at once: public transit and housing assistance. Any combination of the two is a point in the figure.</p>
+          <p>Each dot is a member&rsquo;s ideal point, the combination they would choose if it were up to them alone.</p>` },
+  { label:'The status quo',
+    fig:{ V:'V', sq:'sq', circles:['A'] },
+    text:`<p>Current spending is the status quo, <b>SQ</b>. The circle is A&rsquo;s indifference curve with respect to it: centered on A&rsquo;s ideal point, with a radius equal to A&rsquo;s distance from the status quo.</p>
+          <p>Every policy on the circle is exactly as good to A as the status quo. Every policy inside it is closer to A&rsquo;s ideal point, so A prefers it.</p>` },
+  { label:'Three indifference curves',
+    fig:{ V:'V', sq:'sq', circles:['A','B','C'] },
+    text:`<p>Each member has a circle through the same status quo. A policy beats the status quo in a majority vote if at least two members prefer it, which means it sits inside at least two circles.</p>` },
+  { label:'The winset',
+    fig:{ V:'V', sq:'sq', circles:['A','B','C'], winset:true },
+    text:`<p>The shaded petals are the winset of the status quo. Each is labeled with the majority that prefers the policies in it to the status quo.</p>
+          <p>The winset is nonempty, so if any member gets the chance to propose a change, they will.</p>` },
+  { label:'A proposal wins',
+    fig:{ V:'V', sq:'sq', circles:['A','B','C'], winset:true, props:[['P1','P1']] },
+    text:`<p>Suppose A gets to propose. A wants a policy as close to A&rsquo;s own ideal point as possible that will still win. The cheapest second vote is B&rsquo;s, so A proposes <b>P1</b>: on the straight line between A and B, just inside B&rsquo;s circle.</p>
+          <p>A and B both prefer P1 to the status quo; C votes against. P1 wins two votes to one and becomes the new status quo.</p>` },
+  { label:'New status quo, new circles',
+    fig:{ V:'V', sq:'P1', oldSq:[['sq','SQ']], circles:['A','B','C'], winset:true, path:['sq','P1'] },
+    text:`<p>With P1 as the status quo, every circle has to be redrawn so that it passes through P1.</p>
+          <p>A and B no longer share a petal. P1 lies on the line between their ideal points, so any move that brings one of them closer takes the other further away. But the winset is not empty: C, who lost the last vote, can still find a partner.</p>` },
+  { label:'C replies',
+    fig:{ V:'V', sq:'P1', oldSq:[['sq','SQ']], circles:['A','B','C'], winset:true, props:[['P2','P2']], path:['sq','P1'] },
+    text:`<p>C proposes <b>P2</b>, the policy closest to C that B will also vote for: on the line between B and C, just inside B&rsquo;s circle. B and C both prefer it to P1, and it wins.</p>` },
+  { label:'And again',
+    fig:{ V:'V', sq:'P2', oldSq:[['sq','SQ'],['P1','P1']], circles:['A','B','C'], winset:true, props:[['P3','P3']], path:['sq','P1','P2'] },
+    text:`<p>With P2 as the status quo, B and C have no petal left, but A and B do. If B gets to propose, B offers <b>P3</b>, close to B&rsquo;s own ideal point and just inside A&rsquo;s circle. A and B both prefer it to P2, and it wins.</p>` },
+  { label:'No end in sight',
+    fig:{ V:'V', sq:'P3', oldSq:[['sq','SQ'],['P1','P1'],['P2','P2']], circles:['A','B','C'], winset:true, props:[['P4','P4']], path:['sq','P1','P2','P3'] },
+    text:`<p>Even a policy this close to B&rsquo;s ideal point can be beaten. C, who lost the last vote, now shares a large petal with A, and could propose <b>P4</b> with A&rsquo;s support.</p>
+          <p>Each winning proposal leaves the losing member a partner to try again with, so the sequence never settles. This is the chaos theorem at work: with more than one issue dimension and majority rule, there is usually no stable outcome.</p>` },
+  { label:'Who controls the agenda',
+    fig:{ V:'V', sq:'P3', oldSq:[['sq','SQ'],['P1','P1'],['P2','P2']], circles:['A','B','C'], winset:true, props:[['P4','P4']], path:['sq','P1','P2','P3'] },
+    text:`<p>Where the council ends up depends on who gets to propose, and when. Had C or B proposed first, the sequence would have taken a different route.</p>
+          <p>In such circumstances, whoever controls the order of voting determines the final outcome.</p>` },
+  { label:'A stable arrangement',
+    fig:{ V:'R', sq:'RB', circles:['A','C'], guide:true, gold:'RB' },
+    text:`<p>A different council. B is now the median member on both issues, and A and C sit on one straight line through B, on opposite sides of it. The status quo is B&rsquo;s ideal point, so B has no circle: B prefers nothing to it.</p>
+          <p>A&rsquo;s and C&rsquo;s circles touch only at B and never overlap. No policy is preferred by two members, so the winset is empty and B&rsquo;s ideal point is stable.</p>` },
+  { label:'One member moves',
+    fig:{ V:'Rn', sq:'RB', circles:['A','C'], guide:true, winset:true, props:[['Rp','P']] },
+    text:`<p>Now move C&rsquo;s ideal point off the line. The two circles overlap in a lens just next to B, and every policy in it, such as <b>P</b>, is preferred by A and C to the status quo. B&rsquo;s ideal point is no longer stable.</p>
+          <p>A much smaller move would still open a lens, only a thinner one. Stability needs the members to line up in just the right way, which is why it is so rare.</p>` },
+  { label:'Over to you',
+    fig:{ V:'Rn', sq:'RB', circles:['A','C'], guide:true, winset:true, props:[['Rp','P']] },
+    text:`<p>Explore lets you drag the ideal points and the status quo, place a proposal, and make it the new status quo to see what can beat it next.</p>
+          <p>Practice mode has ten cases. For each you will say who prefers a proposal, which majorities can beat the status quo, whether everyone could agree on a change, and in some cases what a single proposer would offer.</p>` }
+];
+
+/* ============================================================
+   Practice cases (all new)
+   ============================================================ */
+const GROUPS = [
+  { id:'read', label:'Reading the circles',
+    sub:'Four committees. In each, the indifference curves through the status quo are drawn, and the first task asks about one proposal, P.' },
+  { id:'ideal', label:'When the status quo is a member’s ideal point',
+    sub:'Three committees where the status quo is exactly what one member wants. That member prefers nothing to it and has no circle. Cases 5 and 6 are worth comparing: only B’s ideal point differs.' },
+  { id:'propose', label:'Who makes the proposal',
+    sub:'Three committees where only one member may propose an alternative, and the committee then votes between that proposal and the status quo. Cases 8 and 9 are worth comparing: everything is the same except who proposes.' }
+];
+
+const CASES = [
+  { label:'Case 1', group:'read',
+    who:'A city council', x:'Spending on roads', y:'Spending on parks',
+    V:{ A:[20,25], B:[50,85], C:[82,30] }, sq:[48,45], P:[35,52],
+    note:'Every pair of members has a petal, so whichever two members get together, there is something they could replace the status quo with. No policy pleases all three, because the status quo lies inside the triangle formed by their ideal points.' },
+  { label:'Case 2', group:'read',
+    who:'A school board', x:'Teachers’ pay', y:'Spending on sports',
+    V:{ A:[65,67], B:[28,86], C:[22,51] }, sq:[72,16], P:[70,25],
+    note:'When the status quo lies outside the triangle formed by the three ideal points, there are policies every member prefers to it. Moving toward all three members at once makes everyone better off.' },
+  { label:'Case 3', group:'read',
+    who:'A county board', x:'Property tax rate', y:'Spending on libraries',
+    V:{ A:[18,62], B:[78,80], C:[62,15] }, sq:[52,50], P:[54,40],
+    note:'P was closer to C than the status quo, and further from both A and B, so it lost two votes to one. That one proposal fails says nothing about the status quo: its winset has a petal for every pair.' },
+  { label:'Case 4', group:'read',
+    who:'A state legislative committee', x:'Fuel tax', y:'Spending on public transit',
+    V:{ A:[25,25], B:[80,30], C:[55,85] }, sq:[52,45], P:[14,64],
+    note:'P was outside all three circles, so every member preferred the status quo to it. The winset is still nonempty: it was P that could not win, not every change.' },
+  { label:'Case 5', group:'ideal',
+    who:'A hospital board', x:'Nurses’ pay', y:'Spending on new equipment',
+    V:{ A:[20,40], B:[50,55], C:[80,70] }, sq:[50,55], P:[41,54],
+    note:'B is the median member on both issues, and A and C lie on one straight line through B, on opposite sides. Their circles touch only at B, so no policy is preferred by two members and the winset is empty. B’s ideal point is stable.' },
+  { label:'Case 6', group:'ideal',
+    who:'A hospital board', x:'Nurses’ pay', y:'Spending on new equipment',
+    V:{ A:[20,40], B:[58,30], C:[80,70] }, sq:[58,30], P:[53,41],
+    note:'Compare Case 5. A and C are where they were, but B is no longer on the line between them, so their circles overlap in a lens next to B’s ideal point. A and C can agree on a change that B opposes.' },
+  { label:'Case 7', group:'ideal',
+    who:'A university senate committee', x:'Tuition', y:'Spending on financial aid',
+    V:{ A:[20,80], B:[50,40], C:[80,55] }, sq:[20,80], P:[29,78],
+    note:'Getting exactly what you want is not enough to hold on to it. A is at one edge of the committee, so B and C share a large region of policies they both prefer to A’s ideal point.' },
+  { label:'Case 8', group:'propose',
+    who:'A water authority', x:'Water rates', y:'Spending on pipe repairs',
+    V:{ A:[15,45], B:[60,85], C:[75,20] }, sq:[52,48], P:[68,72],
+    proposer:'A', pols:[[45,32],[35,64],[50,76]],
+    note:'A&rsquo;s own ideal point would lose: only A prefers it. The best A can do is the policy closest to A that still gets a second vote, and here that vote is B&rsquo;s.' },
+  { label:'Case 9', group:'propose',
+    who:'A water authority', x:'Water rates', y:'Spending on pipe repairs',
+    V:{ A:[15,45], B:[60,85], C:[75,20] }, sq:[52,48], P:[68,72],
+    proposer:'C', pols:[[45,32],[35,64],[66,38]],
+    note:'Compare Case 8. The committee, the status quo and the winset are identical; only the proposer has changed, and with it the outcome. That is the power of the agenda setter.' },
+  { label:'Case 10', group:'propose',
+    who:'A parks commission', x:'Entry fees', y:'Spending on trails',
+    V:{ A:[25,45], B:[35,82], C:[62,50] }, sq:[80,15], P:[92,84],
+    proposer:'B', pols:[[60,35],[40,60],[75,70]],
+    note:'The status quo is so far from everyone that A prefers B&rsquo;s ideal point to it, so B can simply propose exactly what B wants and win.' }
+];
+
+/* ============================================================
+   Drawing
+   ============================================================ */
+const X0 = 56, X1 = 416, Y0 = 16, Y1 = 376;
+const px = x => X0 + (x / 100) * (X1 - X0);
+const py = y => Y1 - (y / 100) * (Y1 - Y0);
+const scale = (X1 - X0) / 100;
+const f = n => n.toFixed(1);
+
+let figUid = 0;
+
+/* Offset for a label: away from the point it would most likely collide
+   with (the status quo, or the centroid of everything else). */
+function labelPos(p, away, r){
+  let dx = p[0] - away[0], dy = p[1] - away[1];
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6){ dx = 1; dy = 1; } else { dx /= len; dy /= len; }
+  return [px(p[0]) + dx * r, py(p[1]) - dy * r];
+}
+
+/* spec: { V, sq, oldSq:[[point,label]], circles, winset, props:[[point,label]],
+           path:[points], guide, gold:point, opts:[[point,label]], optGold:index,
+           unanimousLabel, dragIds }  — all points already resolved to coordinates. */
+function figureSVG(spec){
+  const id = 'f' + (++figUid);
+  const V = spec.V, sq = spec.sq;
+  const parts = [];
+  const cx = MEMBERS.reduce((a, k) => a + V[k][0], 0) / 3;
+  const cy = MEMBERS.reduce((a, k) => a + V[k][1], 0) / 3;
+
+  parts.push(`<defs><clipPath id="${id}box"><rect x="${X0}" y="${Y0}" width="${X1 - X0}" height="${Y1 - Y0}"></rect></clipPath>`);
+  if (sq && spec.winset){
+    MEMBERS.forEach(k => {
+      const r = dist(V[k], sq) * scale;
+      parts.push(`<clipPath id="${id}c${k}"><circle cx="${f(px(V[k][0]))}" cy="${f(py(V[k][1]))}" r="${f(r)}"></circle></clipPath>`);
+    });
+  }
+  parts.push('</defs>');
+
+  /* axes */
+  parts.push(`<line class="axis-line" x1="${X0}" y1="${Y1}" x2="${X1}" y2="${Y1}"></line>`);
+  parts.push(`<line class="axis-line" x1="${X0}" y1="${Y0}" x2="${X0}" y2="${Y1}"></line>`);
+  parts.push(`<text class="axis-num" x="${X0 - 6}" y="${Y1 + 4}" text-anchor="end">0</text>`);
+  parts.push(`<text class="axis-num" x="${X1}" y="${Y1 + 16}" text-anchor="end">100</text>`);
+  parts.push(`<text class="axis-num" x="${X0 - 6}" y="${Y0 + 8}" text-anchor="end">100</text>`);
+  parts.push(`<text class="axis-title" x="${(X0 + X1) / 2}" y="${Y1 + 34}" text-anchor="middle">Issue 1${spec.xLabel ? ': ' + spec.xLabel : ''}</text>`);
+  parts.push(`<text class="axis-title" x="20" y="${(Y0 + Y1) / 2}" text-anchor="middle" transform="rotate(-90 20 ${(Y0 + Y1) / 2})">Issue 2${spec.yLabel ? ': ' + spec.yLabel : ''}</text>`);
+
+  parts.push(`<g clip-path="url(#${id}box)">`);
+
+  /* the winset: each pair's overlap, drawn by clipping one circle with the
+     other. Where all three overlap the layers stack, which is why the
+     unanimous region reads darker. */
+  if (sq && spec.winset){
+    PAIRS.forEach(([a, b]) => {
+      if (dist(V[a], sq) < 1e-6 || dist(V[b], sq) < 1e-6) return;
+      const r = dist(V[b], sq) * scale;
+      parts.push(`<circle class="win" clip-path="url(#${id}c${a})" cx="${f(px(V[b][0]))}" cy="${f(py(V[b][1]))}" r="${f(r)}"></circle>`);
+    });
+  }
+
+  if (spec.guideLine){
+    const g0 = spec.guideLine;
+    parts.push(`<line class="line-guide" x1="${f(px(g0[0][0]))}" y1="${f(py(g0[0][1]))}" x2="${f(px(g0[1][0]))}" y2="${f(py(g0[1][1]))}"></line>`);
+  }
+
+  /* earlier status quo circles are never drawn; only the current ones */
+  (spec.circles || []).forEach(k => {
+    if (!sq) return;
+    const r = dist(V[k], sq) * scale;
+    if (r < 0.5) return;
+    parts.push(`<circle class="ic ${k}" cx="${f(px(V[k][0]))}" cy="${f(py(V[k][1]))}" r="${f(r)}"></circle>`);
+  });
+
+  if (spec.path && spec.path.length > 1){
+    const d = spec.path.map((p, i) => (i ? 'L' : 'M') + f(px(p[0])) + ' ' + f(py(p[1]))).join(' ');
+    parts.push(`<path class="path-line" d="${d}" marker-end="url(#${id}arrow)"></path>`);
+  }
+  parts.push('</g>');
+  parts.splice(1, 0, `<defs><marker id="${id}arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--structure-ink)"></path></marker></defs>`);
+
+  /* winset labels, placed where each region has the most room and away
+     from every marker drawn on the figure */
+  if (sq && spec.winset && spec.info){
+    const avoid = MEMBERS.map(k => V[k]).concat([sq],
+      (spec.props || []).map(x => x[0]), (spec.opts || []).map(x => x[0]), (spec.oldSq || []).map(x => x[0]));
+    const placed = placeLabels(V, sq, avoid);
+    ['AB','AC','BC','ABC'].forEach(k => {
+      const b = placed[k];
+      if (!b || b.clear < 2.5) return;
+      if (k === 'ABC' && !spec.showUnanimous) return;
+      const text = k.split('').join(' + ');
+      parts.push(`<text class="wlabel" x="${f(px(b.p[0]))}" y="${f(py(b.p[1]) + 4)}" text-anchor="middle">${text}</text>`);
+    });
+  }
+
+  /* old status quos */
+  (spec.oldSq || []).forEach(([p, lab]) => {
+    parts.push(`<rect class="sq-old" x="${f(px(p[0]) - 4)}" y="${f(py(p[1]) - 4)}" width="8" height="8"></rect>`);
+    const lp = labelPos(p, [cx, cy], 14);
+    parts.push(`<text class="plabel old" x="${f(lp[0])}" y="${f(lp[1] + 4)}" text-anchor="middle">${lab}</text>`);
+  });
+
+  /* proposals */
+  (spec.props || []).forEach(([p, lab], i) => {
+    const X = px(p[0]), Y = py(p[1]);
+    const drag = spec.dragIds && spec.dragIds.P && i === 0;
+    const open = drag ? `<g class="drag" data-drag="P" role="button" tabindex="0" aria-label="${spec.dragIds.P}">` : '<g>';
+    parts.push(open + `<circle class="focus-halo" cx="${f(X)}" cy="${f(Y)}" r="14"></circle><path class="prop-mark" d="M${f(X)} ${f(Y - 7)} L${f(X + 7)} ${f(Y)} L${f(X)} ${f(Y + 7)} L${f(X - 7)} ${f(Y)} Z"></path>`);
+    const lp = labelPos(p, sq || [cx, cy], 16);
+    parts.push(`<text class="plabel" x="${f(lp[0])}" y="${f(lp[1] + 4)}" text-anchor="middle">${lab}</text></g>`);
+  });
+
+  /* numbered policies a proposer could choose from */
+  (spec.opts || []).forEach(([p, lab], i) => {
+    const X = px(p[0]), Y = py(p[1]);
+    parts.push(`<circle class="opt-mark" cx="${f(X)}" cy="${f(Y)}" r="9"></circle><text class="opt-num" x="${f(X)}" y="${f(Y + 4)}" text-anchor="middle">${lab}</text>`);
+    if (spec.optGold === i){
+      parts.push(`<circle class="gold-casing" cx="${f(X)}" cy="${f(Y)}" r="15"></circle><circle class="gold-ring" cx="${f(X)}" cy="${f(Y)}" r="13"></circle>`);
+    }
+  });
+
+  /* ideal points */
+  MEMBERS.forEach(k => {
+    const p = V[k], X = px(p[0]), Y = py(p[1]);
+    const awayFrom = sq && dist(p, sq) > 3 ? sq : [cx, cy];
+    const lp = labelPos(p, awayFrom, 17);
+    const drag = spec.dragIds && spec.dragIds[k];
+    const open = drag ? `<g class="drag" data-drag="${k}" role="button" tabindex="0" aria-label="${spec.dragIds[k]}">` : '<g>';
+    parts.push(open + `<circle class="focus-halo" cx="${f(X)}" cy="${f(Y)}" r="14"></circle><circle class="ideal ${k}" cx="${f(X)}" cy="${f(Y)}" r="5.5"></circle><text class="vlabel ${k}" x="${f(lp[0])}" y="${f(lp[1] + 7)}" text-anchor="middle">${k}</text></g>`);
+  });
+
+  /* status quo */
+  if (sq){
+    const X = px(sq[0]), Y = py(sq[1]);
+    const drag = spec.dragIds && spec.dragIds.SQ;
+    const open = drag ? `<g class="drag" data-drag="SQ" role="button" tabindex="0" aria-label="${spec.dragIds.SQ}">` : '<g>';
+    const atMember = MEMBERS.find(k => dist(V[k], sq) < 3);
+    const lp = atMember ? [X + 14, Y + 18] : labelPos(sq, [cx, cy], spec.sqLabel ? 22 : 16);
+    parts.push(open + `<circle class="focus-halo" cx="${f(X)}" cy="${f(Y)}" r="14"></circle><rect class="sq-mark" x="${f(X - 5)}" y="${f(Y - 5)}" width="10" height="10"></rect><text class="plabel" x="${f(lp[0])}" y="${f(lp[1] + 4)}" text-anchor="${atMember ? 'start' : 'middle'}">${spec.sqLabel || 'SQ'}</text></g>`);
+    if (spec.gold){
+      parts.push(`<circle class="gold-casing" cx="${f(X)}" cy="${f(Y)}" r="13"></circle><circle class="gold-ring" cx="${f(X)}" cy="${f(Y)}" r="11"></circle>`);
+    }
+  }
+
+  return `<svg class="fig-svg" id="figSvg" viewBox="0 0 440 424" ${spec.dragIds ? 'role="group" aria-label="Policy space with draggable points"' : 'aria-hidden="true" focusable="false"'}>${parts.join('')}</svg>`;
+}
+
+const LEGEND = `<div class="legend" aria-hidden="true">
+  <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--structure-ink)"></circle></svg>ideal point (lettered)</span>
+  <span><svg width="12" height="12"><rect x="1" y="1" width="10" height="10" fill="var(--structure-ink)"></rect></svg>status quo</span>
+  <span><svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7 Z" fill="var(--panel-bg)" stroke="var(--structure-ink)" stroke-width="2"></path></svg>proposal</span>
+  <span><svg width="14" height="12"><rect x="1" y="1" width="12" height="10" fill="var(--deemph)" fill-opacity=".3"></rect></svg>winset, labeled by majority</span>
+</div>`;
+
+function renderFigure(spec, title, caption){
+  $('figCard').innerHTML =
+    `<div class="fig-title">${title}</div>${figureSVG(spec)}${LEGEND}
+     ${caption ? `<p class="fig-caption" id="figCaption">${caption}</p>` : ''}`;
+}
+
+/* ============================================================
+   Captions: the text path to everything the figure shows
+   ============================================================ */
+const listNames = arr => arr.length === 0 ? 'nobody'
+  : arr.length === 1 ? arr[0]
+  : arr.length === 2 ? arr[0] + ' and ' + arr[1]
+  : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+
+function pairPhrase(k){ return k.split('').join(' + '); }
+
+function winsetCaption(V, sq, info, showUnanimous){
+  if (info.empty) return 'The winset is empty: no policy is preferred to the status quo by two members.';
+  let s = 'Winset: ' + info.pairs.map(k => pairPhrase(k) + (info.thin.includes(k) ? ' (a sliver too thin to see)' : '')).join(', ') + '.';
+  if (showUnanimous) s += info.unanimous ? ' Some policies are preferred by all three members.' : ' No policy is preferred by all three members.';
+  return s;
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+let mode = 'guided';
+let stepIdx = 0;
+let caseIdx = 0;
+let taskIdx = 0;
+let picks = new Set();
+let awaitingNext = false;
+let tasks = [];
+let findings = [];
+let reveal = { winset:false, unanimous:false, optGold:null };
+let caseInfo = null;
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Walkthrough mode
+   ============================================================ */
+function resolveGuided(fig){
+  const V = G[fig.V];
+  const pt = k => k === 'RB' ? G.R.B : G[k];
+  const sq = fig.sq ? pt(fig.sq) : null;
+  const spec = {
+    V, sq,
+    xLabel:G.x, yLabel:G.y,
+    circles: fig.circles || [],
+    winset: !!fig.winset,
+    showUnanimous:true,
+    props: (fig.props || []).map(([k, lab]) => [pt(k), lab]),
+    oldSq: (fig.oldSq || []).map(([k, lab]) => [pt(k), lab]),
+    path: (fig.path || []).map(pt),
+    gold: !!fig.gold,
+    sqLabel: /^P\d$/.test(fig.sq || '') ? 'SQ = ' + fig.sq : ''
+  };
+  if (fig.guide) spec.guideLine = [G.R.A, G.R.C];
+  if (sq && fig.winset) spec.info = winsetInfo(V, sq);
+  return spec;
+}
+
+function guidedCaption(i){
+  const fig = GUIDED[i].fig;
+  const spec = resolveGuided(fig);
+  if (!spec.sq) return 'Ideal points only: A, B and C.';
+  if (fig.V === 'Rn') return 'C has moved off the dashed line through A and B. ' + winsetCaption(spec.V, spec.sq, spec.info, false) + ' Proposal P is preferred to the status quo by A and C.';
+  if (fig.V === 'R') return 'A and C lie on a line through B, and the status quo is B’s ideal point. The two circles touch only at B; the winset is empty.';
+  let s = '';
+  if (spec.circles.length === 1) s = 'A’s indifference curve through the status quo.';
+  else if (!spec.winset) s = 'Each member’s indifference curve through the status quo.';
+  else s = winsetCaption(spec.V, spec.sq, spec.info, false);
+  if (spec.props.length) s += ' Proposal ' + spec.props[0][1] + ' is preferred to the status quo by ' + listNames(prefersOf(spec.V, spec.props[0][0], spec.sq)) + '.';
+  if (fig.path && fig.path.length > 1) s += ' The dashed path shows the sequence of status quos so far: ' + fig.path.map(k => k === 'sq' ? 'SQ' : k).join(', ') + '.';
+  return s;
+}
+
+function renderGuided(){
+  const s = GUIDED[stepIdx];
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  GUIDED.forEach((_, i) => {
+    const d = document.createElement('span');
+    d.className = i < stepIdx ? 'done' : (i === stepIdx ? 'current' : '');
+    dots.appendChild(d);
+  });
+  $('stepLabel').textContent = 'Step ' + (stepIdx + 1) + ' of ' + GUIDED.length + ' — ' + s.label;
+  $('stepText').innerHTML = s.text;
+  $('opts').innerHTML = '';
+  clearNote();
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if (stepIdx > 0) ctl.appendChild(btn('Back', '', () => { stepIdx--; renderGuided(); }));
+  if (stepIdx < GUIDED.length - 1) ctl.appendChild(btn('Next', 'primary', () => { stepIdx++; renderGuided(); }));
+  else ctl.appendChild(btn('Go to practice mode', 'primary', () => setMode('practice')));
+
+  const spec = resolveGuided(s.fig);
+  renderFigure(spec, 'A council choosing two kinds of spending', guidedCaption(stepIdx));
+  $('caseCard').style.display = 'none';
+  $('findings').style.display = 'none';
+
+  renderLook(['figCard']);
+  const prev = stepIdx > 0 ? JSON.stringify(GUIDED[stepIdx - 1].fig) : '';
+  if (JSON.stringify(s.fig) !== prev) bringIntoView('figCard', false);
+  queueSyncBack();
+}
+
+/* ============================================================
+   Practice mode
+   ============================================================ */
+const MEMBER_OPTS = { A:'A', B:'B', C:'C', none:'None of them' };
+const PAIR_OPTS = { AB:'A and B', AC:'A and C', BC:'B and C', none:'No pair — the status quo cannot be beaten' };
+const YESNO = { yes:'Yes — some policies are inside all three circles', no:'No — no policy is inside all three circles' };
+
+function proposerAnswer(c){
+  const w = c.proposer;
+  /* Options: the proposer's own ideal point, then the three numbered policies. */
+  const cands = [c.V[w]].concat(c.pols);
+  let best = -1, bd = Infinity;
+  cands.forEach((p, i) => {
+    if (!beats(c.V, p, c.sq)) return;
+    const dd = dist(p, c.V[w]);
+    if (dd < bd){ bd = dd; best = i; }
+  });
+  return best;
+}
+
+function buildTasks(c){
+  const info = winsetInfo(c.V, c.sq);
+  caseInfo = info;
+  const pref = prefersOf(c.V, c.P, c.sq);
+  const t = [];
+  t.push({ kind:'prefer', multi:true,
+    q:'Which members prefer P to the status quo? Select every one.',
+    keys:['A','B','C','none'], text:MEMBER_OPTS,
+    correct: pref.length ? pref : ['none'],
+    nudge:'Not quite. For each member, ask whether P is inside that member’s circle: inside means closer to their ideal point than the status quo is. Try the task again.' });
+  t.push({ kind:'pairs', multi:true,
+    q:'Which pairs of members both prefer some policy to the status quo? Select every pair that could form a majority against it.',
+    keys:['AB','AC','BC','none'], text:PAIR_OPTS,
+    correct: info.empty ? ['none'] : info.pairs,
+    nudge:'Not quite. A pair can beat the status quo wherever both of their circles overlap. Check each pair of circles, including members with no circle at all. Try the task again.' });
+  if (!info.empty){
+    t.push({ kind:'unan', multi:false,
+      q:'Is there any policy that all three members prefer to the status quo?',
+      keys:['yes','no'], text:YESNO,
+      correct:[info.unanimous ? 'yes' : 'no'],
+      nudge:'Not quite. Look for any place where all three circles overlap at once. Try the task again.' });
+  }
+  if (c.proposer){
+    const w = c.proposer;
+    const keys = ['own','1','2','3'];
+    const text = { own:`${w}’s own ideal point`, '1':'Policy 1', '2':'Policy 2', '3':'Policy 3' };
+    t.push({ kind:'propose', multi:false,
+      q:`Only ${w} may propose an alternative, and the committee then votes between it and the status quo. Which would ${w} propose?`,
+      keys, text, correct:[keys[proposerAnswer(c)]],
+      nudge:`Not quite. ${w} wants a policy as close as possible to ${w}’s own ideal point, but it has to win the vote. Rule out anything that only ${w} prefers, then compare distances. Try the task again.` });
+  }
+  return t;
+}
+
+function showP(){ return taskIdx === 0; }
+
+function practiceSpec(){
+  const c = CASES[caseIdx];
+  const spec = {
+    V:c.V, sq:c.sq, xLabel:c.x, yLabel:c.y,
+    circles:MEMBERS.filter(k => dist(c.V[k], c.sq) > 1e-6),
+    winset:reveal.winset, showUnanimous:reveal.unanimous, info:caseInfo,
+    /* P exists for the first task only; after that the questions are about
+       the status quo and its winset, and P would just be clutter. */
+    props: showP() ? [[c.P, 'P']] : [],
+    gold: reveal.winset && caseInfo.empty
+  };
+  const t = tasks[taskIdx];
+  if (c.proposer && (t && t.kind === 'propose' || reveal.optGold !== null)){
+    spec.opts = c.pols.map((p, i) => [p, String(i + 1)]);
+    if (reveal.optGold !== null && reveal.optGold > 0) spec.optGold = reveal.optGold - 1;
+  }
+  return spec;
+}
+
+function practiceCaption(){
+  const c = CASES[caseIdx];
+  let s = 'Ideal points A (' + c.V.A.join(', ') + '), B (' + c.V.B.join(', ') + '), C (' + c.V.C.join(', ') + '); status quo (' + c.sq.join(', ') + ')' + (showP() ? '; proposal P (' + c.P.join(', ') + ').' : '.');
+  const atMember = MEMBERS.find(k => dist(c.V[k], c.sq) < 1e-6);
+  if (atMember) s += ' The status quo is ' + atMember + '’s ideal point, so ' + atMember + ' has no circle.';
+  if (reveal.winset) s += ' ' + winsetCaption(c.V, c.sq, caseInfo, reveal.unanimous);
+  const t = tasks[taskIdx];
+  if (c.proposer && (t && t.kind === 'propose' || reveal.optGold !== null)){
+    s += ' Numbered policies: ' + c.pols.map((p, i) => (i + 1) + ' at (' + p.join(', ') + ')').join(', ') + '.';
+  }
+  return s;
+}
+
+function renderCaseCard(){
+  const host = $('caseCard');
+  if (mode !== 'practice'){ host.style.display = 'none'; return; }
+  host.style.display = '';
+  const c = CASES[caseIdx];
+  host.innerHTML =
+    `<div class="card-head">${c.label}</div>
+     <div class="field"><div class="field-label">The committee</div>
+       <div class="field-text">${c.who} of three members, <span class="who A">A</span>, <span class="who B">B</span> and <span class="who C">C</span>, is deciding two issues at once: ${c.x.toLowerCase()} and ${c.y.toLowerCase()}. Each member weighs the two equally.</div></div>
+     <div class="field"><div class="field-label">The vote</div>
+       <div class="field-text">Majority rule: a policy replaces the status quo if at least two members prefer it.${c.proposer ? ` Only <span class="who ${c.proposer}">${c.proposer}</span> may make a proposal.` : ''}</div></div>`;
+}
+
+function renderFindings(){
+  const host = $('findings');
+  if (mode !== 'practice' || findings.length === 0){ host.style.display = 'none'; return; }
+  host.style.display = '';
+  host.innerHTML = findings.map(f => `<div><span class="k">${f[0]}</span>${f[1]}</div>`).join('');
+}
+
+function selectCase(i){
+  caseIdx = i; taskIdx = 0; picks = new Set(); awaitingNext = false;
+  reveal = { winset:false, unanimous:false, optGold:null };
+  findings = [];
+  tasks = buildTasks(CASES[i]);
+  clearNote();
+  renderPicker();
+  renderCaseCard();
+  renderPractice();
+  bringIntoView('caseCard', false);
+}
+
+function renderPractice(){
+  const c = CASES[caseIdx];
+  const t = tasks[taskIdx];
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  tasks.forEach((_, i) => {
+    const d = document.createElement('span');
+    d.className = i < taskIdx ? 'done' : (i === taskIdx ? 'current' : '');
+    dots.appendChild(d);
+  });
+
+  renderFigure(practiceSpec(), c.who + ': ' + c.x.toLowerCase() + ' and ' + c.y.toLowerCase(), practiceCaption());
+  renderFindings();
+
+  if (!t){
+    $('stepLabel').textContent = c.label + ' — complete';
+    $('stepText').innerHTML = '<p>' + c.note + '</p>';
+    $('opts').innerHTML = '';
+    const ctl = $('panelControls');
+    ctl.innerHTML = '';
+    if (CASES[caseIdx + 1]) ctl.appendChild(btn('Next case', 'primary', () => selectCase(caseIdx + 1)));
+    ctl.appendChild(btn('Start this one again', '', () => selectCase(caseIdx)));
+    queueSyncBack();
+    return;
+  }
+
+  $('stepLabel').textContent = 'Task ' + (taskIdx + 1) + ' of ' + tasks.length + ' — ' + c.label;
+  $('stepText').innerHTML = '<p>' + t.q + '</p>';
+  renderLook(t.kind === 'propose' ? ['figCard', 'caseCard'] : ['figCard']);
+
+  const opts = $('opts');
+  opts.innerHTML = '';
+  t.keys.forEach(k => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const on = picks.has(k);
+    b.className = 'chip wide' + (on ? ' active' : '');
+    b.innerHTML = (t.multi ? (on ? '&#9745; ' : '&#9744; ') : '') + t.text[k];
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (awaitingNext) b.disabled = true;
+    b.addEventListener('click', () => {
+      if (t.multi){
+        if (k === 'none'){ picks = picks.has('none') ? new Set() : new Set(['none']); }
+        else { picks.delete('none'); picks.has(k) ? picks.delete(k) : picks.add(k); }
+      } else picks = new Set([k]);
+      renderPractice();
+    });
+    opts.appendChild(b);
+  });
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  if (awaitingNext){
+    ctl.appendChild(btn(taskIdx === tasks.length - 1 ? 'Finish' : 'Next task', 'primary', () => {
+      taskIdx++; picks = new Set(); awaitingNext = false; clearNote(); renderPractice();
+    }));
+  } else {
+    const check = btn('Check answer', 'primary', checkAnswer);
+    check.disabled = picks.size === 0;
+    ctl.appendChild(check);
+  }
+  queueSyncBack();
+}
+
+function sameSet(a, b){
+  return a.size === b.length && b.every(x => a.has(x));
+}
+
+function checkAnswer(){
+  const c = CASES[caseIdx];
+  const t = tasks[taskIdx];
+  if (!sameSet(picks, t.correct)){
+    note('no', t.nudge);
+    announce(t.nudge);
+    picks = new Set();
+    renderPractice();
+    return;
+  }
+  let msg = '', before = JSON.stringify(reveal);
+  if (t.kind === 'prefer'){
+    const pref = prefersOf(c.V, c.P, c.sq);
+    const wins = pref.length >= 2;
+    msg = `Right — ${pref.length ? listNames(pref) + (pref.length === 1 ? ' prefers' : ' prefer') + ' P' : 'nobody prefers P'}, so P ${wins ? 'beats' : 'loses to'} the status quo in a majority vote.`;
+    findings.push(['Prefer P', (pref.length ? listNames(pref) : 'nobody') + (wins ? '; P beats the status quo' : '; P loses')]);
+  }
+  if (t.kind === 'pairs'){
+    reveal.winset = true;
+    msg = caseInfo.empty
+      ? 'Right — no two circles overlap, so the winset is empty and the status quo cannot be beaten.'
+      : 'Right — the shaded petals are the winset, each labeled with the pair that prefers it to the status quo.';
+    findings.push(['Winset', caseInfo.empty ? 'empty — the status quo is stable' : caseInfo.pairs.map(pairPhrase).join(', ')]);
+  }
+  if (t.kind === 'unan'){
+    reveal.unanimous = true;
+    msg = caseInfo.unanimous
+      ? 'Right — where all three circles overlap, every member prefers the policy to the status quo.'
+      : 'Right — the three circles never overlap all at once.';
+    findings.push(['All three', caseInfo.unanimous ? 'some policies are preferred by everyone' : 'no policy is preferred by everyone']);
+  }
+  if (t.kind === 'propose'){
+    const i = proposerAnswer(c);
+    reveal.optGold = i;
+    msg = i === 0
+      ? `Right — ${c.proposer}’s own ideal point already beats the status quo, so there is nothing to give up.`
+      : `Right — Policy ${i} is the closest of the winning options to ${c.proposer}’s ideal point.`;
+    findings.push([c.proposer + ' proposes', i === 0 ? 'its own ideal point' : 'Policy ' + i]);
+  }
+  note('ok', msg);
+  announce(msg);
+  awaitingNext = true;
+  renderPractice();
+  if (JSON.stringify(reveal) !== before) bringIntoView('figCard', false);
+}
+
+/* ============================================================
+   Explore mode
+   ============================================================ */
+const EX_PRESETS = {
+  start:{ V:{ A:[22,30], B:[45,78], C:[82,42] }, sq:[52,50] },
+  line:{ V:{ A:[24,28], B:[48,50], C:[78,77.5] }, sq:[48,50] },
+  outside:{ V:{ A:[30,35], B:[45,70], C:[65,40] }, sq:[85,85] }
+};
+let ex = null;
+let exShow = { circles:true, winset:true };
+
+function exReset(key){
+  const p = EX_PRESETS[key];
+  ex = { V:{ A:p.V.A.slice(), B:p.V.B.slice(), C:p.V.C.slice() }, sq:p.sq.slice(), P:null, history:[] };
+}
+
+function exSpec(){
+  const info = winsetInfo(ex.V, ex.sq);
+  const labels = {};
+  MEMBERS.forEach(k => labels[k] = `Member ${k}'s ideal point at ${ex.V[k].map(Math.round).join(', ')}. Use the arrow keys to move it.`);
+  labels.SQ = `Status quo at ${ex.sq.map(Math.round).join(', ')}. Use the arrow keys to move it.`;
+  if (ex.P) labels.P = `Proposal at ${ex.P.map(Math.round).join(', ')}. Use the arrow keys to move it.`;
+  return {
+    V:ex.V, sq:ex.sq, xLabel:'', yLabel:'',
+    circles: exShow.circles ? MEMBERS : [],
+    winset: exShow.winset, showUnanimous:true, info,
+    props: ex.P ? [[ex.P, 'P']] : [],
+    oldSq: ex.history.slice(-3).map(p => [p, '']),
+    gold: exShow.winset && info.empty,
+    dragIds: labels
+  };
+}
+
+function exReadout(){
+  const info = winsetInfo(ex.V, ex.sq);
+  let s = '<p>' + winsetCaption(ex.V, ex.sq, info, true) + '</p>';
+  if (ex.P){
+    const pref = prefersOf(ex.V, ex.P, ex.sq);
+    s += `<p>P is preferred to the status quo by ${listNames(pref)}, so it ${pref.length >= 2 ? '<b>beats</b>' : '<b>loses to</b>'} the status quo.</p>`;
+  } else {
+    s += '<p>Click or tap anywhere in the figure to place a proposal, P.</p>';
+  }
+  return s;
+}
+
+function renderExplore(){
+  $('progressDots').innerHTML = '';
+  $('stepLabel').textContent = 'Explore';
+  $('stepText').innerHTML = '<p>Drag any ideal point or the status quo. Every circle redraws through the status quo, and the shaded winset follows.</p>';
+  renderLook(['figCard']);
+
+  const opts = $('opts');
+  opts.innerHTML = `
+    <label class="toggle"><input type="checkbox" id="exCircles" ${exShow.circles ? 'checked' : ''}> Show indifference curves</label>
+    <label class="toggle"><input type="checkbox" id="exWinset" ${exShow.winset ? 'checked' : ''}> Show the winset</label>
+    <div class="explore-row" id="exButtons"></div>
+    <div class="readout" id="exReadout" aria-live="polite">${exReadout()}</div>
+    <p class="kbd-note">Keyboard: tab to a point and use the arrow keys to move it by one unit, or by five with Shift held.</p>`;
+  $('exCircles').addEventListener('change', e => { exShow.circles = e.target.checked; drawExplore(); });
+  $('exWinset').addEventListener('change', e => { exShow.winset = e.target.checked; drawExplore(); });
+  const row = $('exButtons');
+  row.appendChild(btn(ex.P ? 'Move P to the status quo' : 'Place a proposal', '', () => {
+    ex.P = [Math.min(100, ex.sq[0] + 8), Math.min(100, ex.sq[1] + 8)]; renderExplore();
+  }));
+  const adopt = btn('Make P the new status quo', 'primary', () => {
+    if (!ex.P) return;
+    ex.history.push(ex.sq); ex.sq = ex.P; ex.P = null; renderExplore();
+    announce('P is now the status quo. ' + winsetCaption(ex.V, ex.sq, winsetInfo(ex.V, ex.sq), true));
+  });
+  adopt.disabled = !ex.P;
+  row.appendChild(adopt);
+
+  const ctl = $('panelControls');
+  ctl.innerHTML = '';
+  ctl.appendChild(btn('Start over', '', () => { exReset('start'); renderExplore(); }));
+  ctl.appendChild(btn('Three on a line', '', () => { exReset('line'); renderExplore(); }));
+  ctl.appendChild(btn('Status quo far from everyone', '', () => { exReset('outside'); renderExplore(); }));
+
+  drawExplore();
+  queueSyncBack();
+}
+
+function drawExplore(){
+  renderFigure(exSpec(), 'Explore: three members, two issues', '');
+  const r = $('exReadout');
+  if (r) r.innerHTML = exReadout();
+  wireDrag();
+}
+
+function svgPoint(evt){
+  const svg = $('figSvg');
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const clamp = v => Math.max(0, Math.min(100, v));
+  return [clamp((loc.x - X0) / scale), clamp((Y1 - loc.y) / scale)];
+}
+
+function setPoint(key, p){
+  p = [Math.round(p[0] * 2) / 2, Math.round(p[1] * 2) / 2];
+  if (key === 'SQ') ex.sq = p;
+  else if (key === 'P') ex.P = p;
+  else ex.V[key] = p;
+}
+
+let dragging = null;
+function wireDrag(){
+  const svg = $('figSvg');
+  if (!svg) return;
+  svg.querySelectorAll('[data-drag]').forEach(g => {
+    g.addEventListener('pointerdown', e => {
+      dragging = g.dataset.drag; e.preventDefault(); e.stopPropagation();
+      svg.setPointerCapture && svg.setPointerCapture(e.pointerId);
+    });
+    g.addEventListener('keydown', e => {
+      const k = g.dataset.drag;
+      const step = e.shiftKey ? 5 : 1;
+      const cur = k === 'SQ' ? ex.sq : k === 'P' ? ex.P : ex.V[k];
+      const mv = { ArrowLeft:[-step,0], ArrowRight:[step,0], ArrowUp:[0,step], ArrowDown:[0,-step] }[e.key];
+      if (!mv) return;
+      e.preventDefault();
+      setPoint(k, [Math.max(0, Math.min(100, cur[0] + mv[0])), Math.max(0, Math.min(100, cur[1] + mv[1]))]);
+      drawExplore();
+      const again = $('figSvg').querySelector(`[data-drag="${k}"]`);
+      if (again) again.focus();
+    });
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    setPoint(dragging, svgPoint(e));
+    const keep = dragging;
+    drawExplore();
+    dragging = keep;
+  });
+  svg.addEventListener('pointerup', () => {
+    if (dragging){ const k = dragging; dragging = null; renderExplore(); announce(winsetCaption(ex.V, ex.sq, winsetInfo(ex.V, ex.sq), true)); return; }
+  });
+  svg.addEventListener('click', e => {
+    if (e.target.closest('[data-drag]')) return;
+    ex.P = svgPoint(e).map(v => Math.round(v * 2) / 2);
+    renderExplore();
+    announce('Proposal placed. ' + listNames(prefersOf(ex.V, ex.P, ex.sq)) + ' prefer it to the status quo.');
+  });
+}
+
+/* ============================================================
+   Bringing a changed card into view (visibility gate)
+   ============================================================ */
+const CARD_NAMES = { figCard:'the figure', caseCard:'the case card', findings:'the findings box' };
+
+function bringIntoView(id, forced){
+  const el = $(id);
+  if (!el || el.style.display === 'none') return;
+  requestAnimationFrame(() => {
+    const box = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const seen = Math.min(box.bottom, vh) - Math.max(box.top, 0);
+    if (!forced && box.top >= 0 && (box.bottom <= vh || seen >= vh * 0.6)) return;
+    movedAway = true;
+    el.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block:'start'
+    });
+  });
+}
+
+function renderLook(targets){
+  const host = $('stepText');
+  const row = document.createElement('div');
+  row.className = 'look';
+  const lead = document.createElement('span');
+  lead.className = 'look-lead';
+  lead.textContent = 'Look at';
+  row.appendChild(lead);
+  targets.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'look-btn'; b.type = 'button';
+    b.textContent = CARD_NAMES[id];
+    b.setAttribute('aria-label', 'Go to ' + CARD_NAMES[id]);
+    b.addEventListener('click', () => bringIntoView(id, true));
+    row.appendChild(b);
+  });
+  host.insertBefore(row, host.firstChild);
+}
+
+/* The return control appears only once the reader has somewhere to
+   return to: the panel has been in sight, or the tool moved them. */
+let panelSeen = false, movedAway = false;
+const backBtn = document.createElement('button');
+backBtn.className = 'back-to-step'; backBtn.type = 'button'; backBtn.hidden = true;
+backBtn.addEventListener('click', () => {
+  $('panelControls').scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block:'end'
+  });
+});
+document.body.appendChild(backBtn);
+
+function syncBack(){
+  const pc = $('panelControls');
+  if (!pc || pc.children.length === 0){ backBtn.hidden = true; return; }
+  const box = pc.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const inSight = box.top >= 0 && box.bottom <= vh;
+  if (inSight) panelSeen = true;
+  backBtn.hidden = inSight || !(panelSeen || movedAway);
+  if (!backBtn.hidden) backBtn.textContent = mode === 'guided' ? 'Back to step ' + (stepIdx + 1)
+    : mode === 'practice' ? 'Back to the task' : 'Back to the controls';
+}
+let backTicking = false;
+function queueSyncBack(){
+  if (backTicking) return;
+  backTicking = true;
+  requestAnimationFrame(() => { backTicking = false; syncBack(); });
+}
+window.addEventListener('scroll', queueSyncBack, { passive:true });
+window.addEventListener('resize', queueSyncBack);
+
+/* ============================================================
+   Picker and chrome
+   ============================================================ */
+function renderPicker(){
+  const host = $('pickerZone');
+  if (mode !== 'practice'){ host.innerHTML = ''; return; }
+  host.innerHTML = GROUPS.map(g => {
+    const chips = CASES.map((c, i) => ({ c, i })).filter(x => x.c.group === g.id)
+      .map(x => `<button class="chip${x.i === caseIdx ? ' active' : ''}" type="button" data-case="${x.i}">${x.c.label}</button>`).join('');
+    return `<p class="group-label">${g.label}</p><p class="group-sub">${g.sub}</p><div class="picker">${chips}</div>`;
+  }).join('');
+  host.querySelectorAll('[data-case]').forEach(b => b.addEventListener('click', () => selectCase(+b.dataset.case)));
+}
+
+function btn(label, cls, fn){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn' + (cls ? ' ' + cls : '');
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  return b;
+}
+function clearNote(){ const n = $('resultNote'); n.className = 'result-note'; n.innerHTML = ''; }
+function note(kind, msg){ const n = $('resultNote'); n.className = 'result-note show ' + kind; n.innerHTML = msg; }
+function announce(msg){ $('liveRegion').textContent = msg.replace(/<[^>]+>/g, ''); }
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.mode === m;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  clearNote();
+  renderPicker();
+  renderCaseCard();
+  if (m === 'guided') renderGuided();
+  else if (m === 'explore'){ if (!ex) exReset('start'); $('findings').style.display = 'none'; renderExplore(); }
+  else selectCase(caseIdx);
+  window.scrollTo({ top:0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  $('themeToggle').setAttribute('aria-pressed', dark ? 'true' : 'false');
+  $('themeIcon').innerHTML = dark ? '&#9788;' : '&#9789;';
+  $('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+}
+applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+$('themeToggle').addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark'));
+
+renderGuided();
+</script>
+</body>
+</html>

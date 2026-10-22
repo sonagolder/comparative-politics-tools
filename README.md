@@ -23,6 +23,7 @@ Start at the contents page, `index.html`, which lists every tool by chapter. Eac
 | 8 | Tipping models | `tipping-models.html` |
 | 8 | Solving incomplete information games | `incomplete-information-games.html` |
 | 9 | Selectorate theory | `selectorate-theory.html` |
+| 10 | Winsets in two dimensions | `winsets-in-two-dimensions.html` |
 
 ## For instructors
 
