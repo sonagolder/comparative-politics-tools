@@ -25,6 +25,7 @@ Start at the contents page, `index.html`, which lists every tool by chapter. Eac
 | 9 | Selectorate theory | `selectorate-theory.html` |
 | 10 | Winsets in two dimensions | `winsets-in-two-dimensions.html` |
 | 11 | Forming a government | `forming-governments.html` |
+| 11 | Delegation and the principal-agent game | `principal-agent-game.html` |
 
 ## For instructors
 

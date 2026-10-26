@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delegation and the principal-agent game</title>
+<style>
+  :root {
+    --bg: #FAFAFA;
+    --panel: #FFFFFF;
+    --border: #D0D0D0;
+    --text: #111111;
+    --text-2: #555555;
+    --hint: #999999;
+    --deemph: #707070;
+    --accent: #0072B2;
+    --on-accent: #FFFFFF;
+    --favorable: #0072B2;
+    --unfavorable: #B33E00;
+    --neutral: #5F5E5A;
+    --gold-ui: #B8860B;
+    --gold-text: #946B09;
+    --on-gold: #111111;
+    --structure-ink: #141414;
+    --structure-line: #8A8A8A;
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --data-font: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  html[data-theme="dark"] {
+    --bg: #1A1A1A;
+    --panel: #2A2A2A;
+    --border: #3A3A3A;
+    --text: #F2F2F2;
+    --text-2: #B3B3B3;
+    --hint: #7A7A7A;
+    --deemph: #9A9A9A;
+    --accent: #7FC7EE;
+    --on-accent: #0A1E28;
+    --favorable: #7FC7EE;
+    --unfavorable: #F08A4B;
+    --neutral: #A8A6A0;
+    --gold-ui: #E0B23D;
+    --gold-text: #E0B23D;
+    --on-gold: #141414;
+    --structure-ink: #E8E8E8;
+    --structure-line: #7E7E7E;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  header { margin-bottom: 24px; }
+  h1 { font-size: 1.65rem; font-weight: 600; margin: 0 0 8px 0; line-height: 1.25; }
+  .standfirst { margin: 0; color: var(--text-2); max-width: 70ch; }
+
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .group-label { display: block; font-size: 11px; color: var(--text-2); margin-bottom: 8px; }
+
+  [role="tablist"] { display: flex; flex-wrap: wrap; gap: 8px; }
+  [role="tab"] {
+    font: inherit; font-size: 0.95rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 -3px 0 var(--accent);
+    font-weight: 600;
+  }
+
+  .theme-toggle, .look-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--accent);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .theme-toggle { color: var(--text); }
+  .looks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  button:focus-visible, input:focus-visible, h2[tabindex="-1"]:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- board ---------- */
+
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 809px) { .board { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    scroll-margin-top: 8px;
+  }
+  .card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .card p { margin: 0 0 8px 0; }
+  .card-sub { font-size: 0.92rem; color: var(--text-2); }
+
+  /* ---------- the policy line ---------- */
+
+  svg.line { display: block; width: 100%; height: auto; }
+  .line text { font-family: var(--body-font); fill: var(--text); }
+  .line .axis { stroke: var(--structure-ink); stroke-width: 2; }
+  .line .axis-ext { stroke: var(--structure-line); stroke-width: 2; stroke-dasharray: 4 4; }
+  .line .tick { stroke: var(--structure-ink); stroke-width: 1.5; }
+  .line .tick-ext { stroke: var(--structure-line); stroke-width: 1.5; }
+  .line .tl { font-family: var(--data-font); font-size: 12px; }
+  .line .tl-ext { font-family: var(--data-font); font-size: 12px; fill: var(--deemph); }
+  .line .mk { fill: var(--structure-ink); stroke: var(--panel); stroke-width: 1.5; }
+  .line .ml { font-family: var(--data-font); font-size: 13px; font-weight: 700; }
+  .line .ring { fill: none; stroke: var(--gold-ui); stroke-width: 3; }
+  .line .ring-l { font-size: 11px; fill: var(--gold-text); font-weight: 600; }
+  .line .brace { fill: none; stroke: var(--text-2); stroke-width: 1.5; }
+  .line .brace-l { font-size: 11px; fill: var(--text-2); }
+  .line .loss { fill: none; stroke: var(--unfavorable); stroke-width: 2; }
+  .line .loss-l { font-size: 11px; fill: var(--unfavorable); font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 0 0; font-size: 0.85rem; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend svg { width: 14px; height: 14px; }
+  .legend .mk { fill: var(--structure-ink); }
+  .line-cap { margin: 8px 0 0 0; font-size: 0.85rem; color: var(--text-2); }
+
+  /* ---------- worksheet ---------- */
+
+  .table-scroll { overflow-x: auto; }
+  table.ws { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  table.ws caption { text-align: left; font-size: 0.85rem; color: var(--text-2); padding-bottom: 8px; }
+  table.ws th, table.ws td { border-bottom: 1px solid var(--border); padding: 8px; vertical-align: top; text-align: left; }
+  table.ws tbody th { font-weight: 400; width: 52%; }
+  table.ws tbody tr:last-child th, table.ws tbody tr:last-child td { border-bottom: 0; }
+  .rf { display: block; font-family: var(--data-font); font-size: 0.76rem; color: var(--text-2); margin-top: 2px; }
+  .rv { font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .rv.unknown { color: var(--deemph); font-weight: 400; }
+  td.fresh { box-shadow: inset 3px 0 0 var(--gold-ui); }
+
+  /* ---------- case card ---------- */
+
+  .case-group { font-size: 0.85rem; color: var(--text-2); margin: 0 0 8px 0; }
+  .field { margin: 0 0 8px 0; }
+  .field-label { display: block; font-size: 11px; color: var(--text-2); margin-bottom: 2px; }
+
+  /* ---------- panel ---------- */
+
+  .step-label { font-size: 11px; color: var(--text-2); margin: 0 0 8px 0; }
+  .step-title { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .step-body p { margin: 0 0 8px 0; }
+  .nav { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .dots { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .dot.on { background: var(--accent); }
+
+  .btn {
+    font: inherit; font-size: 0.95rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .btn:disabled { color: var(--deemph); cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+  .cgroup { border: 1px solid var(--border); border-radius: 4px; padding: 16px; margin-bottom: 16px; }
+  .ctrl { margin-bottom: 16px; }
+  .ctrl:last-child { margin-bottom: 0; }
+  .ctrl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .ctrl-head label { font-size: 0.9rem; font-weight: 600; }
+  .ctrl-val { font-family: var(--data-font); font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+  .scale { display: flex; justify-content: space-between; font-family: var(--data-font); font-size: 0.72rem; color: var(--text-2); margin-top: 2px; }
+  .cnote { margin: 8px 0 16px 0; font-size: 0.85rem; color: var(--text-2); }
+
+  .verdict-box { border: 1px solid var(--border); border-radius: 4px; padding: 8px 16px; margin-bottom: 16px; }
+  .verdict-box .who { font-size: 11px; color: var(--text-2); margin: 0 0 2px 0; }
+  .verdict { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .why { margin: 0 0 8px 0; font-size: 0.92rem; }
+  .why:last-child { margin-bottom: 0; }
+
+  .seg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .seg button, .chip {
+    font: inherit; font-size: 0.9rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"], .chip[aria-pressed="true"] {
+    border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); font-weight: 600;
+  }
+  .chips-group { margin-bottom: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip .done-mark { font-family: var(--data-font); color: var(--favorable); margin-left: 4px; }
+
+  .progress { list-style: none; margin: 0 0 16px 0; padding: 0; font-size: 0.88rem; }
+  .progress li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; color: var(--text-2); }
+  .progress li .pm { font-family: var(--data-font); width: 16px; flex: none; }
+  .progress li.done { color: var(--text); }
+  .progress li.done .pm { color: var(--favorable); }
+
+  .problem p { margin: 0 0 8px 0; }
+  .task { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+  .task-q { font-weight: 600; margin: 0 0 8px 0; }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opts.row { flex-direction: row; flex-wrap: wrap; }
+  .opt {
+    font: inherit; font-size: 0.95rem; text-align: left;
+    padding: 8px 16px; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .opt.num { font-family: var(--data-font); font-variant-numeric: tabular-nums; }
+  .opt:hover { border-color: var(--accent); }
+  .opt[aria-disabled="true"] { cursor: default; color: var(--deemph); }
+  .opt[aria-disabled="true"]:hover { border-color: var(--border); }
+  .opt.chosen[aria-disabled="true"] { color: var(--text); border: 2px solid var(--gold-ui); padding: 7px 15px; }
+
+  .result-note {
+    margin: 8px 0 0 0; padding: 8px 16px; border-radius: 4px;
+    border: 1px solid var(--border); font-size: 0.92rem;
+  }
+  .result-note.ok { box-shadow: inset 4px 0 0 var(--favorable); }
+  .result-note.no { box-shadow: inset 4px 0 0 var(--unfavorable); }
+  .result-note .head { font-weight: 600; }
+  .result-note.ok .head { color: var(--favorable); }
+  .result-note.no .head { color: var(--unfavorable); }
+
+  .finished { margin-top: 16px; padding: 8px 16px; border: 2px solid var(--gold-ui); border-radius: 4px; font-size: 0.92rem; }
+  .finished p { margin: 0 0 8px 0; }
+  .finished p:last-child { margin-bottom: 0; }
+  .score { font-family: var(--data-font); font-size: 0.85rem; color: var(--text-2); margin: 16px 0 0 0; }
+
+  .back-btn {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
+  }
+
+  footer { margin-top: 32px; font-size: 0.82rem; color: var(--text-2); max-width: 70ch; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .opt, .btn, [role="tab"], .chip { transition: border-color 120ms ease, background-color 120ms ease; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Delegation and the principal-agent game</h1>
+    <p class="standfirst">
+      Voters delegate to legislators, legislators to a government, ministers to civil servants. Each time,
+      someone hands power to an agent who may not do what they want. The guided walkthrough sets out the
+      chapter&rsquo;s principal-agent game, works through its three scenarios from Figure 11.7, and then covers the
+      information problems behind delegation and the ways principals deal with them. Explore lets you move the
+      status quo and both ideal points yourself and see what the agent can get away with. Practice has two parts:
+      solving the game, with new scenarios generated without end, and problems and fixes, eleven delegation
+      scenarios in which you identify what the principal is worried about and the mechanism they used.
+    </p>
+  </header>
+
+  <div class="topbar">
+    <div>
+      <span class="group-label" id="modeLabel">Mode</span>
+      <div role="tablist" aria-labelledby="modeLabel" id="tabs">
+        <button role="tab" id="tab-guided" aria-selected="true" aria-controls="guidedPanel" type="button">Guided walkthrough</button>
+        <button role="tab" id="tab-explore" aria-selected="false" aria-controls="explorePanel" tabindex="-1" type="button">Explore</button>
+        <button role="tab" id="tab-practice" aria-selected="false" aria-controls="practicePanel" tabindex="-1" type="button">Practice</button>
+      </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Switch to dark mode</button>
+  </div>
+
+  <div class="board">
+
+    <!-- ============ content column ============ -->
+    <div class="col">
+
+      <section class="card" id="caseCard" aria-labelledby="caseTitle" hidden>
+        <h2 id="caseTitle"></h2>
+        <p class="case-group" id="caseGroup"></p>
+        <div id="caseBody"></div>
+      </section>
+
+      <section class="card" id="lineCard" aria-labelledby="lineTitle">
+        <h2 id="lineTitle">The policy line</h2>
+        <p class="card-sub" id="lineSub"></p>
+        <svg class="line" id="line" viewBox="0 0 400 196" aria-hidden="true" focusable="false"></svg>
+        <div class="legend" aria-hidden="true">
+          <span><svg viewBox="0 0 14 14"><circle class="mk" cx="7" cy="7" r="5"></circle></svg>Principal&rsquo;s ideal point (P)</span>
+          <span><svg viewBox="0 0 14 14"><rect class="mk" x="2" y="2" width="10" height="10"></rect></svg>Agent&rsquo;s ideal point (A)</span>
+          <span><svg viewBox="0 0 14 14"><polygon class="mk" points="7,1 13,7 7,13 1,7"></polygon></svg>Status quo (SQ)</span>
+        </div>
+        <p class="line-cap" id="lineCap"></p>
+      </section>
+
+      <section class="card" id="wsCard" aria-labelledby="wsTitle">
+        <h2 id="wsTitle">The worksheet</h2>
+        <div class="table-scroll">
+          <table class="ws">
+            <caption>What the agent can get away with, and what the principal ends up with.</caption>
+            <tbody id="wsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ the panel ============ -->
+    <div>
+
+      <section class="card" id="guidedPanel" role="tabpanel" aria-labelledby="tab-guided">
+        <p class="step-label" id="stepLabel"></p>
+        <div aria-live="polite" id="stepLive">
+          <h2 class="step-title" id="stepTitle" tabindex="-1"></h2>
+          <div class="step-body" id="stepBody"></div>
+          <div class="looks" id="stepLook"></div>
+        </div>
+        <div class="nav" id="guidedNav">
+          <button class="btn" type="button" id="prevBtn">Back</button>
+          <button class="btn primary" type="button" id="nextBtn">Next</button>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section class="card" id="explorePanel" role="tabpanel" aria-labelledby="tab-explore" hidden>
+        <h2 id="exploreTitle" tabindex="-1">Move the players</h2>
+        <div class="verdict-box" aria-live="polite" id="verdictBox">
+          <p class="who">What happens</p>
+          <p class="verdict" id="verdict"></p>
+          <p class="why" id="vWhy"></p>
+        </div>
+        <div class="cgroup">
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sSQ">Status quo (SQ)</label><span class="ctrl-val" id="oSQ"></span></div>
+            <input type="range" id="sSQ" min="0" max="10" step="1" value="4">
+            <div class="scale"><span>0</span><span>10</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sP">Principal&rsquo;s ideal point (P)</label><span class="ctrl-val" id="oP"></span></div>
+            <input type="range" id="sP" min="0" max="10" step="1" value="6">
+            <div class="scale"><span>0</span><span>10</span></div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-head"><label for="sA">Agent&rsquo;s ideal point (A)</label><span class="ctrl-val" id="oA"></span></div>
+            <input type="range" id="sA" min="0" max="10" step="1" value="9">
+            <div class="scale"><span>0</span><span>10</span></div>
+          </div>
+        </div>
+        <p class="cnote">The principal accepts any proposal that leaves them no worse off than the status quo, including one they are exactly indifferent to. The region of acceptability can run off the end of the 0&ndash;10 scale; the agent&rsquo;s proposal never does, since the agent never wants a policy beyond its own ideal point.</p>
+      </section>
+
+      <section class="card" id="practicePanel" role="tabpanel" aria-labelledby="tab-practice" hidden>
+        <h2 id="practiceTitle" tabindex="-1">Practice</h2>
+        <div class="seg" role="group" aria-label="Kind of practice">
+          <button type="button" id="segGame" aria-pressed="true">Solving the game</button>
+          <button type="button" id="segFix" aria-pressed="false">Problems and fixes</button>
+        </div>
+
+        <div id="gamePractice">
+          <p class="cnote">New scenarios are generated without end, each with its own status quo and ideal points. Every scenario is one of four kinds, listed here. A kind is checked off once you solve a scenario of that kind with every answer right the first time, and new scenarios favor the kinds you haven’t checked off yet.</p>
+          <span class="group-label" id="progLabel">Kinds of scenario</span>
+          <ul class="progress" id="progress" aria-labelledby="progLabel"></ul>
+          <div class="problem" id="probText"></div>
+          <div class="task" id="gt1">
+            <p class="task-q">1. What is the principal&rsquo;s region of acceptability?</p>
+            <div class="opts" id="go1"></div><div id="gf1"></div>
+          </div>
+          <div class="task" id="gt2" hidden>
+            <p class="task-q">2. What policy does the agent propose?</p>
+            <div class="opts row" id="go2"></div><div id="gf2"></div>
+          </div>
+          <div class="task" id="gt3" hidden>
+            <p class="task-q">3. What is the final policy outcome?</p>
+            <div class="opts row" id="go3"></div><div id="gf3"></div>
+          </div>
+          <div class="task" id="gt4" hidden>
+            <p class="task-q">4. How large is the principal&rsquo;s agency loss?</p>
+            <div class="opts row" id="go4"></div><div id="gf4"></div>
+          </div>
+          <div class="task" id="gt5" hidden>
+            <p class="task-q">5. Was delegation successful?</p>
+            <div class="opts" id="go5"></div><div id="gf5"></div>
+          </div>
+          <div class="task" id="gt6" hidden>
+            <p class="task-q">6. How much power did the agent have as agenda setter?</p>
+            <div class="opts" id="go6"></div><div id="gf6"></div>
+          </div>
+          <div class="nav"><button class="btn primary" type="button" id="nextProb" hidden>Next scenario</button></div>
+          <p class="score" id="score"></p>
+        </div>
+
+        <div id="fixPractice" hidden>
+          <p class="cnote">Eleven delegation scenarios. For each one, decide what the principal is worried about (adverse selection or moral hazard) and which kind of mechanism they used to deal with it: screening or selection before the agent is chosen, or a police patrol or fire alarm afterward. Each of the four mechanisms appears more than once.</p>
+          <div id="casePicker"></div>
+          <div class="task" id="ft1">
+            <p class="task-q">1. What is the principal worried about?</p>
+            <div class="opts" id="fo1"></div><div id="ff1"></div>
+          </div>
+          <div class="task" id="ft2" hidden>
+            <p class="task-q">2. What kind of mechanism did the principal use?</p>
+            <div class="opts" id="fo2"></div><div id="ff2"></div>
+          </div>
+          <div class="finished" id="caseDone" hidden></div>
+          <div class="nav"><button class="btn primary" type="button" id="nextCase" hidden>Next scenario</button></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    Accompanies Chapter 11 of <em>Principles of Comparative Politics</em>, 4th edition (Clark, Golder, and
+    Golder 2024). The three scenarios in the walkthrough are the chapter&rsquo;s Figure 11.7. The scenarios in
+    practice mode are generated or hypothetical.
+  </footer>
+
+  <button class="back-btn" type="button" id="backBtn" hidden>Back to the steps</button>
+  <div class="sr-only" role="status" aria-live="polite" id="live"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MINUS = "−";
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var liveEl = document.getElementById("live");
+  function say(msg) { liveEl.textContent = ""; setTimeout(function () { liveEl.textContent = msg; }, 30); }
+  function $(id) { return document.getElementById(id); }
+  function fmt(v) { return v < 0 ? MINUS + Math.abs(v) : String(v); }
+
+  /* ================= the model ================= */
+
+  /* The principal accepts any proposal no farther from P than the status quo is (indifference counts as acceptance). */
+  function solve(sq, p, a) {
+    var d = Math.abs(sq - p), lo = p - d, hi = p + d;
+    var x = Math.min(Math.max(a, lo), hi);
+    var loss = Math.abs(x - p);
+    var success = loss < d;
+    var power = x === a ? "unlimited" : (x === sq ? "none" : "limited");
+    return { d: d, lo: lo, hi: hi, x: x, loss: loss, success: success, power: power, sq: sq, p: p, a: a };
+  }
+  function region(r) { return "From " + fmt(r.lo) + " to " + fmt(r.hi); }
+  var POWER = [
+    { v: "unlimited", t: "Unlimited: the agent gets its own ideal point" },
+    { v: "limited", t: "Limited: the agent moves policy, but not all the way to its ideal point" },
+    { v: "none", t: "None: the agent can’t move policy away from the status quo" }
+  ];
+
+  /* ================= moving the reader ================= */
+
+  var CARDS = { line: "lineCard", ws: "wsCard", case: "caseCard" };
+  var CARD_NAMES = { line: "the policy line", ws: "the worksheet", case: "the scenario card" };
+  var backBtn = $("backBtn");
+  var movedAway = false, autoScrollUntil = 0;
+  function markMoved() { movedAway = true; autoScrollUntil = Date.now() + (reduceMotion ? 100 : 900); }
+  function isEnoughOnScreen(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    if (r.top >= 0 && r.bottom <= vh) return true;
+    if (r.height > vh && r.top >= 0 && (vh - r.top) >= 0.6 * vh) return true;
+    return false;
+  }
+  function goTo(el) {
+    markMoved();
+    el.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    setTimeout(updateBack, reduceMotion ? 150 : 950);
+  }
+  function bring(k) {
+    var el = $(CARDS[k]);
+    if (!el || el.hidden || isEnoughOnScreen(el)) return;
+    goTo(el);
+  }
+  function lookButtons(container, keys) {
+    container.innerHTML = "";
+    (keys || []).forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "look-btn";
+      b.textContent = "Look at " + CARD_NAMES[k];
+      b.addEventListener("click", function () { goTo($(CARDS[k])); });
+      container.appendChild(b);
+    });
+  }
+  function anchorFor(m) {
+    if (m === "guided") return $("guidedNav");
+    if (m === "explore") return $("verdictBox");
+    var ids = practiceKind === "game" ? ["gt6", "gt5", "gt4", "gt3", "gt2", "gt1"] : ["ft2", "ft1"];
+    for (var i = 0; i < ids.length; i++) if (!$(ids[i]).hidden) return $(ids[i]);
+    return null;
+  }
+  function anchorVisible(el) { var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; }
+  function updateBack() {
+    var a = anchorFor(mode);
+    if (!a) { backBtn.hidden = true; return; }
+    if (anchorVisible(a)) { if (Date.now() >= autoScrollUntil) movedAway = false; backBtn.hidden = true; return; }
+    backBtn.hidden = !movedAway;
+    backBtn.textContent = mode === "guided" ? "Back to the steps" : mode === "explore" ? "Back to the sliders" : "Back to the question";
+  }
+  window.addEventListener("scroll", updateBack, { passive: true });
+  window.addEventListener("resize", updateBack);
+  backBtn.addEventListener("click", function () {
+    var a = anchorFor(mode); if (!a) return;
+    a.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+    movedAway = false; backBtn.hidden = true;
+  });
+
+  /* ================= the policy line ================= */
+
+  /* show: { region, proposal, outcome, loss } — which layers to draw */
+  function drawLine(r, show, sub) {
+    show = show || {};
+    var lo = 0, hi = 10;
+    if (show.region) { lo = Math.min(0, r.lo); hi = Math.max(10, r.hi); }
+    var X0 = 24, X1 = 376;
+    function X(v) { return X0 + (v - lo) * (X1 - X0) / (hi - lo); }
+    var y = 88, parts = [];
+    var span = hi - lo, every = span <= 12 ? 1 : 2;
+
+    if (lo < 0) parts.push("<line class='axis-ext' x1='" + X(lo) + "' y1='" + y + "' x2='" + X(0) + "' y2='" + y + "'></line>");
+    if (hi > 10) parts.push("<line class='axis-ext' x1='" + X(10) + "' y1='" + y + "' x2='" + X(hi) + "' y2='" + y + "'></line>");
+    parts.push("<line class='axis' x1='" + X(0) + "' y1='" + y + "' x2='" + X(10) + "' y2='" + y + "'></line>");
+    for (var v = lo; v <= hi; v++) {
+      var ext = v < 0 || v > 10;
+      parts.push("<line class='" + (ext ? "tick-ext" : "tick") + "' x1='" + X(v) + "' y1='" + (y - 6) + "' x2='" + X(v) + "' y2='" + (y + 6) + "'></line>");
+      if ((v - lo) % every === 0 || v === 0 || v === 10)
+        parts.push("<text class='" + (ext ? "tl-ext" : "tl") + "' x='" + X(v) + "' y='" + (y + 24) + "' text-anchor='middle'>" + fmt(v) + "</text>");
+    }
+
+    if (show.region) {
+      var by = y + 36;
+      parts.push("<path class='brace' d='M" + X(r.lo) + "," + by + " L" + X(r.lo) + "," + (by + 8) + " L" + X(r.hi) + "," + (by + 8) + " L" + X(r.hi) + "," + by + "'></path>");
+      var mid = (X(r.lo) + X(r.hi)) / 2;
+      var lab = r.lo === r.hi ? "Region of acceptability: " + fmt(r.lo) + " only" : "Principal’s region of acceptability";
+      var anchor = mid < 90 ? "start" : mid > 310 ? "end" : "middle";
+      var lx = anchor === "start" ? Math.max(X(r.lo), 4) : anchor === "end" ? Math.min(X(r.hi), 396) : mid;
+      parts.push("<text class='brace-l' x='" + lx + "' y='" + (by + 24) + "' text-anchor='" + anchor + "'>" + lab + "</text>");
+    }
+    if (show.loss && r.loss > 0) {
+      var ly = y + 72;
+      parts.push("<path class='loss' d='M" + X(Math.min(r.x, r.p)) + "," + (ly - 6) + " L" + X(Math.min(r.x, r.p)) + "," + ly + " L" + X(Math.max(r.x, r.p)) + "," + ly + " L" + X(Math.max(r.x, r.p)) + "," + (ly - 6) + "'></path>");
+      var lm = (X(r.x) + X(r.p)) / 2;
+      var la = lm < 60 ? "start" : lm > 340 ? "end" : "middle";
+      parts.push("<text class='loss-l' x='" + (la === "start" ? X(Math.min(r.x, r.p)) : la === "end" ? X(Math.max(r.x, r.p)) : lm) + "' y='" + (ly + 16) + "' text-anchor='" + la + "'>Agency loss: " + r.loss + "</text>");
+    }
+    if (show.outcome || show.proposal) {
+      parts.push("<circle class='ring' cx='" + X(r.x) + "' cy='" + y + "' r='12'></circle>");
+    }
+
+    /* markers, labels stacked where they coincide: A above P above SQ */
+    var stack = {};
+    [["A", r.a], ["P", r.p], ["SQ", r.sq]].forEach(function (m) {
+      var k = m[1]; stack[k] = stack[k] || []; stack[k].push(m[0]);
+    });
+    Object.keys(stack).forEach(function (k) {
+      var v2 = Number(k), xs = X(v2), names = stack[k];
+      names.forEach(function (nm, i) {
+        var ty = y - 20 - (names.length - 1 - i) * 16;
+        parts.push("<text class='ml' x='" + xs + "' y='" + ty + "' text-anchor='middle'>" + nm + "</text>");
+      });
+      var top = names[names.length - 1];
+      if (names.indexOf("SQ") >= 0 && names.length === 1) parts.push("<polygon class='mk' points='" + xs + "," + (y - 7) + " " + (xs + 7) + "," + y + " " + xs + "," + (y + 7) + " " + (xs - 7) + "," + y + "'></polygon>");
+      else if (names[0] === "A" && names.length === 1) parts.push("<rect class='mk' x='" + (xs - 6) + "' y='" + (y - 6) + "' width='12' height='12'></rect>");
+      else parts.push("<circle class='mk' cx='" + xs + "' cy='" + y + "' r='6'></circle>");
+      void top;
+    });
+    if (show.outcome || show.proposal) {
+      var ox = X(r.x);
+      var oa = ox < 40 ? "start" : ox > 360 ? "end" : "middle";
+      var stackH = (stack[r.x] ? stack[r.x].length : 0);
+      parts.push("<text class='ring-l' x='" + ox + "' y='" + (y - 20 - stackH * 16) + "' text-anchor='" + oa + "'>" + (show.outcome ? "outcome" : "proposal") + "</text>");
+    }
+    $("line").innerHTML = parts.join("");
+
+    var cap = "Status quo at " + r.sq + ", principal’s ideal point at " + r.p + ", agent’s ideal point at " + r.a + ".";
+    if (show.region) cap += " The region of acceptability runs from " + fmt(r.lo) + " to " + fmt(r.hi) + (r.lo < 0 || r.hi > 10 ? ", past the end of the 0–10 scale (dashed)." : ".");
+    if (show.outcome) cap += " The outcome is " + r.x + ".";
+    else if (show.proposal) cap += " The agent proposes " + r.x + ".";
+    if (show.loss) cap += " Agency loss is " + r.loss + ".";
+    $("lineCap").textContent = cap;
+    $("lineSub").textContent = sub || "";
+  }
+
+  /* ================= the worksheet ================= */
+
+  var WS = [
+    { k: "sq", label: "Status quo (SQ)" },
+    { k: "p", label: "Principal’s ideal point (P)" },
+    { k: "a", label: "Agent’s ideal point (A)" },
+    { k: "d", label: "How far the status quo is from P", f: "the distance from SQ to P" },
+    { k: "region", label: "Principal’s region of acceptability", f: "P minus that distance, to P plus that distance" },
+    { k: "x", label: "Agent’s proposal", f: "the point in the region closest to A" },
+    { k: "out", label: "Final policy outcome", f: "the principal accepts, so the proposal" },
+    { k: "loss", label: "Agency loss", f: "the distance from the outcome to P" },
+    { k: "succ", label: "Was delegation successful?", f: "is the principal better off than under SQ?" },
+    { k: "power", label: "The agent’s power as agenda setter" }
+  ];
+  function wsValue(k, r) {
+    switch (k) {
+      case "sq": return String(r.sq);
+      case "p": return String(r.p);
+      case "a": return String(r.a);
+      case "d": return String(r.d);
+      case "region": return region(r);
+      case "x": return String(r.x);
+      case "out": return String(r.x);
+      case "loss": return String(r.loss);
+      case "succ": return r.success ? "Yes" : "No";
+      case "power": return r.power === "unlimited" ? "Unlimited" : r.power === "limited" ? "Limited" : "None";
+    }
+    return "";
+  }
+  function renderWs(r, shown, fresh) {
+    var body = $("wsBody");
+    body.innerHTML = "";
+    WS.forEach(function (row) {
+      var tr = document.createElement("tr");
+      var th = document.createElement("th"); th.scope = "row";
+      th.appendChild(document.createTextNode(row.label));
+      if (row.f) { var f = document.createElement("span"); f.className = "rf"; f.textContent = row.f; th.appendChild(f); }
+      var td = document.createElement("td");
+      var v = document.createElement("span");
+      if (shown[row.k]) { v.className = "rv"; v.textContent = wsValue(row.k, r); if (fresh && fresh[row.k]) td.className = "fresh"; }
+      else { v.className = "rv unknown"; v.textContent = "?"; v.setAttribute("aria-label", "not yet worked out"); }
+      td.appendChild(v);
+      tr.appendChild(th); tr.appendChild(td);
+      body.appendChild(tr);
+    });
+  }
+  function showCards(c) {
+    $("caseCard").hidden = !c.case;
+    $("lineCard").hidden = !c.line;
+    $("wsCard").hidden = !c.ws;
+  }
+
+  /* ================= guided walkthrough ================= */
+
+  var S_A = solve(5, 3, 3), S_B = solve(1, 7, 3), S_C = solve(4, 5, 9);
+  var IN = { sq: 1, p: 1, a: 1 };
+  function upto(k) {
+    var o = {}, order = ["sq", "p", "a", "d", "region", "x", "out", "loss", "succ", "power"];
+    for (var i = 0; i <= order.indexOf(k); i++) o[order[i]] = 1;
+    return o;
+  }
+
+  var STEPS = [
+    { title: "Delegation",
+      r: S_B, show: {}, ws: {}, cards: { line: true, ws: false }, sub: "A principal, an agent and a status quo on a policy line. Step 3 sets out the rules of the game.",
+      body: [
+        "Delegation occurs when one person or group, the principal, relies on another, the agent, to act on the principal’s behalf. A patient delegates to a doctor; in a democracy, voters are the ultimate principals, delegating policymaking to their representatives, who delegate in turn.",
+        "Delegation lets the principal benefit from the agent’s expertise and saves the principal time and effort. But it transfers power, and the agent may not do what the principal wants, because the agent can’t do the task or because it wants something different. An agent who doesn’t do what the principal wants is said to be shirking."
+      ] },
+    { title: "Agency loss and successful delegation",
+      r: S_B, show: {}, ws: {}, cards: { line: true, ws: false }, sub: "A principal, an agent and a status quo on a policy line. Step 3 sets out the rules of the game.",
+      body: [
+        "Agency loss is the difference between what delegation actually produces and what a perfect agent would have produced. A perfect agent does what the principal would have done in the agent’s place, so agency loss describes the outcome from the principal’s point of view.",
+        "Delegation is successful if it leaves the principal better off than if they hadn’t delegated at all. What would have happened without delegation is called the status quo, or reversion point. The two ideas are different: delegation can be successful and still involve agency loss."
+      ] },
+    { title: "The principal-agent game", changes: ["line"], look: ["line"],
+      r: S_A, show: {}, ws: IN, cards: { line: true, ws: true }, sub: "",
+      body: [
+        "Policy runs along a line from 0 to 10. The principal and the agent each have an ideal point, P and A, and prefer outcomes closer to it. There is also a status quo, SQ. The agent moves first and proposes a policy. The principal then accepts it, and it replaces the status quo, or rejects it, and the status quo stays.",
+        "One more rule: the principal accepts any proposal that doesn’t make them worse off than the status quo, including one that leaves them exactly as well off. Without it, the agent would always want a proposal a fraction closer to P than the last one, and there would be no best proposal to make."
+      ] },
+    { title: "Shared preferences", changes: ["line"], look: ["line", "ws"],
+      r: S_A, show: { region: true, outcome: true }, ws: upto("x"), fresh: { d: 1, region: 1, x: 1 }, cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7a: the principal and agent share the same preferences.",
+      body: [
+        "Here the status quo is at 5 and the principal and agent share an ideal point of 3. Before proposing anything, the agent works out which policies the principal will accept. The status quo is 2 units from P, so the principal accepts anything within 2 units of 3: the region of acceptability runs from 1 to 5.",
+        "The agent’s ideal point lies inside that region, so the agent proposes 3 and the principal accepts. This is the ideal scenario for the principal: the agent proposes exactly what the principal wants, and there is no agency loss."
+      ] },
+    { title: "An agent who doesn’t go far enough", changes: ["line"], look: ["line", "ws"],
+      r: S_B, show: { region: true, outcome: true, loss: true }, ws: upto("succ"), fresh: { d: 1, region: 1, x: 1, out: 1, loss: 1, succ: 1 }, cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7b: the principal and agent have different preferences.",
+      body: [
+        "Now the status quo is at 1, the agent’s ideal point at 3 and the principal’s at 7. Both want to move policy right, but the agent wants to move it less far. The status quo is 6 units from P, so the region of acceptability runs from 1 to 13. Its right end lies past the end of the 0–10 scale, which is fine: the principal would accept a policy of 13 if one were proposed.",
+        "The agent’s ideal point is inside the region, so the agent proposes 3 and the principal accepts. Delegation is successful, since 3 is closer to 7 than 1 is. But the principal suffers an agency loss of 4, the distance from the outcome to their ideal point."
+      ] },
+    { title: "An agent who would go too far", changes: ["line"], look: ["line", "ws"],
+      r: S_C, show: { region: true, outcome: true, loss: true }, ws: upto("succ"), fresh: { d: 1, region: 1, x: 1, out: 1, loss: 1, succ: 1 }, cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7c: the principal and agent have different preferences.",
+      body: [
+        "Here the status quo is at 4, the principal’s ideal point at 5 and the agent’s at 9. The status quo is 1 unit from P, so the region of acceptability runs from 4 to 6. This time the agent’s ideal point is outside it: propose 9, and the principal would reject it and keep the status quo.",
+        "So the agent proposes the point in the region closest to its ideal point, 6. The principal is exactly indifferent between 6 and the status quo of 4, and by the rule of the game accepts. Delegation is successful, with an agency loss of 1."
+      ] },
+    { title: "The agent’s power is conditional", look: ["ws"],
+      r: S_C, show: { region: true, outcome: true, loss: true }, ws: upto("power"), fresh: { power: 1 }, cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7c.",
+      body: [
+        "The scenarios show the danger of delegating rather than making policy yourself: the principal can suffer agency loss. They also show that the principal is often better off delegating than keeping the status quo.",
+        "And they show that the agent, who sets the agenda, doesn’t have unconditional power. In the first two scenarios the agent gets its own ideal point; in the third it gets only as close as the principal will tolerate. The explore tab lets you find scenarios of each kind, including ones where the agent can’t move the status quo at all."
+      ] },
+    { title: "When the principal knows less",
+      r: S_C, show: { region: true, outcome: true, loss: true }, ws: upto("power"), cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7c.",
+      body: [
+        "Principals often delegate because agents know things they don’t, and that information gap creates two problems. Adverse selection occurs when the principal can’t observe the agent’s type: whether the agent shares the principal’s preferences, or has the skill and motivation for the task. Voters can’t always tell a public-spirited candidate from one who only pretends to be.",
+        "Moral hazard occurs when the principal can’t fully observe the agent’s actions, which frees the agent to act against the principal’s interests. Insurers face it when insured clients take more risks, and voters face it on the many issues that get little attention or are too complicated to follow."
+      ] },
+    { title: "Learning about agents before they act",
+      r: S_C, show: { region: true, outcome: true, loss: true }, ws: upto("power"), cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7c.",
+      body: [
+        "Ex ante mechanisms help a principal learn about agents before they act, usually while choosing them, and they address adverse selection. Screening sets up a competition among candidates for the job, as an election campaign does: debates force candidates to reveal something about their type. Parliamentary systems screen intensively, since a prime minister has usually spent decades rising through the party under the scrutiny of the political elite.",
+        "Selection puts agents in a position to choose an action that reveals their type. In Michael Spence’s (1974) signaling model, skilled job applicants can attain a university degree more easily than unskilled ones, so education signals skill. Finance ministers tend to have unusually strong backgrounds in economics for much the same reason."
+      ] },
+    { title: "Learning about agents after they act",
+      r: S_C, show: { region: true, outcome: true, loss: true }, ws: upto("power"), cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7c.",
+      body: [
+        "Ex post mechanisms help a principal learn about an agent’s actions after the fact, and they address moral hazard. In a police patrol system, the principal directly and actively monitors the agent, for example by holding public hearings with experts on what a bureaucratic agency has been doing.",
+        "In a fire alarm system, the principal relies on others to raise the alarm: rules that let citizens and interest groups charge an agency with violating government policy and seek remedies, or a free and vibrant media reporting on what elected officials are doing."
+      ] },
+    { title: "Systems of delegation",
+      r: S_C, show: { region: true, outcome: true, loss: true }, ws: upto("power"), cards: { line: true, ws: true },
+      sub: "The chapter’s Figure 11.7c.",
+      body: [
+        "Parliamentary democracy is a single chain of delegation: voters to legislators, legislators to a prime minister and cabinet, ministers to civil servants, with each agent accountable to the principal before it. Presidential democracy has multiple chains: voters delegate to a legislature and a president, who must then bargain with each other.",
+        "Delegation problems are generally thought to be greater in presidential democracies, because of that more complex multiple-chain process. The practice tab has scenarios to solve with the game, and delegation problems to diagnose."
+      ] }
+  ];
+
+  var step = 0;
+  var dotsEl = $("dots");
+  STEPS.forEach(function () { var d = document.createElement("span"); d.className = "dot"; dotsEl.appendChild(d); });
+
+  function renderGuided(prev) {
+    var s = STEPS[step];
+    showCards(s.cards);
+    if (s.cards.line) drawLine(s.r, s.show, s.sub);
+    if (s.cards.ws) renderWs(s.r, s.ws, s.fresh);
+    $("stepLabel").textContent = "Step " + (step + 1) + " of " + STEPS.length;
+    $("stepTitle").textContent = s.title;
+    $("stepBody").innerHTML = s.body.map(function (p) { return "<p>" + p + "</p>"; }).join("");
+    lookButtons($("stepLook"), s.look);
+    $("prevBtn").disabled = step === 0;
+    $("nextBtn").disabled = step === STEPS.length - 1;
+    var dots = dotsEl.children;
+    for (var i = 0; i < dots.length; i++) dots[i].className = "dot" + (i === step ? " on" : "");
+    if (prev !== undefined && step > prev && s.changes) bring(s.changes[0]);
+  }
+  $("prevBtn").addEventListener("click", function () { if (step > 0) { var p = step; step--; renderGuided(p); } });
+  $("nextBtn").addEventListener("click", function () { if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); } });
+
+  /* ================= explore ================= */
+
+  var sSQ = $("sSQ"), sP = $("sP"), sA = $("sA");
+  function renderExplore(changed) {
+    var r = solve(Number(sSQ.value), Number(sP.value), Number(sA.value));
+    $("oSQ").textContent = r.sq; sSQ.setAttribute("aria-valuetext", "status quo " + r.sq);
+    $("oP").textContent = r.p; sP.setAttribute("aria-valuetext", "principal’s ideal point " + r.p);
+    $("oA").textContent = r.a; sA.setAttribute("aria-valuetext", "agent’s ideal point " + r.a);
+    showCards({ line: true, ws: true });
+    drawLine(r, { region: true, outcome: true, loss: true }, "Your scenario.");
+    renderWs(r, upto("power"));
+    var v, w;
+    if (r.d === 0) {
+      v = "Policy stays at " + r.p + ".";
+      w = "The status quo is already the principal’s ideal point, so the only acceptable proposal is the status quo itself. There is no agency loss, but delegation can’t make the principal any better off.";
+    } else if (r.power === "unlimited") {
+      v = "The agent proposes its ideal point, " + r.a + ", and the principal accepts.";
+      w = r.a === r.p ? "The agent wants exactly what the principal wants, so there is no agency loss."
+        : "A is inside the region of acceptability, so the agent can have its own ideal point. Agency loss is " + r.loss + "; delegation " + (r.success ? "is" : "isn’t") + " successful.";
+    } else if (r.power === "limited") {
+      v = "The agent proposes " + r.x + ", the edge of the region, and the principal accepts.";
+      w = "A is outside the region, so the agent gets as close as the principal will tolerate. The principal is exactly indifferent between " + r.x + " and the status quo. Agency loss is " + r.loss + "; delegation is successful.";
+    } else {
+      v = "Policy stays at the status quo, " + r.sq + ".";
+      w = "Every policy the principal would accept is farther from A than the status quo is, so the agent has no reason to move it. Agency loss is " + r.loss + "; delegation isn’t successful.";
+    }
+    $("verdict").textContent = v; $("vWhy").textContent = w;
+    if (changed) say(v);
+  }
+  [sSQ, sP, sA].forEach(function (s) { s.addEventListener("input", function () { renderExplore(true); }); });
+
+  /* ================= practice: solving the game ================= */
+
+  function key3(sq, p, a) { return sq + "," + p + "," + a; }
+  /* Kept clear of the chapter's Figure 11.7 and of Problems 16–18. Order: SQ, P, A. */
+  var FORBIDDEN = {};
+  [[5, 3, 3], [1, 7, 3], [4, 5, 9], [4, 7, 7], [3, 7, 5], [3, 5, 6], [3, 5, 8], [4, 2, 5], [5, 7, 10], [0, 5, 8], [6, 4, 0], [6, 4, 3]]
+    .forEach(function (t) { FORBIDDEN[key3(t[0], t[1], t[2])] = 1; });
+
+  var KINDS = [
+    { v: "shared", t: "The agent shares the principal’s ideal point" },
+    { v: "unlimited", t: "The agent gets its own, different ideal point" },
+    { v: "limited", t: "The agent gets only part of the way" },
+    { v: "none", t: "The agent can’t move the status quo" }
+  ];
+  function kindOf(r) { return r.power === "unlimited" ? (r.a === r.p ? "shared" : "unlimited") : r.power; }
+
+  function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  function shuffled(arr) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+  var kindsDone = {};
+  function genScenario() {
+    var want = KINDS.filter(function (k) { return !kindsDone[k.v]; }).map(function (k) { return k.v; });
+    var target = want.length && Math.random() < 0.75 ? want[Math.floor(Math.random() * want.length)] : KINDS[Math.floor(Math.random() * 4)].v;
+    for (var tries = 0; tries < 2000; tries++) {
+      var sq = randInt(0, 10), p = randInt(0, 10), a = target === "shared" ? p : randInt(0, 10);
+      if (sq === p || a === sq || FORBIDDEN[key3(sq, p, a)]) continue;
+      var r = solve(sq, p, a);
+      if (kindOf(r) === target) return r;
+    }
+    return solve(2, 6, 4);
+  }
+
+  /* numeric options: three distractors drawn from real mistakes, listed smallest first */
+  function numOpts(correct, pool) {
+    var seen = {}, c = [];
+    seen[correct] = 1;
+    pool.forEach(function (v) { if (!seen[v] && isFinite(v)) { seen[v] = 1; c.push(v); } });
+    return shuffled(c).slice(0, 3).concat([correct]).sort(function (x, y) { return x - y; });
+  }
+  function regionOpts(r) {
+    var p = r.p, q = r.sq, a = r.a, d = r.d, da = Math.abs(a - q);
+    var pool = [
+      [Math.min(p, q), Math.max(p, q)],               /* only the stretch between SQ and P */
+      [r.lo, Math.min(r.hi, 10)],                     /* cut off at the end of the scale */
+      [Math.max(r.lo, 0), r.hi],
+      [a - da, a + da],                               /* the agent’s region, not the principal’s */
+      [p - Math.ceil(d / 2), p + Math.ceil(d / 2)],
+      [Math.min(q, a), Math.max(q, a)],               /* from the status quo to the agent */
+      [Math.min(p, 2 * p - q), Math.max(p, 2 * p - q)], /* only the side of P away from SQ */
+      [Math.min(p, a), Math.max(p, a)]
+    ];
+    var seen = {}, c = [];
+    seen[r.lo + ":" + r.hi] = 1;
+    pool.forEach(function (iv) { var k = iv[0] + ":" + iv[1]; if (!seen[k] && iv[0] <= iv[1]) { seen[k] = 1; c.push(iv); } });
+    var out = shuffled(c).slice(0, 3).concat([[r.lo, r.hi]]);
+    out.sort(function (x, y) { return x[0] - y[0] || x[1] - y[1]; });
+    return out;
+  }
+
+  var gp = null, gStage = 1, gFirst = true, gStats = { done: 0, clean: 0 };
+
+  function scenarioText(r) {
+    return "The status quo is at " + r.sq + ". The principal’s ideal point is " + r.p + " and the agent’s is " + r.a + ".";
+  }
+  var G_SHOWN = [IN, { d: 1, region: 1 }, { x: 1 }, { out: 1 }, { loss: 1 }, { succ: 1 }, { power: 1 }];
+  function gShown() { var s = {}; for (var i = 0; i < Math.min(gStage, 7); i++) for (var k in G_SHOWN[i]) s[k] = 1; return s; }
+  function renderGameCards(fresh) {
+    showCards({ line: true, ws: true });
+    drawLine(gp, { region: gStage > 1, proposal: gStage === 3, outcome: gStage > 3, loss: gStage > 4 }, "This scenario.");
+    renderWs(gp, gShown(), fresh || {});
+  }
+  function optBtn(container, v, text, cls) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "opt" + (cls ? " " + cls : ""); b.setAttribute("data-v", v); b.textContent = text;
+    $(container).appendChild(b);
+  }
+  function lockOpts(id, chosen) {
+    var bs = $(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) { bs[i].setAttribute("aria-disabled", "true"); if (bs[i].getAttribute("data-v") === chosen) bs[i].classList.add("chosen"); }
+  }
+  function note(id, ok, head, text, looks) {
+    var el = $(id); el.innerHTML = "";
+    var d = document.createElement("div"); d.className = "result-note " + (ok ? "ok" : "no");
+    var h = document.createElement("span"); h.className = "head"; h.textContent = (ok ? "✓ " : "✕ ") + head + " ";
+    d.appendChild(h); d.appendChild(document.createTextNode(text));
+    if (looks) { var lk = document.createElement("div"); lk.className = "looks"; d.appendChild(lk); lookButtons(lk, looks); }
+    el.appendChild(d);
+  }
+
+  function newScenario(moveReader) {
+    gp = genScenario(); gStage = 1; gFirst = true;
+    var r = gp;
+    gp.opts = {
+      1: regionOpts(r),
+      2: numOpts(r.x, [r.a, r.p, r.sq, 2 * r.p - r.sq].filter(function (v) { return v >= 0 && v <= 10; })),
+      3: numOpts(r.x, [r.sq, r.a, r.p].concat(r.x === r.sq ? [r.p + (r.p > r.sq ? 1 : -1)] : [])),
+      4: numOpts(r.loss, [Math.abs(r.a - r.p), r.d, Math.abs(r.x - r.sq), Math.abs(r.a - r.x), 0])
+    };
+    $("probText").innerHTML = "<p>" + scenarioText(r) + "</p>";
+    ["go1", "go2", "go3", "go4", "go5", "go6", "gf1", "gf2", "gf3", "gf4", "gf5", "gf6"].forEach(function (id) { $(id).innerHTML = ""; });
+    gp.opts[1].forEach(function (iv, i) { optBtn("go1", String(i), "From " + fmt(iv[0]) + " to " + fmt(iv[1]), "num"); });
+    [2, 3, 4].forEach(function (t) { gp.opts[t].forEach(function (v) { optBtn("go" + t, String(v), fmt(v), "num"); }); });
+    optBtn("go5", "yes", "Yes: the principal is better off than under the status quo");
+    optBtn("go5", "no", "No: the principal is no better off than under the status quo");
+    POWER.forEach(function (o) { optBtn("go6", o.v, o.t); });
+    ["gt2", "gt3", "gt4", "gt5", "gt6"].forEach(function (id) { $(id).hidden = true; });
+    $("nextProb").hidden = true;
+    renderGameCards();
+    renderProgress(); renderScore();
+    if (moveReader) bring("line");
+  }
+
+  var G_WRONG = {
+    1: function (r) { return "Find how far the status quo is from P. The principal accepts anything at least that close to P, on either side of it, even if that runs past the end of the scale."; },
+    2: function (r) { return "The agent wants the policy closest to " + r.a + " that the principal will accept. If " + r.a + " is in the region of acceptability, that’s " + r.a + "; if not, it’s the point in the region nearest to it."; },
+    3: function (r) { return "The agent only proposes something the principal will accept. What happens to an accepted proposal?"; },
+    4: function (r) { return "Agency loss is the distance between the outcome and the principal’s ideal point, not the agent’s."; },
+    5: function (r) { return "Compare how far the outcome is from P with how far the status quo is from P. Delegation is successful only if the principal is better off."; },
+    6: function (r) { return "Compare the outcome with the agent’s ideal point and with the status quo."; }
+  };
+  function gRight(t, r) {
+    if (t === 1) return "The status quo is " + r.d + " from P, so the principal accepts anything from " + fmt(r.lo) + " to " + fmt(r.hi) + "." + (r.lo < 0 || r.hi > 10 ? " Part of that lies past the end of the scale." : "");
+    if (t === 2) return r.x === r.a ? r.a + " is inside the region, so the agent proposes its own ideal point." :
+      r.x === r.sq ? "Every point in the region is at least as far from " + r.a + " as the status quo, so the agent proposes the status quo, " + r.sq + "." :
+      r.a + " is outside the region, so the agent proposes its edge, " + r.x + ", where the principal is exactly indifferent and so accepts.";
+    if (t === 3) return "The principal accepts, so the policy is " + r.x + (r.x === r.sq ? ", unchanged from the status quo." : ".");
+    if (t === 4) return "The outcome, " + r.x + ", is " + r.loss + " from P, " + r.p + ".";
+    if (t === 5) return r.success ? "The outcome is " + r.loss + " from P, closer than the status quo’s " + r.d + "." : "Policy is still at the status quo, so the principal is no better off.";
+    return r.power === "unlimited" ? "The agent got its own ideal point." : r.power === "limited" ? "The agent moved policy, but the principal’s tolerance stopped it short of " + r.a + "." : "Policy didn’t move from the status quo.";
+  }
+  var G_FRESH = { 1: { d: 1, region: 1 }, 2: { x: 1 }, 3: { out: 1 }, 4: { loss: 1 }, 5: { succ: 1 }, 6: { power: 1 } };
+
+  function answerGame(t, v) {
+    if (gStage !== t) return;
+    var r = gp, ok;
+    if (t === 1) ok = gp.opts[1][Number(v)][0] === r.lo && gp.opts[1][Number(v)][1] === r.hi;
+    else if (t === 2 || t === 3) ok = Number(v) === r.x;
+    else if (t === 4) ok = Number(v) === r.loss;
+    else if (t === 5) ok = (v === "yes") === r.success;
+    else ok = v === r.power;
+    if (!ok) {
+      gFirst = false;
+      var m = G_WRONG[t](r) + " Try again.";
+      note("gf" + t, false, "Not that one.", m);
+      say("Not that one. " + m);
+      return;
+    }
+    lockOpts("go" + t, v);
+    gStage = t + 1;
+    var txt = gRight(t, r);
+    note("gf" + t, true, "Right.", txt, ["line", "ws"]);
+    say("Right. " + txt);
+    renderGameCards(G_FRESH[t]);
+    if (t < 6) $("gt" + (t + 1)).hidden = false;
+    else {
+      gStats.done++;
+      if (gFirst) { gStats.clean++; kindsDone[kindOf(r)] = true; }
+      $("nextProb").hidden = false;
+      renderProgress(); renderScore();
+    }
+    bring("line");
+  }
+  [1, 2, 3, 4, 5, 6].forEach(function (t) {
+    $("go" + t).addEventListener("click", function (e) { var b = e.target.closest(".opt"); if (b) answerGame(t, b.getAttribute("data-v")); });
+  });
+  $("nextProb").addEventListener("click", function () {
+    newScenario(true);
+    $("practiceTitle").focus({ preventScroll: true });
+    say("New scenario. " + scenarioText(gp));
+  });
+  function renderProgress() {
+    var ul = $("progress"); ul.innerHTML = "";
+    KINDS.forEach(function (k) {
+      var li = document.createElement("li"); li.className = kindsDone[k.v] ? "done" : "";
+      li.innerHTML = "<span class='pm' aria-hidden='true'>" + (kindsDone[k.v] ? "✓" : "○") + "</span><span>" + k.t + (kindsDone[k.v] ? "<span class='sr-only'> (solved)</span>" : "<span class='sr-only'> (not yet)</span>") + "</span>";
+      ul.appendChild(li);
+    });
+  }
+  function renderScore() {
+    $("score").textContent = gStats.done === 0 ? "No scenarios finished yet." :
+      gStats.done + (gStats.done === 1 ? " scenario" : " scenarios") + " finished, " + gStats.clean + " with every task right the first time.";
+  }
+
+  /* ================= practice: problems and fixes ================= */
+
+  var FGROUPS = [
+    { id: "f1", label: "Scenarios 1 to 6" },
+    { id: "f2", label: "Scenarios 7 to 11" }
+  ];
+  /* prob: "as" (adverse selection) or "mh" (moral hazard). mech: screen, select, patrol, alarm. */
+  var FCASES = [
+    { id: "1", group: "f1", prob: "as", mech: "screen",
+      who: "A city council (principal) is hiring a city manager (agent).",
+      worry: "Every applicant says they can balance the budget. The council can’t tell which of them actually could.",
+      fix: "The council asks each finalist to present a budget plan at a public meeting and answer questions from council members and residents, then compares the finalists.",
+      done: "The council can’t observe the applicants’ type, so this is adverse selection, and the fix makes the applicants compete for the job in a way that reveals something about their competence before one is chosen." },
+    { id: "2", group: "f1", prob: "mh", mech: "patrol",
+      who: "A state legislature (principal) has delegated enforcement of its clean-water law to an environmental agency (agent).",
+      worry: "Legislators suspect the agency has quietly stopped inspecting factories it is supposed to inspect.",
+      fix: "The legislature’s environment committee holds hearings each year, questioning the agency’s director alongside outside experts on water quality.",
+      done: "The worry is about what the agency does once it has the job, which is moral hazard. The legislators gather the information themselves, directly and actively: a police patrol." },
+    { id: "3", group: "f1", prob: "as", mech: "select",
+      who: "A finance ministry (principal) is hiring economists to forecast tax revenue (agents).",
+      worry: "Applicants’ forecasting skill can’t be observed directly, and a bad forecaster could cost the government badly.",
+      fix: "The ministry only considers applicants with a graduate degree in economics, which skilled forecasters find much easier to complete than unskilled ones.",
+      done: "This is Spence’s signaling logic. The applicants choose an action, earning the degree, that reveals their type, which makes it selection rather than screening." },
+    { id: "4", group: "f1", prob: "mh", mech: "alarm",
+      who: "Congress (principal) has delegated food safety inspections to a federal agency (agent).",
+      worry: "Members of Congress can’t watch what thousands of inspectors do every day.",
+      fix: "A new law lets any consumer or restaurant file a complaint against the agency, and sue it in court, if a required inspection is skipped.",
+      done: "The worry is about the agency’s actions, so this is moral hazard. Congress relies on others to raise the alarm rather than watching itself: a fire alarm." },
+    { id: "5", group: "f1", prob: "as", mech: "screen",
+      who: "Voters (principals) are choosing a governor (agent).",
+      worry: "All the candidates claim to be committed public servants, and voters can’t tell who means it.",
+      fix: "A series of televised debates forces the candidates to answer detailed questions and respond to each other’s attacks.",
+      done: "The back-and-forth of a campaign is the chapter’s own example of screening: competition among candidates that forces them to reveal something about their type." },
+    { id: "6", group: "f1", prob: "mh", mech: "alarm",
+      who: "Voters (principals) have elected a city council (agent).",
+      worry: "Most voters have no time to follow what the council does between elections.",
+      fix: "Two local newspapers and a news website report on the council’s votes and investigate how it spends public money.",
+      done: "Voters can’t observe the council’s actions, which is moral hazard, and the media sounds the alarm for them. The chapter calls a free and vibrant media a fire alarm system for voters." },
+    { id: "7", group: "f2", prob: "mh", mech: "patrol",
+      who: "A school board (principal) has given its superintendent (agent) control of the district’s construction budget.",
+      worry: "The superintendent knows far more than the board about where the money is going.",
+      fix: "The board hires its own auditor to go through the construction accounts every month and report back to the board.",
+      done: "The superintendent already has the job, so this is moral hazard, and the board monitors the spending directly through its own auditor: a police patrol." },
+    { id: "8", group: "f2", prob: "as", mech: "select",
+      who: "A party (principal) is choosing its candidates for parliament (agents).",
+      worry: "The party wants candidates who really share its program, not opportunists who will drift once elected.",
+      fix: "The party only nominates people who have spent at least two years doing unpaid work for the party, something opportunists are rarely willing to do.",
+      done: "The party can’t see who is committed, which is adverse selection. Aspiring candidates reveal their type by choosing a costly action, which makes it selection." },
+    { id: "9", group: "f2", prob: "as", mech: "screen",
+      who: "A party’s parliamentary group (principal) will choose its next leader, who would become prime minister (agent).",
+      worry: "The group needs to know whether a would-be leader is competent and shares the party’s priorities.",
+      fix: "Only legislators who have worked their way up through party posts and junior and senior cabinet positions, under the scrutiny of their colleagues, are considered.",
+      done: "This is the chapter’s account of parliamentary screening: politicians compete for promotion at each stage, so by the time one is in line for prime minister the party elite has decades of information about them." },
+    { id: "10", group: "f2", prob: "mh", mech: "alarm",
+      who: "A national government (principal) has delegated pension payments to a benefits agency (agent).",
+      worry: "Ministers suspect the agency is slow to pay claims, but can’t check millions of cases.",
+      fix: "Every pensioner gets a phone number and website for reporting late or wrong payments, and a monthly summary of the complaints goes to the minister.",
+      done: "The worry is the agency’s actions once delegated, which is moral hazard. The government relies on pensioners to sound the alarm: a fire alarm." },
+    { id: "11", group: "f2", prob: "mh", mech: "patrol",
+      who: "A homeowners’ association (principal) has hired a contractor (agent) to replace a shared roof.",
+      worry: "Association members can’t tell whether the contractor is using the materials it was paid for.",
+      fix: "The association pays an engineer to inspect the work in person every week until it is finished.",
+      done: "The contractor is already hired, so this is moral hazard, and the association monitors directly through its own inspector: a police patrol." }
+  ];
+  var F1 = [
+    { v: "as", t: "Adverse selection: not knowing the agent’s type before choosing" },
+    { v: "mh", t: "Moral hazard: not knowing what the agent does once chosen" }
+  ];
+  var F2 = [
+    { v: "screen", t: "Screening (ex ante): a competition among candidates for the job" },
+    { v: "select", t: "Selection (ex ante): candidates choose an action that reveals their type" },
+    { v: "patrol", t: "Police patrol (ex post): the principal monitors the agent directly" },
+    { v: "alarm", t: "Fire alarm (ex post): the principal relies on others to report problems" }
+  ];
+  var MECH = { screen: "screening", select: "selection", patrol: "police patrol", alarm: "fire alarm" };
+
+  var fc = null, fStage = 1, fFirst = true, fDone = {};
+  function buildPicker() {
+    var host = $("casePicker"); host.innerHTML = "";
+    FGROUPS.forEach(function (g) {
+      var wrap = document.createElement("div"); wrap.className = "chips-group";
+      var lab = document.createElement("span"); lab.className = "group-label"; lab.id = "flab-" + g.id; lab.textContent = g.label;
+      wrap.appendChild(lab);
+      var row = document.createElement("div"); row.className = "chips"; row.setAttribute("role", "group"); row.setAttribute("aria-labelledby", lab.id);
+      FCASES.filter(function (c) { return c.group === g.id; }).forEach(function (c) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "chip";
+        b.setAttribute("aria-pressed", fc && fc.id === c.id ? "true" : "false");
+        b.appendChild(document.createTextNode("Scenario " + c.id));
+        if (fDone[c.id]) { var m = document.createElement("span"); m.className = "done-mark"; m.textContent = "✓"; m.setAttribute("aria-hidden", "true"); b.appendChild(m); b.setAttribute("aria-label", "Scenario " + c.id + ", finished"); }
+        b.addEventListener("click", function () { selectFix(c.id, true); });
+        row.appendChild(b);
+      });
+      wrap.appendChild(row); host.appendChild(wrap);
+    });
+  }
+  function renderFixCard() {
+    var c = fc;
+    showCards({ case: true });
+    $("caseTitle").textContent = "Scenario " + c.id;
+    $("caseGroup").textContent = "";
+    $("caseBody").innerHTML =
+      "<p class='field'><span class='field-label'>The delegation</span>" + c.who + "</p>" +
+      "<p class='field'><span class='field-label'>The worry</span>" + c.worry + "</p>" +
+      "<p class='field'><span class='field-label'>What the principal did</span>" + c.fix + "</p>";
+  }
+  function selectFix(id, moveReader) {
+    fc = FCASES.filter(function (c) { return c.id === id; })[0];
+    fStage = 1; fFirst = true;
+    ["fo1", "fo2", "ff1", "ff2"].forEach(function (x) { $(x).innerHTML = ""; });
+    F1.forEach(function (o) { optBtn("fo1", o.v, o.t); });
+    F2.forEach(function (o) { optBtn("fo2", o.v, o.t); });
+    $("ft2").hidden = true; $("caseDone").hidden = true; $("nextCase").hidden = true;
+    buildPicker(); renderFixCard();
+    if (moveReader) bring("case");
+  }
+  function answerFix(t, v) {
+    if (fStage !== t) return;
+    var c = fc, right = t === 1 ? c.prob : c.mech;
+    if (v !== right) {
+      fFirst = false;
+      var m = t === 1
+        ? "Ask what the principal can’t see: who the agent is, before choosing one, or what the agent does once it has the job."
+        : (v === "screen" || v === "select") === (right === "screen" || right === "select")
+          ? (right === "screen" || right === "select"
+              ? "Ask who acts to reveal the information: is the principal setting up a competition among candidates, or are candidates choosing an action that signals their type?"
+              : "Ask who gathers the information: the principal, directly, or other people who report problems?")
+          : "Ask when the information arrives: before the agent is chosen, or after the agent has acted?";
+      note("ff" + t, false, "Not that one.", m + " Try again.");
+      say("Not that one. " + m);
+      return;
+    }
+    lockOpts("fo" + t, v);
+    fStage = t + 1;
+    if (t === 1) {
+      var txt = c.prob === "as" ? "The principal can’t observe the agent’s type." : "The principal can’t fully observe the agent’s actions.";
+      note("ff1", true, "Right.", txt);
+      say("Right. " + txt);
+      $("ft2").hidden = false;
+    } else {
+      note("ff2", true, "Right.", "This is " + MECH[c.mech] + ".");
+      say("Right. " + c.done);
+      if (fFirst) fDone[c.id] = true;
+      buildPicker();
+      $("caseDone").innerHTML = "<p>" + c.done + "</p>" + (fFirst ? "" : "<p>Finish a scenario with both answers right the first time to mark it with a check.</p>");
+      $("caseDone").hidden = false; $("nextCase").hidden = false;
+    }
+  }
+  [1, 2].forEach(function (t) {
+    $("fo" + t).addEventListener("click", function (e) { var b = e.target.closest(".opt"); if (b) answerFix(t, b.getAttribute("data-v")); });
+  });
+  $("nextCase").addEventListener("click", function () {
+    var i = FCASES.indexOf(fc);
+    selectFix(FCASES[(i + 1) % FCASES.length].id, true);
+    $("practiceTitle").focus({ preventScroll: true });
+    say("Scenario " + fc.id + ".");
+  });
+
+  /* ================= practice switch, modes, theme ================= */
+
+  var practiceKind = "game";
+  function setPractice(kind) {
+    practiceKind = kind;
+    $("segGame").setAttribute("aria-pressed", kind === "game" ? "true" : "false");
+    $("segFix").setAttribute("aria-pressed", kind === "fix" ? "true" : "false");
+    $("gamePractice").hidden = kind !== "game";
+    $("fixPractice").hidden = kind !== "fix";
+    if (kind === "game") { if (!gp) newScenario(false); else renderGameCards(); }
+    else { if (!fc) selectFix("1", false); else { buildPicker(); renderFixCard(); } }
+  }
+  $("segGame").addEventListener("click", function () { setPractice("game"); say("Solving the game. " + scenarioText(gp)); });
+  $("segFix").addEventListener("click", function () { setPractice("fix"); say("Problems and fixes. Scenario " + fc.id + "."); });
+
+  var mode = "guided", TABS = ["guided", "explore", "practice"];
+  function selectMode(m, focusTab) {
+    mode = m;
+    TABS.forEach(function (t) {
+      var tab = $("tab-" + t);
+      tab.setAttribute("aria-selected", t === m ? "true" : "false");
+      tab.tabIndex = t === m ? 0 : -1;
+      $(t + "Panel").hidden = t !== m;
+    });
+    movedAway = false; backBtn.hidden = true;
+    if (m === "guided") renderGuided();
+    else if (m === "explore") renderExplore();
+    else setPractice(practiceKind);
+    if (focusTab) $("tab-" + m).focus();
+    say(m === "guided" ? "Guided walkthrough, step " + (step + 1) + "." : m === "explore" ? "Explore mode. The sliders move the players." : "Practice.");
+  }
+  TABS.forEach(function (t) { $("tab-" + t).addEventListener("click", function () { selectMode(t, false); }); });
+  $("tabs").addEventListener("keydown", function (e) {
+    var i = TABS.indexOf(mode), next = null;
+    if (e.key === "ArrowRight") next = TABS[(i + 1) % 3];
+    else if (e.key === "ArrowLeft") next = TABS[(i + 2) % 3];
+    else if (e.key === "Home") next = TABS[0];
+    else if (e.key === "End") next = TABS[2];
+    if (next) { e.preventDefault(); selectMode(next, true); }
+  });
+
+  var themeBtn = $("themeToggle");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.textContent = t === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
+  applyTheme(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  themeBtn.addEventListener("click", function () {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  /* test hook for automated checks; harmless in use */
+  window.__pa = { solve: solve, genScenario: genScenario, regionOpts: regionOpts, numOpts: numOpts, FORBIDDEN: FORBIDDEN, FCASES: FCASES, kindOf: kindOf,
+                  get gp() { return gp; } };
+
+  renderGuided();
+})();
+</script>
+</body>
+</html>
