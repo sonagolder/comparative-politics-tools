@@ -26,6 +26,8 @@ Start at the contents page, `index.html`, which lists every tool by chapter. Eac
 | 10 | Winsets in two dimensions | `winsets-in-two-dimensions.html` |
 | 11 | Forming a government | `forming-governments.html` |
 | 11 | Delegation and the principal-agent game | `principal-agent-game.html` |
+| 12 | The Hare quota and largest remainders | `hare-quota-largest-remainders.html` |
+| 12 | The d'Hondt divisor method | `dhondt-divisor-method.html` |
 
 ## For instructors
 
