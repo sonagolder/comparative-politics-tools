@@ -2,7 +2,7 @@
 
 Guided walkthroughs and practice exercises to accompany the fourth edition of *Principles of Comparative Politics* by Clark, Golder, and Golder (2024).
 
-Start at the contents page, `index.html`, which lists every tool by chapter. Each tool is a single self-contained HTML file. It runs in any current browser on a computer or phone, with no login, installation, or external dependencies, and it stores nothing about its users.
+Start at the contents page, `index.html`, which lists every tool by chapter. The site is at https://sonagolder.github.io/comparative-politics-tools/. Each tool is a single self-contained HTML file. It runs in any current browser on a computer or phone, with no login, installation, or external dependencies, and it stores nothing about its users.
 
 ## Tools
 
