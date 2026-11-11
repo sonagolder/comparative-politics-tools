@@ -197,6 +197,7 @@
   }
   .btn:disabled { color: var(--deemph); cursor: default; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.primary:disabled { background: var(--panel); border-color: var(--border); color: var(--deemph); font-weight: 400; }
 
   /* ---------- panel: explore ---------- */
 
@@ -843,7 +844,7 @@
     $("stepBody").innerHTML = s.body.map(function (p) { return "<p>" + p + "</p>"; }).join("");
     lookButtons($("stepLook"), s.look);
     $("prevBtn").disabled = step === 0;
-    $("nextBtn").disabled = step === STEPS.length - 1;
+    $("nextBtn").textContent = step === STEPS.length - 1 ? "Go to practice" : "Next";
     var dots = dotsEl.children;
     for (var i = 0; i < dots.length; i++) dots[i].className = "dot" + (i === step ? " on" : "");
     if (prev !== undefined && prev !== step && step > prev && s.changes) bring(s.changes[0]);
@@ -854,6 +855,7 @@
   });
   $("nextBtn").addEventListener("click", function () {
     if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); }
+    else selectMode("practice", true);
   });
 
   /* ---------------- explore ---------------- */

@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which cleavage gets politicized?</title>
+<style>
+  :root {
+    --bg: #FAFAFA;
+    --panel: #FFFFFF;
+    --border: #D0D0D0;
+    --text: #111111;
+    --text-2: #555555;
+    --hint: #999999;
+    --deemph: #707070;
+    --accent: #0072B2;
+    --on-accent: #FFFFFF;
+    --favorable: #0072B2;
+    --unfavorable: #B33E00;
+    --neutral: #5F5E5A;
+    --gold-ui: #B8860B;
+    --gold-text: #946B09;
+    --on-gold: #111111;
+    --structure-ink: #141414;
+    --structure-line: #8A8A8A;
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --data-font: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  html[data-theme="dark"] {
+    --bg: #1A1A1A;
+    --panel: #2A2A2A;
+    --border: #3A3A3A;
+    --text: #F2F2F2;
+    --text-2: #B3B3B3;
+    --hint: #7A7A7A;
+    --deemph: #9A9A9A;
+    --accent: #7FC7EE;
+    --on-accent: #0A1E28;
+    --favorable: #7FC7EE;
+    --unfavorable: #F08A4B;
+    --neutral: #A8A6A0;
+    --gold-ui: #E0B23D;
+    --gold-text: #E0B23D;
+    --on-gold: #141414;
+    --structure-ink: #E8E8E8;
+    --structure-line: #7E7E7E;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  header { margin-bottom: 24px; }
+  h1 { font-size: 1.65rem; font-weight: 600; margin: 0 0 8px 0; line-height: 1.25; }
+  .standfirst { margin: 0; color: var(--text-2); max-width: 70ch; }
+
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .group-label { display: block; font-size: 11px; color: var(--text-2); margin-bottom: 8px; }
+
+  [role="tablist"] { display: flex; flex-wrap: wrap; gap: 8px; }
+  [role="tab"] {
+    font: inherit; font-size: 0.95rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 -3px 0 var(--accent);
+    font-weight: 600;
+  }
+
+  .theme-toggle, .look-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: 8px 16px;
+    background: var(--panel); color: var(--accent);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .theme-toggle { color: var(--text); }
+  .looks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  button:focus-visible, h2[tabindex="-1"]:focus-visible, input:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- board ---------- */
+
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 809px) { .board { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    scroll-margin-top: 8px;
+  }
+  .card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .card-sub { margin: 0 0 16px 0; font-size: 0.92rem; color: var(--text-2); }
+  .card p { margin: 0 0 8px 0; }
+
+  /* ---------- population card ---------- */
+
+  .table-scroll { overflow-x: auto; }
+  table.att { border-collapse: collapse; width: 100%; max-width: 560px; font-size: 0.92rem; }
+  table.att caption { text-align: left; font-size: 0.85rem; color: var(--text-2); padding-bottom: 8px; }
+  table.att th, table.att td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+  table.att thead th { font-size: 0.85rem; font-weight: 600; border-bottom: 2px solid var(--structure-ink); }
+  table.att td.n, table.att th.n { text-align: right; font-family: var(--data-font); font-variant-numeric: tabular-nums; }
+  table.att tbody th { font-weight: 600; }
+  table.att td.tot, table.att th.tot { color: var(--text-2); }
+  table.att tfoot th, table.att tfoot td { color: var(--text-2); border-bottom: 0; }
+  td.cell { font-weight: 700; }
+  .sym { font-style: italic; font-family: var(--data-font); }
+
+  .thr-line { margin: 16px 0 0 0; font-size: 0.95rem; }
+  .thr-line strong { font-family: var(--data-font); }
+  .rel-line { margin: 8px 0 0 0; padding: 8px 16px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.92rem; }
+
+  .tag {
+    display: inline-block; font-size: 0.75rem; line-height: 1.3;
+    padding: 1px 8px; border-radius: 4px; border: 1px solid var(--border);
+    margin: 2px 4px 2px 0; white-space: nowrap;
+  }
+  .tag.gold { border-color: var(--gold-ui); color: var(--gold-text); font-weight: 600; }
+  .tag.out { color: var(--deemph); }
+
+  /* ---------- identity categories card ---------- */
+
+  table.cats { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  table.cats caption { text-align: left; font-size: 0.85rem; color: var(--text-2); padding-bottom: 8px; }
+  table.cats th, table.cats td { border-bottom: 1px solid var(--border); padding: 4px 8px; text-align: left; vertical-align: middle; }
+  table.cats thead th { font-size: 0.85rem; font-weight: 600; border-bottom: 2px solid var(--structure-ink); padding-top: 8px; padding-bottom: 8px; }
+  table.cats td.n, table.cats th.n { text-align: right; font-family: var(--data-font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.cats td.parts { font-family: var(--data-font); font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+  tr.sep td { border-top: 2px solid var(--border); }
+  .cname {
+    display: inline-block; font-weight: 600;
+    padding: 2px 8px; border: 1px solid transparent; border-radius: 4px;
+  }
+  tr.pending .cname { border: 2px dashed var(--accent); padding: 1px 7px; }
+  tr.mwc .cname { border: 2px solid var(--gold-ui); padding: 1px 7px; }
+  tr.out td {
+    color: var(--deemph);
+    background-image: repeating-linear-gradient(135deg, transparent 0 8px,
+      color-mix(in srgb, var(--deemph) 16%, transparent) 8px 9px);
+  }
+  tr.out td.parts { color: var(--deemph); }
+  tr.out .cname { font-weight: 400; }
+  tr.fresh td:first-child { box-shadow: inset 3px 0 0 var(--gold-ui); }
+  .cats-note { margin: 16px 0 0 0; font-size: 0.88rem; color: var(--text-2); }
+  .tags-inline { display: none; }
+  @media (max-width: 559px) {
+    table.cats .status-col { display: none; }
+    .tags-inline { display: block; margin-top: 4px; }
+    table.cats td.parts { white-space: normal; }
+  }
+  table.att thead th.n { font-family: var(--body-font); }
+
+  /* ---------- panel ---------- */
+
+  .step-label { font-size: 11px; color: var(--text-2); margin: 0 0 8px 0; }
+  .step-title { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px 0; }
+  .step-body p { margin: 0 0 8px 0; }
+  .nav { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .dots { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .dot.on { background: var(--accent); }
+
+  .btn {
+    font: inherit; font-size: 0.95rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .btn:disabled { color: var(--deemph); cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.primary:disabled { background: var(--panel); border-color: var(--border); color: var(--deemph); font-weight: 400; }
+
+  .chips-group { margin-bottom: 16px; }
+  .chips-desc { margin: 0 0 8px 0; font-size: 0.85rem; color: var(--text-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: inherit; font-size: 0.9rem; padding: 8px 16px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); font-weight: 600; }
+  .chip .done-mark { font-family: var(--data-font); color: var(--favorable); margin-left: 4px; }
+
+  .task { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+  .task-q { font-weight: 600; margin: 0 0 8px 0; }
+  .task-help { margin: 0 0 8px 0; font-size: 0.88rem; color: var(--text-2); }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opt {
+    font: inherit; font-size: 0.95rem; text-align: left;
+    padding: 8px 16px; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .opt .sub { font-family: var(--data-font); font-size: 0.82rem; color: var(--text-2); margin-left: 8px; }
+  .opt:hover { border-color: var(--accent); }
+  .opt[aria-pressed="true"] { border: 2px dashed var(--accent); padding: 7px 15px; }
+  .opt[aria-disabled="true"] { cursor: default; color: var(--deemph); }
+  .opt[aria-disabled="true"]:hover { border-color: var(--border); }
+  .opt.chosen[aria-disabled="true"] { color: var(--text); border: 2px solid var(--gold-ui); padding: 7px 15px; }
+  .opt.chosen[aria-disabled="true"] .sub { color: var(--text-2); }
+
+  .result-note {
+    margin: 8px 0 0 0; padding: 8px 16px; border-radius: 4px;
+    border: 1px solid var(--border); font-size: 0.92rem;
+  }
+  .result-note.ok { box-shadow: inset 4px 0 0 var(--favorable); }
+  .result-note.no { box-shadow: inset 4px 0 0 var(--unfavorable); }
+  .result-note.info { box-shadow: inset 4px 0 0 var(--neutral); }
+  .result-note .head { font-weight: 600; }
+  .result-note.ok .head { color: var(--favorable); }
+  .result-note.no .head { color: var(--unfavorable); }
+
+  .finished { margin-top: 16px; padding: 8px 16px; border: 2px solid var(--gold-ui); border-radius: 4px; font-size: 0.92rem; }
+  .finished p { margin: 0 0 8px 0; }
+  .finished p:last-child { margin-bottom: 0; }
+
+  .back-btn {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
+  }
+
+  footer { margin-top: 32px; font-size: 0.82rem; color: var(--text-2); max-width: 70ch; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .opt, .btn, [role="tab"], .chip { transition: border-color 120ms ease, background-color 120ms ease; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Which cleavage gets politicized?</h1>
+    <p class="standfirst">
+      Every society is divided in many ways, but only some divisions become the lines along which parties
+      compete. This tool follows the chapter&rsquo;s argument that which division gets politicized depends on two
+      things together: how people&rsquo;s attributes are distributed, and how much of the vote it takes to win office.
+      The walkthrough uses the chapter&rsquo;s own hypothetical country, and Practice gives you ten countries to work through.
+    </p>
+  </header>
+
+  <div class="topbar">
+    <div>
+      <span class="group-label" id="modeLabel">Mode</span>
+      <div role="tablist" aria-labelledby="modeLabel" id="tabs">
+        <button role="tab" id="tab-guided" aria-selected="true" aria-controls="guidedPanel" type="button">Guided walkthrough</button>
+        <button role="tab" id="tab-practice" aria-selected="false" aria-controls="practicePanel" tabindex="-1" type="button">Practice</button>
+      </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Switch to dark mode</button>
+  </div>
+
+  <div class="board">
+
+    <!-- ============ content column ============ -->
+    <div class="col">
+
+      <section class="card" id="popCard" aria-labelledby="popTitle">
+        <h2 id="popTitle"></h2>
+        <p class="card-sub" id="popSub"></p>
+        <div class="table-scroll">
+          <table class="att">
+            <caption id="popCap"></caption>
+            <thead id="popHead"></thead>
+            <tbody id="popBody"></tbody>
+            <tfoot id="popFoot"></tfoot>
+          </table>
+        </div>
+        <p class="thr-line" id="thrLine" hidden></p>
+        <p class="rel-line" id="relLine" hidden></p>
+      </section>
+
+      <section class="card" id="catsCard" aria-labelledby="catsTitle" hidden>
+        <h2 id="catsTitle">Identity categories</h2>
+        <div class="table-scroll">
+          <table class="cats">
+            <caption id="catsCap"></caption>
+            <thead><tr><th scope="col">Identity category</th><th scope="col">Made up of</th><th scope="col" class="n">Size</th><th scope="col" class="status-col">Status</th></tr></thead>
+            <tbody id="catsBody"></tbody>
+          </table>
+        </div>
+        <p class="cats-note" id="catsNote"></p>
+      </section>
+    </div>
+
+    <!-- ============ the panel ============ -->
+    <div>
+
+      <section class="card" id="guidedPanel" role="tabpanel" aria-labelledby="tab-guided">
+        <p class="step-label" id="stepLabel"></p>
+        <div aria-live="polite" id="stepLive">
+          <h2 class="step-title" id="stepTitle" tabindex="-1"></h2>
+          <div class="step-body" id="stepBody"></div>
+          <div class="looks" id="stepLook"></div>
+        </div>
+        <div class="nav" id="guidedNav">
+          <button class="btn" type="button" id="prevBtn">Back</button>
+          <button class="btn primary" type="button" id="nextBtn">Next</button>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section class="card" id="practicePanel" role="tabpanel" aria-labelledby="tab-practice" hidden>
+        <h2 id="practiceTitle" tabindex="-1">Practice</h2>
+        <div id="casePicker"></div>
+
+        <div class="task" id="t1">
+          <p class="task-q">1. Are the two attributes cross-cutting or reinforcing?</p>
+          <div class="opts" id="o1"></div>
+          <div id="f1"></div>
+        </div>
+        <div class="task" id="t2" hidden>
+          <p class="task-q">2. Which identity categories are minimal winning coalitions?</p>
+          <p class="task-help">The identity categories card has struck out every category too small to win. Choose every category that is minimal winning, then check your answer.</p>
+          <div class="opts" id="o2"></div>
+          <div class="nav"><button class="btn" type="button" id="check2">Check these</button></div>
+          <div id="f2"></div>
+        </div>
+        <div class="task" id="t3" hidden>
+          <p class="task-q">3. Which category would a political entrepreneur try to politicize?</p>
+          <p class="task-help" id="h3">If two or more are equally good choices, choose all of them, then check your answer.</p>
+          <div class="opts" id="o3"></div>
+          <div class="nav" id="nav3"><button class="btn" type="button" id="check3">Check these</button></div>
+          <div id="f3"></div>
+        </div>
+        <div class="task" id="t4" hidden>
+          <p class="task-q">4. Which cleavage is likely to be politicized?</p>
+          <div class="opts" id="o4"></div>
+          <div id="f4"></div>
+        </div>
+        <div class="finished" id="caseDone" hidden></div>
+        <div class="nav">
+          <button class="btn primary" type="button" id="nextCase" hidden>Next country</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    Accompanies Chapter 13 of <em>Principles of Comparative Politics</em>, 4th edition (Clark, Golder, and
+    Golder 2024). The hypothetical country in the walkthrough, with its four distributions of attributes,
+    is the chapter&rsquo;s (Tables 13.2&ndash;13.7). The Malawi and Zambia figures are the chapter&rsquo;s, from Daniel N. Posner,
+    2004, &ldquo;The Political Salience of Cultural Difference: Why Chewas and Tumbukas Are Allies in Zambia and
+    Adversaries in Malawi,&rdquo; <em>American Political Science Review</em> 98(4): 529&ndash;545. The countries in practice
+    mode are hypothetical.
+  </footer>
+
+  <button class="back-btn" type="button" id="backBtn" hidden>Back to the steps</button>
+  <div class="sr-only" role="status" aria-live="polite" id="live"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var liveEl = document.getElementById("live");
+  function say(msg) { liveEl.textContent = ""; setTimeout(function () { liveEl.textContent = msg; }, 30); }
+  function $(id) { return document.getElementById(id); }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function pct(n) { return n + "%"; }
+
+  /* ================= the model ================= */
+
+  /* A population is four shares, in percent and summing to 100:
+     cells[0] = row 1 and column 1, cells[1] = row 1 and column 2,
+     cells[2] = row 2 and column 1, cells[3] = row 2 and column 2.
+     The rows are one attribute (R) and the columns another (C). */
+  var CATS = [
+    { k: "r1", m: [0, 1], kind: "R" }, { k: "r2", m: [2, 3], kind: "R" },
+    { k: "c1", m: [0, 2], kind: "C" }, { k: "c2", m: [1, 3], kind: "C" },
+    { k: "r1c1", m: [0], kind: "RC" }, { k: "r1c2", m: [1], kind: "RC" },
+    { k: "r2c1", m: [2], kind: "RC" }, { k: "r2c2", m: [3], kind: "RC" },
+    { k: "all", m: [0, 1, 2, 3], kind: "all" }
+  ];
+  var LETTERS = ["a", "b", "c", "d"];
+
+  function analysis(cells, t) {
+    var out = {}, mwc = [], least = [];
+    CATS.forEach(function (ct) {
+      var size = ct.m.reduce(function (s, i) { return s + cells[i]; }, 0);
+      var win = size >= t;
+      var minimal = win && ct.m.every(function (i) { return size - cells[i] < t; });
+      /* a group the category could lose and still win */
+      var spare = null;
+      if (win && !minimal) ct.m.forEach(function (i) { if (spare === null && size - cells[i] >= t) spare = i; });
+      out[ct.k] = { k: ct.k, size: size, win: win, minimal: minimal, spare: spare, kind: ct.kind, m: ct.m };
+      if (minimal) mwc.push(ct.k);
+    });
+    if (mwc.length) {
+      var s = Math.min.apply(null, mwc.map(function (k) { return out[k].size; }));
+      least = mwc.filter(function (k) { return out[k].size === s; });
+    }
+    var kinds = {};
+    least.forEach(function (k) { kinds[out[k].kind] = 1; });
+    var ks = Object.keys(kinds).sort().join(",");
+    var cleav = ks === "R" ? "R" : ks === "C" ? "C" : ks === "RC" ? "RC" : ks === "C,R" ? "either" : ks === "all" ? "none" : "mixed";
+    return { cats: out, mwc: mwc, least: least, cleav: cleav };
+  }
+
+  /* How far one attribute predicts the other. p1 and p2 are the column-1 share of each row. */
+  function relation(cells) {
+    var r1 = cells[0] + cells[1], r2 = cells[2] + cells[3], c1 = cells[0] + cells[2], c2 = cells[1] + cells[3];
+    if (!r1 || !r2 || !c1 || !c2) return { kind: "degenerate" };
+    var p1 = cells[0] / r1, p2 = cells[2] / r2, q1 = cells[0] / c1, q2 = cells[1] / c2;
+    var kind;
+    if (cells[0] * r2 === cells[2] * r1) kind = "cross";
+    else {
+      var domRows = (p1 >= 0.85 && p2 <= 0.15) || (p1 <= 0.15 && p2 >= 0.85);
+      var domCols = (q1 >= 0.85 && q2 <= 0.15) || (q1 <= 0.15 && q2 >= 0.85);
+      kind = domRows && domCols ? "reinforcing" : "between";
+    }
+    return { kind: kind, p1: Math.round(100 * p1), p2: Math.round(100 * p2) };
+  }
+
+  /* ---------- labels ---------- */
+
+  /* An attribute: { name: "Region", v: [{ s: "Northerner", p: "northerners" }, ...] } */
+  function catLabel(L, k) {
+    if (k === "r1") return L.R.v[0].s;
+    if (k === "r2") return L.R.v[1].s;
+    if (k === "c1") return L.C.v[0].s;
+    if (k === "c2") return L.C.v[1].s;
+    if (k === "all") return "Everyone";
+    var r = L.R.v[+k.charAt(1) - 1], c = L.C.v[+k.charAt(3) - 1];
+    return r.s + " and " + c.s;
+  }
+  function catPlural(L, k) {
+    if (k === "r1") return L.R.v[0].p;
+    if (k === "r2") return L.R.v[1].p;
+    if (k === "c1") return L.C.v[0].p;
+    if (k === "c2") return L.C.v[1].p;
+    if (k === "all") return "everyone";
+    var r = L.R.v[+k.charAt(1) - 1], c = L.C.v[+k.charAt(3) - 1];
+    return r.p + " who are " + c.p;
+  }
+  function relText(L, cells) {
+    var rl = relation(cells);
+    if (rl.kind === "degenerate") return "One attribute takes the same value for everyone, so it divides no one.";
+    return cap(L.C.v[0].p) + " make up " + pct(rl.p1) + " of " + L.R.v[0].p + " and " + pct(rl.p2) + " of " + L.R.v[1].p + ".";
+  }
+  function cleavOptions(L) {
+    return [
+      { v: "R", t: L.R.name + ": " + L.R.v[0].p + " against " + L.R.v[1].p },
+      { v: "C", t: L.C.name + ": " + L.C.v[0].p + " against " + L.C.v[1].p },
+      { v: "RC", t: L.R.name + " and " + L.C.name.toLowerCase() + " together: groups defined by both at once" },
+      { v: "either", t: "Either " + L.R.name.toLowerCase() + " or " + L.C.name.toLowerCase() + ": the numbers don’t decide between them" }
+    ];
+  }
+
+  /* ================= moving the reader ================= */
+
+  var CARDS = { pop: "popCard", cats: "catsCard" };
+  var CARD_NAMES = { pop: "the population card", cats: "the identity categories card" };
+  var backBtn = $("backBtn");
+  var movedAway = false, autoScrollUntil = 0;
+  function markMoved() { movedAway = true; autoScrollUntil = Date.now() + (reduceMotion ? 100 : 900); }
+
+  function isEnoughOnScreen(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    if (r.top >= 0 && r.bottom <= vh) return true;
+    if (r.height > vh && r.top >= 0 && (vh - r.top) >= 0.6 * vh) return true;
+    return false;
+  }
+  function goTo(el) {
+    markMoved();
+    el.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    setTimeout(updateBack, reduceMotion ? 150 : 950);
+  }
+  function bring(k) {
+    var el = $(CARDS[k]);
+    if (!el || el.hidden || isEnoughOnScreen(el)) return;
+    goTo(el);
+  }
+  function lookButtons(container, keys) {
+    container.innerHTML = "";
+    (keys || []).forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "look-btn";
+      b.textContent = "Look at " + CARD_NAMES[k];
+      b.addEventListener("click", function () { goTo($(CARDS[k])); });
+      container.appendChild(b);
+    });
+  }
+
+  function anchorFor(m) {
+    if (m === "guided") return $("guidedNav");
+    var ids = ["t4", "t3", "t2", "t1"];
+    for (var i = 0; i < ids.length; i++) if (!$(ids[i]).hidden) return $(ids[i]);
+    return null;
+  }
+  function anchorVisible(el) {
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+  function updateBack() {
+    var a = anchorFor(mode);
+    if (!a) { backBtn.hidden = true; return; }
+    if (anchorVisible(a)) {
+      if (Date.now() >= autoScrollUntil) movedAway = false;
+      backBtn.hidden = true; return;
+    }
+    backBtn.hidden = !movedAway;
+    backBtn.textContent = mode === "guided" ? "Back to the steps" : "Back to the question";
+  }
+  window.addEventListener("scroll", updateBack, { passive: true });
+  window.addEventListener("resize", updateBack);
+  backBtn.addEventListener("click", function () {
+    var a = anchorFor(mode);
+    if (!a) return;
+    a.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+    movedAway = false;
+    backBtn.hidden = true;
+  });
+
+  /* ================= rendering the cards ================= */
+
+  /* view: { L, cells, symbolic, t (or null), title, sub, rel } */
+  function renderPop(view) {
+    var L = view.L, c = view.cells, sym = view.symbolic;
+    $("popTitle").textContent = view.title;
+    $("popSub").textContent = view.sub || "";
+    $("popCap").textContent = sym
+      ? "Letters stand for the share of the population with each combination of attributes."
+      : "Percent of the population with each combination of attributes.";
+    function v(i) { return sym ? "<span class='sym'>" + LETTERS[i] + "</span>" : String(c[i]); }
+    function tot(a, b) { return sym ? "<span class='sym'>" + LETTERS[a] + " + " + LETTERS[b] + "</span>" : String(c[a] + c[b]); }
+    $("popHead").innerHTML = "<tr><th scope='col'><span class='sr-only'>" + L.R.name + "</span></th>" +
+      "<th scope='col' class='n'>" + L.C.v[0].s + "</th><th scope='col' class='n'>" + L.C.v[1].s + "</th>" +
+      "<th scope='col' class='n tot'>All</th></tr>";
+    $("popBody").innerHTML =
+      "<tr><th scope='row'>" + L.R.v[0].s + "</th><td class='n cell'>" + v(0) + "</td><td class='n cell'>" + v(1) + "</td><td class='n tot'>" + tot(0, 1) + "</td></tr>" +
+      "<tr><th scope='row'>" + L.R.v[1].s + "</th><td class='n cell'>" + v(2) + "</td><td class='n cell'>" + v(3) + "</td><td class='n tot'>" + tot(2, 3) + "</td></tr>";
+    $("popFoot").innerHTML = "<tr><th scope='row'>All</th><td class='n'>" + tot(0, 2) + "</td><td class='n'>" + tot(1, 3) + "</td><td class='n'>" + (sym ? "<span class='sym'>1</span>" : "100") + "</td></tr>";
+    var thr = $("thrLine");
+    thr.hidden = view.t == null;
+    if (view.t != null) thr.innerHTML = "Winning national office takes <strong>" + pct(view.t) + "</strong> of the vote.";
+    var rel = $("relLine");
+    rel.hidden = !view.rel || sym;
+    if (view.rel && !sym) rel.textContent = relText(L, c);
+  }
+
+  /* spec: { L, cells, symbolic, t, strike, mwc, least, pending: {k:1}, fresh: {k:1}, caption, note } */
+  function renderCats(spec) {
+    var L = spec.L, c = spec.cells, sym = spec.symbolic, body = $("catsBody");
+    var a = (!sym && spec.t != null) ? analysis(c, spec.t) : null;
+    var leastSet = {};
+    if (a) a.least.forEach(function (k) { leastSet[k] = 1; });
+    $("catsCap").textContent = spec.caption || "";
+    body.innerHTML = "";
+    CATS.forEach(function (ct, idx) {
+      var tr = document.createElement("tr"), tags = [], cls = [];
+      if (idx === 4 || idx === 8) cls.push("sep");
+      var parts = sym ? ct.m.map(function (i) { return LETTERS[i]; }).join(" + ")
+                      : ct.m.map(function (i) { return c[i]; }).join(" + ");
+      var size = sym ? ct.m.map(function (i) { return LETTERS[i]; }).join("+") : String(ct.m.reduce(function (s, i) { return s + c[i]; }, 0));
+      if (a) {
+        var info = a.cats[ct.k];
+        if (spec.strike && !info.win) {
+          cls.push("out"); tags.push("<span class='tag out'>✕ short of " + pct(spec.t) + "</span>");
+        } else if (spec.mwc && !info.minimal) {
+          cls.push("out"); tags.push("<span class='tag out'>✕ not minimal</span>");
+        } else if (spec.mwc && info.minimal) {
+          cls.push("mwc"); tags.push("<span class='tag gold'>minimal winning</span>");
+          if (spec.least && leastSet[ct.k]) tags.push("<span class='tag gold'>least minimal winning</span>");
+        } else if (spec.pending && spec.pending[ct.k]) {
+          cls.push("pending");
+        }
+      }
+      if (spec.fresh && spec.fresh[ct.k]) cls.push("fresh");
+      tr.className = cls.join(" ");
+      tr.innerHTML = "<td><span class='cname'>" + catLabel(L, ct.k) + "</span>" +
+        (tags.length ? "<span class='tags-inline'>" + tags.join("") + "</span>" : "") + "</td>" +
+        "<td class='parts'>" + (sym ? "<span class='sym'>" + parts + "</span>" : parts) + "</td>" +
+        "<td class='n'>" + (sym ? "<span class='sym'>" + size + "</span>" : size) + "</td>" +
+        "<td class='status-col'>" + tags.join("") + "</td>";
+      body.appendChild(tr);
+    });
+    $("catsNote").textContent = spec.note || "";
+  }
+
+  function showCats(on) { $("catsCard").hidden = !on; }
+
+  /* ================= guided walkthrough ================= */
+
+  var CH = {
+    R: { name: "Region", v: [{ s: "Northerner", p: "northerners" }, { s: "Southerner", p: "southerners" }] },
+    C: { name: "Language", v: [{ s: "French speaker", p: "French speakers" }, { s: "Dutch speaker", p: "Dutch speakers" }] }
+  };
+  var T134 = [25, 25, 25, 25], T135 = [3, 57, 36, 4], T136 = [40, 10, 40, 10], T137 = [25, 35, 25, 15];
+
+  var STEPS = [
+    { title: "Attributes and identity categories", changes: ["pop"], look: ["pop"],
+      pop: { cells: T134, symbolic: true, t: null, title: "A hypothetical country", sub: "The chapter’s Table 13.2: two attributes, and the share of the population with each combination." },
+      cats: null,
+      body: [
+        "Why are some party systems divided mainly along ethnic lines, and others along class, religious, linguistic or regional ones? Kanchan Chandra and Cilanne Boulet start from the attributes individuals have, such as religion, language, class, gender and skin color, which make them eligible for membership in some identity category or social group.",
+        "They treat attributes as given and hard to change, but identity categories as socially constructed: whether people come to think of themselves as all workers, just male workers or just Black male workers depends on choices people make and the institutions they make them in. The chapter calls this a “thinly constructivist” approach.",
+        "The population card shows the chapter’s example. People are divided by the region their parents come from, North or South, and by their ancestral language, French or Dutch. The letters <span class='sym'>a</span> to <span class='sym'>d</span> are the shares of the population with each combination."
+      ] },
+    { title: "Nine potential identity categories", changes: ["cats"], look: ["cats"],
+      pop: { cells: T134, symbolic: true, t: null, title: "A hypothetical country", sub: "The chapter’s Table 13.2: two attributes, and the share of the population with each combination." },
+      cats: { symbolic: true, caption: "The chapter’s Table 13.3: every identity category that could be built from the two attributes." },
+      body: [
+        "From these two attributes, nine identity categories could be formed. Four are defined by one attribute (northerners, southerners, French speakers, Dutch speakers), four by both at once (French-speaking northerners and so on), and one takes in everyone.",
+        "These are latent identity categories: potential groups, not yet active ones. The question for the rest of the walkthrough is which of them gets activated, or politicized, so that parties compete along it."
+      ] },
+    { title: "Cross-cutting attributes", changes: ["pop", "cats"], look: ["pop", "cats"],
+      pop: { cells: T134, t: null, rel: true, title: "Cross-cutting attributes", sub: "The chapter’s Table 13.4." },
+      cats: { caption: "The nine categories, with their sizes." },
+      body: [
+        "Part of the answer lies in how the attributes are distributed. In the chapter’s Table 13.4, a quarter of the population falls into each combination. Region and language are uncorrelated: knowing that someone is a northerner tells you nothing about their language, because French speakers make up half of northerners and half of southerners. Attributes like these are cross-cutting.",
+        "Northerners, southerners, French speakers and Dutch speakers are then equally distinctive, each 50 percent of the population. Either cleavage, North against South or French against Dutch, is as likely to be politicized as the four-way division among the combinations."
+      ] },
+    { title: "Reinforcing attributes", changes: ["pop", "cats"], look: ["pop", "cats"],
+      pop: { cells: T135, t: null, rel: true, title: "Reinforcing attributes", sub: "The chapter’s Table 13.5." },
+      cats: { caption: "The nine categories, with their sizes." },
+      body: [
+        "Now the attributes are highly correlated. Knowing that someone’s family is from the North lets you predict, with a fair amount of confidence, that their ancestral language is Dutch: only 5 percent of northerners are French speakers, against 90 percent of southerners. Attributes like these are reinforcing.",
+        "With reinforcing attributes there are effectively fewer distinct combinations, and it seems plausible that the categories politicized will be French-speaking southerners and Dutch-speaking northerners. Belgium has a distribution much like this one: French-speaking Wallonia in the south and Dutch-speaking Flanders in the north."
+      ] },
+    { title: "Adding the electoral rules", changes: ["pop", "cats"], look: ["pop", "cats"],
+      pop: { cells: T136, t: 50, title: "Country A", sub: "The chapter’s Table 13.6, in a country where winning national office takes half the vote." },
+      cats: { t: 50, strike: true, fresh: { r1: 1, r2: 1, c1: 1, all: 1 }, caption: "Categories too small to win are struck out." },
+      body: [
+        "Divisions like these exist all over the world, and their salience rises and falls, so the distribution of attributes can’t be the whole story. The electoral rules from Chapter 12 are one more factor. The chapter imagines two countries, A and B, with the identical population on the population card. The only difference is that winning national office takes 50 percent of the vote in Country A and 60 percent in Country B.",
+        "Start with Country A. If you were a political entrepreneur who wanted national office, which identity category would you try to politicize? Begin by setting aside every category too small to reach 50 percent. Five go, and four remain: northerners, southerners, French speakers and everyone."
+      ] },
+    { title: "Minimal winning categories", changes: ["cats"], look: ["cats"],
+      pop: { cells: T136, t: 50, title: "Country A", sub: "The chapter’s Table 13.6, in a country where winning national office takes half the vote." },
+      cats: { t: 50, strike: true, mwc: true, fresh: { r1: 1, r2: 1, c1: 1, all: 1 }, caption: "Categories too small to win are struck out, and so are winning categories that are bigger than they need to be." },
+      body: [
+        "Recall the logic of building coalitions from Chapter 11. Think of each category as a coalition of the groups it contains: northerners are French-speaking northerners (40 percent) plus Dutch-speaking northerners (10 percent). A coalition is minimal winning if it reaches the threshold and every group in it is needed, so that losing any one leaves it short.",
+        "Northerners, southerners and French speakers are all minimal winning. Everyone is not: it could lose Dutch-speaking southerners, or any other single group, and still be well over 50 percent."
+      ] },
+    { title: "The least minimal winning coalition", changes: ["cats"], look: ["cats"],
+      pop: { cells: T136, t: 50, title: "Country A", sub: "The chapter’s Table 13.6, in a country where winning national office takes half the vote." },
+      cats: { t: 50, strike: true, mwc: true, least: true, fresh: { r1: 1, r2: 1 }, caption: "The least minimal winning coalitions are tagged." },
+      body: [
+        "A French-speaking coalition would win easily, with 80 percent of the vote. But it would have to split government resources and offices among 80 percent of the population, where a northern or a southern coalition wins with 50 percent and splits the same resources among half the people. With higher payoffs available in a regional coalition, French speakers would defect from a French-speaking one. Political entrepreneurs want the least minimal winning coalition, not just a minimal winning one.",
+        "Northerners and southerners tie at 50 percent. French-speaking northerners have strong incentives to join Dutch-speaking northerners, and French-speaking southerners to join Dutch-speaking southerners. Each election is close to a coin flip, won by whichever side is better at building ties with its Dutch speakers. Parties compete on cooperation across the language line, and in doing so they reinforce the regional division. The main politicized cleavage is regional, and the party system is made up of regional parties."
+      ] },
+    { title: "Country B: a 60 percent threshold", changes: ["pop", "cats"], look: ["pop", "cats"],
+      pop: { cells: T136, t: 60, title: "Country B", sub: "The same population, the chapter’s Table 13.6, in a country where winning national office takes 60 percent of the vote." },
+      cats: { t: 60, strike: true, mwc: true, least: true, fresh: { r1: 1, r2: 1, c1: 1 }, caption: "The same nine categories under a 60 percent threshold." },
+      body: [
+        "In Country B, northerners and southerners, at 50 percent each, can no longer win. French speakers, at 80 percent, are now the only minimal winning coalition, and so the least. A coalition of northern and southern French speakers can expect to win, and Dutch speakers become a permanent minority.",
+        "The main politicized cleavage, and the party system, is now linguistic. Nothing about the population changed between Country A, where cooperation across the language line is likely, and Country B, where Dutch speakers are likely to be shut out. Only the electoral threshold changed."
+      ] },
+    { title: "Countries C and D: same rule, different populations", changes: ["pop", "cats"], look: ["pop", "cats"],
+      pop: { cells: T137, t: 60, title: "Country D", sub: "The chapter’s Table 13.7, in a country where winning national office takes 60 percent of the vote." },
+      cats: { t: 60, strike: true, mwc: true, least: true, fresh: { r1: 1 }, caption: "The nine categories under a 60 percent threshold." },
+      body: [
+        "The chapter also turns the comparison around. Countries C and D both require 60 percent of the vote. Country C has the population of Table 13.6, so it is Country B over again, and its politicized cleavage is linguistic.",
+        "Country D has the population on the population card. Here French and Dutch speakers are 50 percent each and can’t win; northerners, at 60 percent, are the only minimal winning coalition. With the same electoral rule, the regional cleavage is politicized in Country D and the linguistic cleavage in Country C."
+      ] },
+    { title: "What the distribution alone can’t settle", changes: ["pop", "cats"], look: ["pop"],
+      pop: { cells: T136, t: null, rel: true, title: "Countries A, B and C", sub: "The chapter’s Table 13.6, before any electoral rule is applied." },
+      cats: { caption: "The nine categories, with their sizes." },
+      body: [
+        "Look again at the population shared by Countries A, B and C. French speakers make up 80 percent of northerners and 80 percent of southerners, so knowing someone’s region tells you nothing about their language. Like Table 13.4, these attributes are cross-cutting, even though the shares are uneven.",
+        "On its own, a cross-cutting distribution leaves several cleavages available. The electoral threshold is what picked one: the regional cleavage at 50 percent, the linguistic cleavage at 60 percent. That is why the practice tasks ask about the distribution first and the threshold second. The two steps can point in different directions, and the threshold decides."
+      ] },
+    { title: "Reinforcing attributes and a threshold", changes: ["pop", "cats"], look: ["cats"],
+      pop: { cells: T135, t: 50, rel: true, title: "Table 13.5 with a 50 percent threshold", sub: "The chapter applies no threshold to this table; this step does, to show that the two predictions agree." },
+      cats: { t: 50, strike: true, mwc: true, least: true, fresh: { r1c2: 1 }, caption: "The nine categories under a 50 percent threshold." },
+      body: [
+        "With reinforcing attributes, the two steps tend to agree. Apply a 50 percent threshold to the chapter’s Table 13.5, and Dutch-speaking northerners, at 57 percent, can win on their own. Northerners (60 percent) and Dutch speakers (61 percent) also reach the threshold, but neither is minimal: each could lose a small group and still win.",
+        "The category to politicize is defined by region and language together, which is what the chapter predicted for this population from the distribution alone: Dutch-speaking northerners on one side, and French-speaking southerners on the other."
+      ] },
+    { title: "Allies in Zambia, adversaries in Malawi", look: [],
+      pop: { cells: T135, t: 50, rel: true, title: "Table 13.5 with a 50 percent threshold", sub: "The chapter applies no threshold to this table; this step does, to show that the two predictions agree." },
+      cats: { t: 50, strike: true, mwc: true, least: true, caption: "The nine categories under a 50 percent threshold." },
+      body: [
+        "Daniel Posner’s study, in the chapter’s Box 13.3, shows the same logic with real groups. Chewas and Tumbukas live on both sides of the border between Zambia and Malawi, which was drawn with no attention to where ethnic groups lived. In surveys of villages along the border, the two groups were far more divided in Malawi: 61 percent said they wouldn’t vote for a presidential candidate from the other group, against 21 percent in Zambia.",
+        "Both countries used single-member district plurality, both were British colonies, and both had experienced one-party and multiparty rule. What differs is group size. In Malawi, Chewas are about 57 percent of the population and Tumbukas about 12 percent, large enough to be worth building parties around, and the two groups had parties of their own. In Zambia they are about 7 and 4 percent, too small to win anything alone, so entrepreneurs politicized a regional cleavage instead, with Chewas and Tumbukas together as easterners."
+      ] },
+    { title: "Latent and politicized cleavages", look: [],
+      pop: { cells: T135, t: 50, rel: true, title: "Table 13.5 with a 50 percent threshold", sub: "The chapter applies no threshold to this table; this step does, to show that the two predictions agree." },
+      cats: { t: 50, strike: true, mwc: true, least: true, caption: "The nine categories under a 50 percent threshold." },
+      body: [
+        "Each country has a set of latent cleavages, fixed by its historical distribution of attributes. Which of them become politicized depends on the electoral institutions it uses. The chapter’s Figure 13.4 draws this as a causal story: latent cleavages, filtered through electoral institutions, produce politicized cleavages.",
+        "It follows that the cleavages that are politicized, and so the types of parties a country has, can change if the distribution of attributes changes, if the electoral rules change, or both. Practice gives you ten countries to work through."
+      ] }
+  ];
+
+  var step = 0;
+  var dotsEl = $("dots");
+  STEPS.forEach(function () { var d = document.createElement("span"); d.className = "dot"; dotsEl.appendChild(d); });
+
+  function renderGuided(prev) {
+    var s = STEPS[step], p = s.pop;
+    renderPop({ L: CH, cells: p.cells, symbolic: p.symbolic, t: p.t, rel: p.rel, title: p.title, sub: p.sub });
+    showCats(!!s.cats);
+    if (s.cats) {
+      var c = s.cats;
+      renderCats({ L: CH, cells: p.cells, symbolic: !!c.symbolic, t: c.t == null ? null : c.t, strike: c.strike, mwc: c.mwc, least: c.least,
+                   fresh: c.fresh, caption: c.caption, note: "" });
+    }
+    $("stepLabel").textContent = "Step " + (step + 1) + " of " + STEPS.length;
+    $("stepTitle").textContent = s.title;
+    $("stepBody").innerHTML = s.body.map(function (x) { return "<p>" + x + "</p>"; }).join("");
+    lookButtons($("stepLook"), s.look);
+    $("prevBtn").disabled = step === 0;
+    $("nextBtn").textContent = step === STEPS.length - 1 ? "Go to practice" : "Next";
+    var dots = dotsEl.children;
+    for (var i = 0; i < dots.length; i++) dots[i].className = "dot" + (i === step ? " on" : "");
+    if (prev !== undefined && step > prev && s.changes) bring(s.changes[0]);
+  }
+  $("prevBtn").addEventListener("click", function () { if (step > 0) { var p = step; step--; renderGuided(p); } });
+  $("nextBtn").addEventListener("click", function () {
+    if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); }
+    else { selectMode("practice", true); window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
+  });
+
+  function listCats(L, ks) {
+    var names = ks.map(function (k) { return catPlural(L, k); });
+    if (names.length <= 1) return names.join("");
+    return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  }
+  /* ================= practice cases ================= */
+
+  var A = {
+    region1: { name: "Region", v: [{ s: "Islander", p: "islanders" }, { s: "Mainlander", p: "mainlanders" }] },
+    region2: { name: "Region", v: [{ s: "Highlander", p: "highlanders" }, { s: "Lowlander", p: "lowlanders" }] },
+    lang1: { name: "Language", v: [{ s: "German speaker", p: "German speakers" }, { s: "Italian speaker", p: "Italian speakers" }] },
+    lang2: { name: "Language", v: [{ s: "Spanish speaker", p: "Spanish speakers" }, { s: "Portuguese speaker", p: "Portuguese speakers" }] },
+    rel1: { name: "Religion", v: [{ s: "Catholic", p: "Catholics" }, { s: "Protestant", p: "Protestants" }] },
+    rel2: { name: "Religion", v: [{ s: "Muslim", p: "Muslims" }, { s: "Christian", p: "Christians" }] }
+  };
+  var ATTR_DESC = {
+    Region: "the part of the country a person’s family comes from",
+    Language: "the language a person’s family speaks",
+    Religion: "the faith a person’s family belongs to"
+  };
+
+  var GROUPS = [
+    { id: "g1", label: "Countries A and B", desc: "The same population under two different electoral thresholds. Work both and compare them." },
+    { id: "g2", label: "Countries C and D", desc: "The same electoral threshold and the same two attributes, with different populations. Work both and compare them." },
+    { id: "g3", label: "Countries E to G", desc: "" },
+    { id: "g4", label: "Countries H to J", desc: "" }
+  ];
+
+  var CASES = [
+    { id: "A", group: "g1", L: { R: A.region1, C: A.rel1 }, cells: [42, 14, 33, 11], t: 50,
+      note: "Islanders, at 56 percent, are the smallest category that can win. Catholics can win too, but a Catholic party would have to share office among three-quarters of the country. Compare Country B, where the same population votes under a 60 percent threshold." },
+    { id: "B", group: "g1", L: { R: A.region1, C: A.rel1 }, cells: [42, 14, 33, 11], t: 60,
+      note: "Nothing about the population changed from Country A. Raising the threshold to 60 percent leaves islanders short, Catholics become the only category that can win, and Protestants become a permanent minority. As in the chapter’s Countries A and B, the threshold alone moved the cleavage." },
+    { id: "C", group: "g2", L: { R: A.lang1, C: A.region2 }, cells: [45, 15, 20, 20], t: 55,
+      note: "German speakers (60 percent) and highlanders (65 percent) can both win on their own. German speakers do it with fewer people to share office among, so a German speakers’ party has to hold its highlanders and lowlanders together. Compare Country D." },
+    { id: "D", group: "g2", L: { R: A.lang1, C: A.region2 }, cells: [45, 20, 10, 25], t: 55,
+      note: "Same threshold as Country C, and again a language category and a regional category can both win. This time highlanders are the smaller of the two, so region is the cleavage to politicize. As in the chapter’s Countries C and D, the rule is the same and the populations differ." },
+    { id: "E", group: "g3", L: { R: A.rel2, C: A.region1 }, cells: [36, 24, 24, 16], t: 50,
+      note: "Muslims and islanders each make up 60 percent, so an entrepreneur gains nothing by choosing one over the other. As with the chapter’s Table 13.4, a cross-cutting distribution leaves more than one cleavage available, and here the threshold doesn’t narrow it down." },
+    { id: "F", group: "g3", L: { R: A.lang2, C: A.rel1 }, cells: [52, 6, 5, 37], t: 50,
+      note: "Spanish-speaking Catholics, at 52 percent, can win by themselves. Spanish speakers and Catholics also reach the threshold, but each brings along a small group the winners don’t need. When attributes reinforce each other this strongly, the politicized groups are defined by both at once, as in the chapter’s Table 13.5 and in Belgium." },
+    { id: "G", group: "g3", L: { R: A.region1, C: A.lang1 }, cells: [30, 10, 25, 35], t: 55,
+      note: "Mainlanders, at 60 percent, could win, but German speakers can win with fewer. Politicizing language means a German speakers’ party has to bring its islanders and mainlanders together, while Italian speakers are left as the minority." },
+    { id: "H", group: "g4", L: { R: A.region2, C: A.lang2 }, cells: [40, 15, 15, 30], t: 50,
+      note: "Highlanders and Spanish speakers are each 55 percent. The attributes are related, but not closely enough to make them the same group, and the two categories tie. Unlike Country E, the attributes here aren’t cross-cutting, and the numbers still don’t pick a side." },
+    { id: "I", group: "g4", L: { R: A.region1, C: A.rel2 }, cells: [62, 4, 3, 31], t: 60,
+      note: "Even with a 60 percent threshold, islanders who are Muslim (62 percent) can win alone. Islanders (66 percent) and Muslims (65 percent) both reach the threshold, but each carries a small group the winners don’t need. Christian mainlanders become the permanent minority." },
+    { id: "J", group: "g4", L: { R: A.lang2, C: A.region1 }, cells: [52, 13, 28, 7], t: 60,
+      note: "Spanish speakers (65 percent) and islanders (80 percent) both reach 60 percent, and both are minimal winning. Spanish speakers win with fewer people to share office among. An islanders’ coalition would win more comfortably, which is exactly what makes it the more expensive one." }
+  ];
+  CASES.forEach(function (cs) { cs.a = analysis(cs.cells, cs.t); cs.rel = relation(cs.cells); });
+
+  var REL_OPTS = [
+    { v: "cross", t: "Cross-cutting: knowing one attribute tells you nothing about the other" },
+    { v: "between", t: "In between: knowing one tells you something about the other, but not enough to predict it with confidence" },
+    { v: "reinforcing", t: "Reinforcing: knowing one lets you predict the other with a fair amount of confidence" }
+  ];
+
+  /* ================= practice flow ================= */
+
+  var cur = null, stage = 1, first = true, done = {}, pend = {}, pend3 = {};
+
+  function buildPicker() {
+    var host = $("casePicker");
+    host.innerHTML = "";
+    GROUPS.forEach(function (g) {
+      var wrap = document.createElement("div"); wrap.className = "chips-group";
+      var lab = document.createElement("span"); lab.className = "group-label"; lab.textContent = g.label; lab.id = "glab-" + g.id;
+      wrap.appendChild(lab);
+      if (g.desc) { var d = document.createElement("p"); d.className = "chips-desc"; d.textContent = g.desc; wrap.appendChild(d); }
+      var row = document.createElement("div"); row.className = "chips"; row.setAttribute("role", "group"); row.setAttribute("aria-labelledby", lab.id);
+      CASES.filter(function (c) { return c.group === g.id; }).forEach(function (c) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "chip";
+        b.setAttribute("aria-pressed", cur && cur.id === c.id ? "true" : "false");
+        b.appendChild(document.createTextNode("Country " + c.id));
+        if (done[c.id]) {
+          var m = document.createElement("span"); m.className = "done-mark"; m.textContent = "✓"; m.setAttribute("aria-hidden", "true");
+          b.appendChild(m); b.setAttribute("aria-label", "Country " + c.id + ", finished");
+        }
+        b.addEventListener("click", function () { selectCase(c.id, true); });
+        row.appendChild(b);
+      });
+      wrap.appendChild(row);
+      host.appendChild(wrap);
+    });
+  }
+
+  function note(id, kind, head, text) {
+    var el = $(id);
+    el.innerHTML = "";
+    var d = document.createElement("div");
+    d.className = "result-note " + kind;
+    if (head) {
+      var h = document.createElement("span"); h.className = "head";
+      h.textContent = (kind === "ok" ? "✓ " : kind === "no" ? "✕ " : "") + head + " ";
+      d.appendChild(h);
+    }
+    d.appendChild(document.createTextNode(text));
+    el.appendChild(d);
+    return d;
+  }
+  function addLooks(d, keys) {
+    var lk = document.createElement("div"); lk.className = "looks"; d.appendChild(lk);
+    lookButtons(lk, keys);
+  }
+  function lockOpts(id, chosenV) {
+    var bs = $(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute("aria-disabled", "true");
+      if (chosenV !== undefined && bs[i].getAttribute("data-v") === chosenV) bs[i].classList.add("chosen");
+    }
+  }
+  function lockMulti(id, rightSet) {
+    var bs = $(id).querySelectorAll(".opt");
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute("aria-disabled", "true");
+      bs[i].removeAttribute("aria-pressed");
+      if (rightSet[bs[i].getAttribute("data-v")]) bs[i].classList.add("chosen");
+    }
+  }
+  function opt(container, v, html) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "opt";
+    b.setAttribute("data-v", v); b.innerHTML = html;
+    $(container).appendChild(b);
+    return b;
+  }
+  function catHtml(cs, k) {
+    return catLabel(cs.L, k) + "<span class='sub'>" + cs.a.cats[k].size + "%</span>";
+  }
+
+  function caseView() {
+    var cs = cur, L = cs.L;
+    var sub = "People here think of who they are in terms of " + L.R.name.toLowerCase() + ", " + ATTR_DESC[L.R.name] +
+      ", and " + L.C.name.toLowerCase() + ", " + ATTR_DESC[L.C.name] + ".";
+    renderPop({ L: L, cells: cs.cells, t: cs.t, rel: stage > 1, title: "Country " + cs.id, sub: sub });
+    showCats(stage > 1);
+    if (stage > 1) {
+      renderCats({ L: L, cells: cs.cells, t: cs.t, strike: true, mwc: stage > 2, least: stage > 3,
+                   pending: stage === 2 ? pend : null,
+                   caption: "Categories too small to reach " + pct(cs.t) + " are struck out." + (stage > 2 ? " So are winning categories that are bigger than they need to be." : ""),
+                   note: "" });
+    }
+  }
+
+  function selectCase(id, moveReader) {
+    cur = CASES.filter(function (c) { return c.id === id; })[0];
+    stage = 1; first = true; pend = {}; pend3 = {};
+    ["o1", "o2", "o3", "o4", "f1", "f2", "f3", "f4"].forEach(function (x) { $(x).innerHTML = ""; });
+    ["t2", "t3", "t4"].forEach(function (x) { $(x).hidden = true; });
+    $("caseDone").hidden = true; $("nextCase").hidden = true;
+    $("check2").disabled = false; $("check3").disabled = false;
+    REL_OPTS.forEach(function (o) { opt("o1", o.v, o.t); });
+    buildPicker();
+    caseView();
+    if (moveReader) bring("pop");
+  }
+
+  /* task 1: cross-cutting or reinforcing */
+  $("o1").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (!b || stage !== 1) return;
+    var cs = cur, L = cs.L, v = b.getAttribute("data-v");
+    if (v !== cs.rel.kind) {
+      first = false;
+      var msg = "Work out what share of " + L.R.v[0].p + " are " + L.C.v[0].p + ", and what share of " + L.R.v[1].p + " are. " +
+        "If the two shares are the same, one attribute tells you nothing about the other. If nearly all " + L.R.v[0].p +
+        " share one value and nearly all " + L.R.v[1].p + " the other, one predicts the other.";
+      note("f1", "no", "Not that one.", msg + " Try again.");
+      say("Not that one. " + msg);
+      return;
+    }
+    lockOpts("o1", v);
+    var t = relText(L, cs.cells);
+    if (v === "cross") t += " The shares are the same, so knowing someone’s " + L.R.name.toLowerCase() + " tells you nothing about their " + L.C.name.toLowerCase() + ".";
+    else if (v === "reinforcing") t += " Knowing someone’s " + L.R.name.toLowerCase() + " lets you predict their " + L.C.name.toLowerCase() + " with a fair amount of confidence.";
+    else t += " The shares differ, but each " + L.R.name.toLowerCase() + " still has a sizable share of both.";
+    var d = note("f1", "ok", "Right.", t + " The identity categories card lists all nine categories, with those too small to win struck out.");
+    addLooks(d, ["cats"]);
+    say("Right. " + t);
+    stage = 2;
+    caseView();
+    renderMwcOptions();
+    $("t2").hidden = false;
+    bring("cats");
+  });
+
+  /* task 2: minimal winning coalitions (multi-select) */
+  function renderMwcOptions() {
+    var cs = cur;
+    $("o2").innerHTML = "";
+    CATS.forEach(function (ct) {
+      if (!cs.a.cats[ct.k].win) return;
+      var b = opt("o2", ct.k, catHtml(cs, ct.k));
+      b.setAttribute("aria-pressed", "false");
+    });
+  }
+  $("o2").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (!b || stage !== 2) return;
+    var k = b.getAttribute("data-v");
+    if (pend[k]) delete pend[k]; else pend[k] = 1;
+    b.setAttribute("aria-pressed", pend[k] ? "true" : "false");
+    caseView();
+  });
+  $("check2").addEventListener("click", function () {
+    if (stage !== 2) return;
+    var cs = cur, right = {}, nRight = 0, hits = 0, extras = 0;
+    cs.a.mwc.forEach(function (k) { right[k] = 1; nRight++; });
+    Object.keys(pend).forEach(function (k) { if (right[k]) hits++; else extras++; });
+    if (hits === nRight && extras === 0) {
+      var nonMin = CATS.filter(function (ct) { return cs.a.cats[ct.k].win && !cs.a.cats[ct.k].minimal; }).map(function (ct) { return ct.k; });
+      var t = cs.a.mwc.length === 1
+        ? catLabel(cs.L, cs.a.mwc[0]) + " is the only one: it reaches " + pct(cs.t) + ", and losing any group would leave it short."
+        : "Each of these reaches " + pct(cs.t) + ", and losing any one of its groups would leave it short.";
+      t += " " + nonMin.map(function (k) {
+        var info = cs.a.cats[k];
+        return catLabel(cs.L, k) + " could lose " + catPlural(cs.L, cellKey(info.spare)) + " and still win.";
+      }).join(" ");
+      lockMulti("o2", right);
+      var d = note("f2", "ok", "Right.", t);
+      addLooks(d, ["cats"]);
+      say("Right. " + t);
+      $("check2").disabled = true;
+      if (cs.a.mwc.length === 1) {
+        stage = 4;
+        caseView();
+        $("t3").hidden = false; $("o3").innerHTML = ""; $("h3").hidden = true; $("nav3").hidden = true;
+        note("f3", "info", "", "With only one minimal winning coalition, there is nothing to choose between: " + catPlural(cs.L, cs.a.mwc[0]) +
+          " are the least minimal winning coalition too, and the identity categories card now tags them.");
+        startTask4();
+      } else {
+        stage = 3;
+        caseView();
+        $("h3").hidden = false; $("nav3").hidden = false;
+        cs.a.mwc.forEach(function (k) { var o = opt("o3", k, catHtml(cs, k)); o.setAttribute("aria-pressed", "false"); });
+        $("t3").hidden = false;
+      }
+      bring("cats");
+      return;
+    }
+    first = false;
+    var msg;
+    if (hits === 0) msg = "None of those is minimal winning. For each category, ask whether it would still reach " + pct(cs.t) + " if any one of its groups left. If it would, the category is bigger than it needs to be.";
+    else if (extras > 0) msg = "At least one of your choices isn’t minimal winning: one of its groups could leave and the rest would still reach " + pct(cs.t) + ".";
+    else msg = "Those are all minimal winning, but there are more. Check each category that reaches the threshold.";
+    note("f2", "no", "Not quite.", msg + " Try again.");
+    say("Not quite. " + msg);
+  });
+  function cellKey(i) { return ["r1c1", "r1c2", "r2c1", "r2c2"][i]; }
+
+  /* task 3: least minimal winning (multi-select, to allow ties) */
+  $("o3").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (!b || stage !== 3) return;
+    var k = b.getAttribute("data-v");
+    if (pend3[k]) delete pend3[k]; else pend3[k] = 1;
+    b.setAttribute("aria-pressed", pend3[k] ? "true" : "false");
+  });
+  $("check3").addEventListener("click", function () {
+    if (stage !== 3) return;
+    var cs = cur, right = {}, nRight = 0, hits = 0, extras = 0;
+    cs.a.least.forEach(function (k) { right[k] = 1; nRight++; });
+    Object.keys(pend3).forEach(function (k) { if (right[k]) hits++; else extras++; });
+    if (hits === nRight && extras === 0) {
+      var s = cs.a.cats[cs.a.least[0]].size, t;
+      if (cs.a.least.length > 1) t = cap(listCats(cs.L, cs.a.least)) + " tie at " + pct(s) + ", smaller than any other minimal winning coalition. Either would win with the fewest people to share office among.";
+      else t = cap(catPlural(cs.L, cs.a.least[0])) + ", at " + pct(s) + ", are the least minimal winning coalition: they reach " + pct(cs.t) + " with fewer people to share office among than any other.";
+      lockMulti("o3", right);
+      note("f3", "ok", "Right.", t);
+      say("Right. " + t);
+      $("check3").disabled = true;
+      stage = 4;
+      caseView();
+      startTask4();
+      return;
+    }
+    first = false;
+    var msg;
+    if (hits === 0) msg = "An entrepreneur wants the least minimal winning coalition: the one that reaches the threshold with the fewest people, since a bigger coalition means sharing office among more of them.";
+    else if (extras > 0) msg = "At least one of your choices is bigger than it needs to be. Another minimal winning coalition reaches " + pct(cs.t) + " with fewer people.";
+    else msg = "Another minimal winning coalition is just as small. When two tie, choose both.";
+    note("f3", "no", "Not quite.", msg + " Try again.");
+    say("Not quite. " + msg);
+  });
+
+  /* task 4: which cleavage */
+  function startTask4() {
+    var cs = cur;
+    $("o4").innerHTML = "";
+    cleavOptions(cs.L).forEach(function (o) { opt("o4", o.v, o.t); });
+    $("t4").hidden = false;
+  }
+  $("o4").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (!b || stage !== 4) return;
+    var cs = cur, L = cs.L, v = b.getAttribute("data-v"), ans = cs.a.cleav;
+    if (v !== ans) {
+      first = false;
+      var msg;
+      if (v === "either") msg = "Only one category is the least minimal winning coalition here, so the numbers do pick a side.";
+      else if (ans === "either") msg = "The categories tied for least minimal winning aren’t defined by the same attribute.";
+      else if (v === "RC") msg = "The least minimal winning coalition is defined by a single attribute, not by both at once.";
+      else if (ans === "RC") msg = "The least minimal winning coalition is defined by both attributes at once: it is one of the four combinations.";
+      else msg = "The least minimal winning coalition isn’t a " + (v === "R" ? L.R.name : L.C.name).toLowerCase() + " category. Look at which category the identity categories card tags.";
+      note("f4", "no", "Not that one.", msg + " Try again.");
+      say("Not that one. " + msg);
+      return;
+    }
+    lockOpts("o4", v);
+    var t;
+    if (v === "R" || v === "C") {
+      var att = v === "R" ? L.R : L.C;
+      t = "The category to politicize is defined by " + att.name.toLowerCase() + ", so parties are likely to compete as " + att.v[0].p + " against " + att.v[1].p + ".";
+    } else if (v === "RC") t = "The winning group is defined by " + L.R.name.toLowerCase() + " and " + L.C.name.toLowerCase() + " together, so the politicized groups are combinations of the two.";
+    else t = "A " + L.R.name.toLowerCase() + " category and a " + L.C.name.toLowerCase() + " category are equally good choices, so either cleavage could be politicized.";
+    note("f4", "ok", "Right.", t);
+    say("Right. " + t);
+    stage = 5;
+    finishCase();
+  });
+
+  function caseOrder() {
+    var order = [];
+    GROUPS.forEach(function (g) { CASES.forEach(function (c) { if (c.group === g.id) order.push(c.id); }); });
+    return order;
+  }
+  function finishCase() {
+    var cs = cur, order = caseOrder(), last = order.indexOf(cs.id) === order.length - 1;
+    if (first) done[cs.id] = true;
+    buildPicker();
+    var box = $("caseDone");
+    box.innerHTML = "<p>" + cs.note + "</p>" + (first ? "" : "<p>Finish a country with every answer right the first time to mark it with a check.</p>") +
+      (last ? "<p>Country " + cs.id + " is the last country. A check mark on a country’s button means you got every answer right the first time; choose any country to work it again.</p>" : "");
+    box.hidden = false;
+    $("nextCase").hidden = last;
+  }
+
+  $("nextCase").addEventListener("click", function () {
+    var order = caseOrder(), i = order.indexOf(cur.id);
+    if (i < 0 || i >= order.length - 1) return;
+    selectCase(order[i + 1], true);
+    $("practiceTitle").focus({ preventScroll: true });
+    say("Country " + cur.id + ".");
+  });
+
+  /* ================= modes ================= */
+
+  var mode = "guided";
+  var TABS = ["guided", "practice"];
+  function selectMode(m, focusTab) {
+    mode = m;
+    TABS.forEach(function (t) {
+      var tab = $("tab-" + t);
+      tab.setAttribute("aria-selected", t === m ? "true" : "false");
+      tab.tabIndex = t === m ? 0 : -1;
+      $(t + "Panel").hidden = t !== m;
+    });
+    movedAway = false; backBtn.hidden = true;
+    if (m === "guided") renderGuided();
+    else { if (!cur) selectCase("A", false); else { buildPicker(); caseView(); } }
+    if (focusTab) $("tab-" + m).focus();
+    say(m === "guided" ? "Guided walkthrough, step " + (step + 1) + "." : "Practice. Country " + cur.id + ".");
+  }
+  TABS.forEach(function (t) { $("tab-" + t).addEventListener("click", function () { selectMode(t, false); }); });
+  $("tabs").addEventListener("keydown", function (e) {
+    var i = TABS.indexOf(mode), next = null;
+    if (e.key === "ArrowRight") next = TABS[(i + 1) % TABS.length];
+    else if (e.key === "ArrowLeft") next = TABS[(i + TABS.length - 1) % TABS.length];
+    else if (e.key === "Home") next = TABS[0];
+    else if (e.key === "End") next = TABS[TABS.length - 1];
+    if (next) { e.preventDefault(); selectMode(next, true); }
+  });
+
+  /* ================= theme ================= */
+
+  var themeBtn = $("themeToggle");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.textContent = t === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
+  applyTheme(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  themeBtn.addEventListener("click", function () {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  /* test hook for automated checks; harmless in use */
+  window.__clv = { CASES: CASES, analysis: analysis, relation: relation, STEPS: STEPS };
+
+  renderGuided();
+})();
+</script>
+</body>
+</html>

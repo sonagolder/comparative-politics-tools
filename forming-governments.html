@@ -205,6 +205,7 @@
   }
   .btn:disabled { color: var(--deemph); cursor: default; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.primary:disabled { background: var(--panel); border-color: var(--border); color: var(--deemph); font-weight: 400; }
 
   .chips-group { margin-bottom: 16px; }
   .chips-desc { margin: 0 0 8px 0; font-size: 0.85rem; color: var(--text-2); }
@@ -824,13 +825,13 @@
     $("stepBody").innerHTML = s.body.map(function (p) { return "<p>" + p + "</p>"; }).join("");
     lookButtons($("stepLook"), s.look);
     $("prevBtn").disabled = step === 0;
-    $("nextBtn").disabled = step === STEPS.length - 1;
+    $("nextBtn").textContent = step === STEPS.length - 1 ? "Go to practice" : "Next";
     var dots = dotsEl.children;
     for (var i = 0; i < dots.length; i++) dots[i].className = "dot" + (i === step ? " on" : "");
     if (prev !== undefined && step > prev && s.changes) bring(s.changes[0]);
   }
   $("prevBtn").addEventListener("click", function () { if (step > 0) { var p = step; step--; renderGuided(p); } });
-  $("nextBtn").addEventListener("click", function () { if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); } });
+  $("nextBtn").addEventListener("click", function () { if (step < STEPS.length - 1) { var p = step; step++; renderGuided(p); } else selectMode("practice", true); });
 
   /* ================= practice cases ================= */
 
@@ -1375,22 +1376,27 @@
     finishCase();
   });
 
+  function caseOrder() {
+    var order = [];
+    GROUPS.forEach(function (g) { CASES.forEach(function (c) { if (c.group === g.id) order.push(c.id); }); });
+    return order;
+  }
   function finishCase() {
-    var cs = cur;
+    var cs = cur, order = caseOrder(), last = order.indexOf(cs.id) === order.length - 1;
     stage = Math.max(stage, 8);
     if (first) done[cs.id] = true;
     buildPicker();
     var box = $("caseDone");
-    box.innerHTML = "<p>" + cs.note + "</p>" + (first ? "" : "<p>Finish a country with every answer right the first time to mark it with a check.</p>");
+    box.innerHTML = "<p>" + cs.note + "</p>" + (first ? "" : "<p>Finish a country with every answer right the first time to mark it with a check.</p>") +
+      (last ? "<p>Country " + cs.id + " is the last country. A check mark on a country’s button means you got every answer right the first time; choose any country to work it again.</p>" : "");
     box.hidden = false;
-    $("nextCase").hidden = false;
+    $("nextCase").hidden = last;
   }
 
   $("nextCase").addEventListener("click", function () {
-    var order = [];
-    GROUPS.forEach(function (g) { CASES.forEach(function (c) { if (c.group === g.id) order.push(c.id); }); });
-    var i = order.indexOf(cur.id);
-    selectCase(order[(i + 1) % order.length], true);
+    var order = caseOrder(), i = order.indexOf(cur.id);
+    if (i < 0 || i >= order.length - 1) return;
+    selectCase(order[i + 1], true);
     $("practiceTitle").focus({ preventScroll: true });
     say("Country " + cur.id + ".");
   });

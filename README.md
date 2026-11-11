@@ -28,6 +28,7 @@ Start at the contents page, `index.html`, which lists every tool by chapter. The
 | 11 | Delegation and the principal-agent game | `principal-agent-game.html` |
 | 12 | The Hare quota and largest remainders | `hare-quota-largest-remainders.html` |
 | 12 | The d'Hondt divisor method | `dhondt-divisor-method.html` |
+| 13 | Which cleavage gets politicized? | `politicized-cleavages.html` |
 
 ## For instructors
 
